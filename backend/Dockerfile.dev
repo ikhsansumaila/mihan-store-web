@@ -1,0 +1,10 @@
+FROM golang:1.21-alpine
+
+WORKDIR /app
+
+# Install air for hot reload (older version compatible with go 1.21)
+RUN go install github.com/cosmtrek/air@v1.49.0
+
+EXPOSE 8080
+
+CMD ["air", "-c", ".air.toml"]
