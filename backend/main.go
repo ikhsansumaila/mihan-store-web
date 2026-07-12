@@ -15,7 +15,7 @@ import (
 var products = []Product{
 	{ID: 1, Name: "Kerupuk Finna Udang", Category: "kerupuk", Price: 45000, Description: "Kerupuk udang asli dengan rasa gurih", Image: "kerupuk1.jpg"},
 	{ID: 2, Name: "Kerupuk Finna Bawang", Category: "kerupuk", Price: 55000, Description: "Kerupuk bawang renyah", Image: "kerupuk2.jpg"},
-	{ID: 3, Name: "Kerupuk Ketela", Category: "kerupuk", Price: 35000, Description: "Kerupuk ketela tradisional", Image: "kerupuk3.jpg"},
+	{ID: 3, Name: "Kerupuk Gondang", Category: "kerupuk", Price: 35000, Description: "Kerupuk ketela tradisional", Image: "kerupuk3.jpg"},
 	{ID: 4, Name: "Kerupuk Aci", Category: "kerupuk", Price: 25000, Description: "Kerupuk aci warna-warni", Image: "kerupuk4.jpg"},
 	{ID: 5, Name: "Tepung Terigu Protein Tinggi", Category: "tepung", Price: 65000, Description: "Tepung terigu 1kg protein tinggi", Image: "tepung1.jpg"},
 	{ID: 6, Name: "Tepung Maizena", Category: "tepung", Price: 28000, Description: "Tepung maizena 500gr", Image: "tepung2.jpg"},

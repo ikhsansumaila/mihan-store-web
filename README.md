@@ -122,7 +122,27 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## Development
+## Development with Hot Reload (Recommended)
+
+To develop with live hot-reloading for both backend and frontend (without needing to manually rebuild containers on every change):
+
+1. **Start the development environment:**
+   ```bash
+   cd mihanstore
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+2. **How it works:**
+   - **Backend (Go):** Uses `air` for automatic recompilation on file changes (`main.go`).
+   - **Frontend (React):** Runs standard `react-scripts start` (Webpack dev server) with live browser reloading.
+   - Any changes to `/backend` or `/frontend` source code will immediately reflect in the running containers via volume mounts.
+
+3. **Stop the development environment:**
+   ```bash
+   docker compose -f docker-compose.dev.yml down
+   ```
+
+## Local Development (Without Docker)
 
 ### Frontend
 ```bash
