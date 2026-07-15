@@ -13,6 +13,7 @@ services:
       - ./backend:/app
     networks:
       - mihanstore-net
+      - nginx-proxy-manager-network
 
   frontend:
     build:
@@ -32,7 +33,10 @@ services:
       - /app/node_modules
     networks:
       - mihanstore-net
+      - nginx-proxy-manager-network
 
 networks:
   mihanstore-net:
     driver: bridge
+  nginx-proxy-manager-network:
+    external: true

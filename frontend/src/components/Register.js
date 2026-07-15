@@ -40,46 +40,65 @@ const Register = ({ onRegisterSuccess }) => {
   };
 
   return (
-    <div className="auth-container">
-      <h2 className="auth-title">Daftar</h2>
-      {error && <div className="alert alert-error">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label">Nama Lengkap</label>
-          <input
-            type="text"
-            className="form-input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+    <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-4 py-12 bg-gray-50">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Daftar</h2>
+
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap</label>
+            <input
+              type="text"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+            <input
+              type="email"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+            <input
+              type="password"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-purple-700 text-white py-3 rounded-lg font-semibold hover:bg-purple-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+            disabled={loading}
+          >
+            {loading ? 'Sedang mendaftar...' : 'Daftar'}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-gray-600">
+          Sudah punya akun?{' '}
+          <Link to="/login" className="font-semibold text-purple-700 hover:text-purple-900">
+            Login di sini
+          </Link>
         </div>
-        <div className="form-group">
-          <label className="form-label">Email</label>
-          <input
-            type="email"
-            className="form-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Password</label>
-          <input
-            type="password"
-            className="form-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? 'Sedang mendaftar...' : 'Daftar'}
-        </button>
-      </form>
-      <div className="auth-link">
-        Sudah punya akun? <Link to="/login">Login di sini</Link>
       </div>
     </div>
   );
