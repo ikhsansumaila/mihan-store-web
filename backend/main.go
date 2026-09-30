@@ -56,9 +56,10 @@ type User struct {
 }
 
 type AuthRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	Name           string `json:"name"`
+	TurnstileToken string `json:"turnstileToken"`
 }
 
 type AuthResponse struct {
@@ -131,6 +132,44 @@ func searchProducts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+// Struct untuk memverifikasi Turnstile ke Cloudflare
+type TurnstileResponse struct {
+	Success     bool     `json:"success"`
+	ChallengeTS string   `json:"challenge_ts"`
+	Hostname    string   `json:"hostname"`
+	ErrorCodes  []string `json:"error-codes"`
+}
+
+// Fungsi helper verifikasi turnstile
+func verifyTurnstile(token string) bool {
+	secretKey := os.Getenv("TURNSTILE_SECRET_KEY")
+	if secretKey == "" {
+		// Jika secret key tidak di-set di env, bypass demi kelancaran dev (opsional, tapi disarankan)
+		fmt.Println("⚠️ TURNSTILE_SECRET_KEY not set. Bypassing Turnstile verification.")
+		return true
+	}
+
+	apiURL := "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+	resp, err := http.Post(
+		apiURL,
+		"application/x-www-form-urlencoded",
+		strings.NewReader(fmt.Sprintf("secret=%s&response=%s", secretKey, token)),
+	)
+	if err != nil {
+		fmt.Printf("Error verifying Turnstile: %v\n", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	var result TurnstileResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("Error decoding Turnstile response: %v\n", err)
+		return false
+	}
+
+	return result.Success
+}
+
 func register(w http.ResponseWriter, r *http.Request) {
 	var req AuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -144,6 +183,14 @@ func register(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Email, password, dan nama harus diisi"})
+		return
+	}
+
+	// Verifikasi Turnstile
+	if !verifyTurnstile(req.TurnstileToken) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Verifikasi keamanan gagal, coba lagi."})
 		return
 	}
 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 const API_BASE_URL = '/api';
 
@@ -11,10 +12,18 @@ const Register = ({ onRegisterSuccess }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const turnstileRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!turnstileToken) {
+      setError('Harap selesaikan verifikasi keamanan');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -22,6 +31,7 @@ const Register = ({ onRegisterSuccess }) => {
         email,
         password,
         name,
+        turnstileToken,
       });
 
       if (response.data.success) {
@@ -31,9 +41,11 @@ const Register = ({ onRegisterSuccess }) => {
         navigate('/');
       } else {
         setError(response.data.message || 'Registrasi gagal');
+        if (turnstileRef.current) turnstileRef.current.reset();
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Terjadi kesalahan saat registrasi');
+      if (turnstileRef.current) turnstileRef.current.reset();
     } finally {
       setLoading(false);
     }
@@ -81,6 +93,16 @@ const Register = ({ onRegisterSuccess }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="flex justify-center my-4">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.REACT_APP_TURNSTILE_SITE_KEY}
+              onSuccess={(token) => setTurnstileToken(token)}
+              onError={() => setError('Verifikasi keamanan gagal')}
+              onExpire={() => setTurnstileToken(null)}
             />
           </div>
 

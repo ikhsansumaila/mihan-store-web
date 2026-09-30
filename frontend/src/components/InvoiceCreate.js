@@ -237,7 +237,11 @@ const InvoiceCreate = () => {
       text += `   ${item.qty} x ${formatCurrency(item.price)} = ${formatCurrency(item.total)}\n`;
     });
 
-    text += `\n*TOTAL:* ${formatCurrency(calculateTotal())}\n\n`;
+    text += `\n*TOTAL:* ${formatCurrency(calculateTotal())}\n`;
+    text += `\nPembayaran Ke Rekening:`;
+    text += `\nBank BCA`;
+    text += `\n3452271335`;
+    text += `\nA.n: Qomariah Akmala\n\n`;
     text += `Terima kasih telah berbelanja di MihanStore!`;
 
     const encodedText = encodeURIComponent(text);

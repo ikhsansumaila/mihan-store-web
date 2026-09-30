@@ -9,6 +9,7 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
@@ -25,6 +26,7 @@ services:
       - backend
     environment:
       - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY:-}
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
