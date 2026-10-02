@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { generateInvoicePdf, formatCurrency as fmtIDR } from '../invoicePdf';
 import { useState } from 'react';
 
 const InvoiceCreate = () => {
@@ -12,13 +12,7 @@ const InvoiceCreate = () => {
   const [price, setPrice] = useState('');
 
   // Format currency ke Rupiah
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
+  const formatCurrency = fmtIDR;
 
   // Hitung total
   const calculateTotal = () => {
@@ -53,171 +47,13 @@ const InvoiceCreate = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // Generate PDF menggunakan jsPDF (Frontend-side)
+  // Generate PDF menggunakan jsPDF (Frontend-side), generator bersama di src/invoicePdf.js
   const previewPDF = () => {
     if (!customerName || items.length === 0) {
       alert('Mohon isi nama customer dan minimal masukkan 1 item');
       return;
     }
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    const darkGray = '#404040';
-    const orangeColor = '#F1A038';
-
-    // Helper: Draw Orange Line
-    const drawLine = (y) => {
-      doc.setDrawColor(orangeColor);
-      doc.setLineWidth(0.5);
-      doc.line(10, y, 200, y);
-    };
-
-    // Fungsi utama render PDF
-    const generate = (logoImgData, lunasImgData) => {
-      // === HEADER ===
-      if (logoImgData) {
-        // Hitung aspek rasio logo MihanStore agar tidak gepeng
-        const targetWidth = 35; // Lebar logo di PDF (mm)
-        // Rumus: (Tinggi Asli / Lebar Asli) * Lebar Target
-        const proportionalHeight = (logoImgData.naturalHeight / logoImgData.naturalWidth) * targetWidth;
-
-        doc.addImage(logoImgData, 'PNG', 15, 12, targetWidth, proportionalHeight);
-      }
-      const adjustHeight = 5
-
-      doc.setFontSize(28);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(darkGray);
-      doc.text("I N V O I C E", 105, 25 + adjustHeight, { align: 'center' });
-
-      drawLine(42 + adjustHeight);
-
-      // === BILLING INFO ===
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text("INVOICE TO", 15, 50 + adjustHeight);  // Ubah dari 45 jadi 50 (tambah jarak 5mm)
-      doc.text(`: ${customerName.toUpperCase()}`, 50, 50 + adjustHeight);
-
-      const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-      doc.text("DATE", 15, 57 + adjustHeight);  // Ubah dari 52 jadi 57
-      doc.text(`: ${dateStr.toUpperCase()}`, 50, 57 + adjustHeight);
-
-      // === TABLE HEADER ===
-      doc.setFillColor(orangeColor); // Orange
-      doc.rect(10, 63 + adjustHeight, 190, 10, 'F');
-
-      doc.setTextColor('#FFFFFF');
-      doc.setFontSize(11);
-      doc.text("NAMA PRODUK", 15, 70 + adjustHeight);
-      doc.text("JUMLAH", 100, 70 + adjustHeight, { align: 'center' });
-      doc.text("HARGA", 140, 70 + adjustHeight, { align: 'center' });
-      doc.text("TOTAL", 195, 70 + adjustHeight, { align: 'right' });
-
-      // === TABLE ITEMS ===
-      doc.setTextColor(darkGray);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-
-      let currentY = 80 + adjustHeight;
-      items.forEach((item) => {
-        // Check page break
-        if (currentY > 230) {
-          doc.addPage();
-          currentY = 20;
-        }
-
-        // text can be long, so split if necessary
-        const splitName = doc.splitTextToSize(item.name.toUpperCase(), 70);
-        doc.text(splitName, 15, currentY);
-
-        doc.text(`${item.qty} PCS`, 100, currentY, { align: 'center' });
-        doc.text(formatCurrency(item.price), 140, currentY, { align: 'center' });
-        doc.text(formatCurrency(item.total), 195, currentY, { align: 'right' });
-
-        currentY += (splitName.length * 5) + 3;
-      });
-
-      currentY += 5;
-      drawLine(currentY);
-
-      // === TOTAL ===
-      currentY += 8;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text("TOTAL", 140, currentY, { align: 'center' });
-      doc.text(formatCurrency(calculateTotal()), 195, currentY, { align: 'right' });
-
-      currentY += 5;
-      drawLine(currentY);
-
-      // === PAYMENT INFO ===
-      currentY += 15;
-      doc.setFontSize(11);
-      doc.text("PEMBAYARAN KE:", 15, currentY);
-      currentY += 7;
-      doc.text("BCA", 15, currentY);
-      currentY += 6;
-      doc.text("3452271335", 15, currentY);
-      currentY += 6;
-      doc.text("QOMARIAH AKMALA", 15, currentY);
-
-      // === LUNAS STAMP ===
-      if (isLunas) {
-        if (lunasImgData) {
-          // Hitung aspek rasio agar tidak gepeng
-          const targetWidthLunas = 45;
-          const proportionalHeightLunas = (lunasImgData.naturalHeight / lunasImgData.naturalWidth) * targetWidthLunas;
-
-          doc.addImage(lunasImgData, 'PNG', 150, currentY - 25, targetWidthLunas, proportionalHeightLunas);
-        } else {
-          doc.setTextColor(220, 53, 69);
-          doc.setFontSize(28);
-          doc.text("LUNAS", 195, currentY - 5, { align: 'right', angle: 10 });
-        }
-      }
-
-      // === FOOTER ===
-      const pageHeight = doc.internal.pageSize.height;
-
-      doc.setFillColor(orangeColor);
-      doc.rect(0, pageHeight - 24, 210, 24, 'F');
-
-      doc.setTextColor('#000000');
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text("PT. MIHAN JAYA BERKAH", 105, pageHeight - 14, { align: 'center' });
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text("Jl. Masjid Raudhatul Jannah, Sudimara Pinang, Pinang, Tangerang", 105, pageHeight - 8, { align: 'center' });
-
-      // Output PDF
-      const pdfUrl = doc.output('bloburl');
-      window.open(pdfUrl, '_blank');
-    };
-
-    // Helper loading image
-    const loadImage = (url) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null); // Jika error, return null
-        img.src = url;
-      });
-    };
-
-    // Load both images sequentially
-    Promise.all([
-      loadImage('/mihan-store-logo.png'),
-      isLunas ? loadImage('/lunas-logo.png') : Promise.resolve(null)
-    ]).then(([logo, lunas]) => {
-      generate(logo, lunas);
-    });
+    generateInvoicePdf({ customerName, items, isLunas });
   };
 
   // Kirim WhatsApp

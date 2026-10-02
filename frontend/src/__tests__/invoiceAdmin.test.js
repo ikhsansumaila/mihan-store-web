@@ -93,9 +93,11 @@ test('/admin/invoice merender form invoice di dalam layout admin dengan menu Inv
   const tabs = [...container.querySelectorAll('main nav a')];
   expect(tabs.map((a) => a.textContent.trim())).toEqual([
     'Ringkasan',
+    'Pesanan',
     'Produk',
     'Kategori',
     'Invoice',
+    'Pengaturan Toko',
     'Log aktivitas',
   ]);
   const inv = tabs.find((a) => a.textContent.trim() === 'Invoice');

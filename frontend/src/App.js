@@ -1,18 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Login from './components/Login';
 import Register from './components/Register';
 import CompleteProfile from './components/CompleteProfile';
 import { PrivacyPolicy, TermsOfService } from './components/Legal';
 import AdminApp from './admin/AdminApp';
-import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession } from './auth';
+import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession, setReturnTo, errorMessage } from './auth';
+import { CartProvider, useCart } from './shop/CartContext';
+import { addCartItem, isUnauthorized } from './shop/api';
+import Cart from './shop/Cart';
+import Checkout from './shop/Checkout';
+import { MyOrders, OrderDetail } from './shop/Orders';
 
 const API_BASE_URL = '/api';
 
-const ProductCard = ({ product }) => {
+// Tombol "Tambah ke keranjang": belum login -> ke halaman login lalu kembali ke toko.
+const AddToCartButton = ({ product, user }) => {
+  const navigate = useNavigate();
+  const { setCart, onUnauthorized } = useCart();
+  const [state, setState] = useState('idle'); // idle | busy | done | error
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    if (state !== 'done' && state !== 'error') return undefined;
+    const t = setTimeout(() => setState('idle'), 2500);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  const add = async () => {
+    if (!user) {
+      setReturnTo('/');
+      navigate('/login');
+      return;
+    }
+    setState('busy');
+    try {
+      const c = await addCartItem(product.id, 1);
+      if (c && Array.isArray(c.items)) setCart(c);
+      setState('done');
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        onUnauthorized?.();
+        return;
+      }
+      setMsg(errorMessage(err, 'Gagal menambah ke keranjang'));
+      setState('error');
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer">
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={add}
+        disabled={state === 'busy'}
+        className={`w-full py-2 rounded-lg font-semibold transition disabled:opacity-60 ${
+          state === 'done' ? 'bg-green-600 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+        }`}
+      >
+        {state === 'busy' ? 'Menambahkan...' : state === 'done' ? 'Ditambahkan ✓' : 'Tambah ke keranjang'}
+      </button>
+      {state === 'error' && (
+        <p role="alert" className="text-xs text-red-600 mt-1">
+          {msg}
+        </p>
+      )}
+      <span className="sr-only" aria-live="polite">
+        {state === 'done' ? `${product.name} ditambahkan ke keranjang` : ''}
+      </span>
+    </div>
+  );
+};
+
+const ProductCard = ({ product, user }) => {
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col">
       <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-red-500 rounded-lg flex items-center justify-center text-5xl mb-4">
         🖼️
       </div>
@@ -23,12 +86,13 @@ const ProductCard = ({ product }) => {
       <p className="text-2xl font-bold text-purple-700 mt-2">
         Rp {product.price?.toLocaleString('id-ID')}
       </p>
-      <p className="text-sm text-gray-600 mt-2">{product.description}</p>
+      <p className="text-sm text-gray-600 mt-2 flex-1">{product.description}</p>
+      <AddToCartButton product={product} user={user} />
     </div>
   );
 };
 
-const Home = () => {
+const Home = ({ user }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -118,7 +182,7 @@ const Home = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
           {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} user={user} />
           ))}
         </div>
       )}
@@ -140,13 +204,10 @@ export const LegacyInvoiceRedirect = () => {
 };
 
 const App = () => {
-  const [user, setUser] = useState(null);
+  // Dibaca langsung saat render pertama agar halaman yang wajib login tidak salah mengalihkan.
+  const [user, setUser] = useState(() => getStoredUser());
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
     // Periksa sesi ke server (token dikirim lewat header Authorization).
     verifySession().then(({ valid, user: fresh }) => {
       if (valid === true && fresh) {
@@ -166,7 +227,59 @@ const App = () => {
   );
 };
 
+// Halaman yang wajib login: belum login -> /login, lalu kembali ke halaman ini.
+const RequireLogin = ({ user, children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (!user) {
+      setReturnTo(location.pathname + location.search);
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate, location.pathname, location.search]);
+  return user ? children : null;
+};
+
+const CartIcon = () => {
+  const { count } = useCart();
+  return (
+    <Link to="/keranjang" className="relative inline-flex items-center hover:opacity-80 transition" aria-label={`Keranjang (${count} item)`}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7" aria-hidden="true">
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+      </svg>
+      {count > 0 && (
+        <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-yellow-400 text-purple-900 text-xs font-bold flex items-center justify-center">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
+  );
+};
+
 const AppContent = ({ user, setUser }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locRef = useRef(location);
+  locRef.current = location;
+
+  // Sesi kedaluwarsa saat memanggil API keranjang/pesanan.
+  const handleUnauthorized = useCallback(() => {
+    clearSession();
+    setUser(null);
+    setReturnTo(locRef.current.pathname + locRef.current.search);
+    navigate('/login');
+  }, [setUser, navigate]);
+
+  return (
+    <CartProvider user={user} onUnauthorized={handleUnauthorized}>
+      <Shell user={user} setUser={setUser} />
+    </CartProvider>
+  );
+};
+
+const Shell = ({ user, setUser }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -201,6 +314,12 @@ const AppContent = ({ user, setUser }) => {
                 Admin
               </a>
             )}
+            {user && (
+              <Link to="/pesanan" className="hover:opacity-80 transition font-medium">
+                Pesanan Saya
+              </Link>
+            )}
+            {user && <CartIcon />}
             {user ? (
               <>
                 <span className="font-medium">
@@ -233,7 +352,11 @@ const AppContent = ({ user, setUser }) => {
 
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home user={user} />} />
+          <Route path="/keranjang" element={<RequireLogin user={user}><Cart /></RequireLogin>} />
+          <Route path="/checkout" element={<RequireLogin user={user}><Checkout user={user} /></RequireLogin>} />
+          <Route path="/pesanan" element={<RequireLogin user={user}><MyOrders /></RequireLogin>} />
+          <Route path="/pesanan/:orderNo" element={<RequireLogin user={user}><OrderDetail user={user} /></RequireLogin>} />
           <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/register" element={<Register onRegisterSuccess={handleLoginSuccess} />} />
           {/* Rute lama: dialihkan penuh ke area admin (dijaga Cloudflare Access). */}

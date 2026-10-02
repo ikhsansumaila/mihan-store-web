@@ -65,3 +65,31 @@ export const errorMessage = (err, fallback) => {
   if (!err.response) return 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
   return fallback;
 };
+
+// Halaman tujuan setelah login (mis. kembali ke toko/keranjang). Hanya path internal
+// (diawali "/" tunggal), bukan /admin (admin selalu lewat muat ulang penuh).
+const RETURN_KEY = 'returnTo';
+
+export const setReturnTo = (path) => {
+  try {
+    sessionStorage.setItem(RETURN_KEY, path || '/');
+  } catch {
+    // abaikan
+  }
+};
+
+export const safeReturnPath = (p) =>
+  typeof p === 'string' && p.startsWith('/') && !p.startsWith('//') && !p.startsWith('/\\') && !p.startsWith('/admin')
+    ? p
+    : '/';
+
+export const takeReturnTo = () => {
+  let p = null;
+  try {
+    p = sessionStorage.getItem(RETURN_KEY);
+    sessionStorage.removeItem(RETURN_KEY);
+  } catch {
+    // abaikan
+  }
+  return safeReturnPath(p);
+};

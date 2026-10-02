@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage } from '../auth';
+import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage, takeReturnTo } from '../auth';
 import GoogleSignIn from './GoogleSignIn';
 
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
@@ -70,7 +70,7 @@ const Register = ({ onRegisterSuccess }) => {
         if (response.data.token) {
           saveSession(response.data.token, response.data.user);
           onRegisterSuccess(response.data.user);
-          navigate('/');
+          navigate(takeReturnTo());
         } else {
           navigate('/login');
         }

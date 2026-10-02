@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage } from '../auth';
+import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage, takeReturnTo } from '../auth';
 import GoogleSignIn from './GoogleSignIn';
 
 const Login = ({ onLoginSuccess }) => {
@@ -43,7 +43,7 @@ const Login = ({ onLoginSuccess }) => {
       if (response.data.success) {
         saveSession(response.data.token, response.data.user);
         onLoginSuccess(response.data.user);
-        navigate('/');
+        navigate(takeReturnTo());
       } else {
         setError(response.data.message || 'Login gagal');
         resetTurnstile();

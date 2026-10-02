@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { API_BASE_URL, saveSession, errorMessage } from '../auth';
+import { API_BASE_URL, saveSession, errorMessage, takeReturnTo } from '../auth';
 
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
 
@@ -58,7 +58,7 @@ const CompleteProfile = ({ onLoginSuccess }) => {
       if (res.data?.success && res.data.token) {
         saveSession(res.data.token, res.data.user);
         onLoginSuccess?.(res.data.user);
-        navigate('/', { replace: true });
+        navigate(takeReturnTo(), { replace: true });
       } else {
         setError('Pendaftaran gagal, coba lagi.');
       }

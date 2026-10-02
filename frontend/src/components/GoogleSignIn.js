@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { API_BASE_URL, GOOGLE_CLIENT_ID, saveSession, errorMessage } from '../auth';
+import { API_BASE_URL, GOOGLE_CLIENT_ID, saveSession, errorMessage, takeReturnTo } from '../auth';
 
 // Skrip Google Identity Services hanya dimuat bila REACT_APP_GOOGLE_CLIENT_ID terisi.
 let gisPromise = null;
@@ -48,7 +48,7 @@ const GoogleSignIn = ({ onLoginSuccess }) => {
       if (data.success && data.token) {
         saveSession(data.token, data.user);
         onLoginSuccess?.(data.user);
-        navigate('/');
+        navigate(takeReturnTo());
         return;
       }
       setError('Login Google gagal, coba lagi.');

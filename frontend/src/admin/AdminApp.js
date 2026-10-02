@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { adminFetch } from './api';
 import { ErrorBox } from './ui';
 import Products from './Products';
 import Categories from './Categories';
 import Activity, { LogTable } from './Activity';
 import InvoiceCreate from '../components/InvoiceCreate';
+import { OrdersList, AdminOrderDetail } from './Orders';
+import Settings from './Settings';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
@@ -29,6 +31,16 @@ const Dashboard = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Ringkasan</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <Stat label="Menunggu pembayaran" value={data.orders?.pendingPayment ?? 0} sub="pesanan perlu dicek transfernya" />
+        <Stat label="Dibayar" value={data.orders?.paid ?? 0} sub="siap dikirim / diselesaikan" />
+        <Stat label="Pesanan 7 hari terakhir" value={data.orders?.last7Days ?? 0} />
+      </div>
+      <p className="mb-6 text-sm">
+        <Link to="/admin/orders" className="text-purple-700 underline">
+          Kelola pesanan ›
+        </Link>
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <Stat label="Produk" value={data.products?.total ?? 0} sub={`${data.products?.active ?? 0} aktif · ${data.products?.inactive ?? 0} nonaktif`} />
         <Stat label="Kategori" value={data.categories ?? 0} />
@@ -76,6 +88,9 @@ const AdminApp = () => {
           <NavLink end to="/admin" className={tabClass}>
             Ringkasan
           </NavLink>
+          <NavLink to="/admin/orders" className={tabClass}>
+            Pesanan
+          </NavLink>
           <NavLink to="/admin/products" className={tabClass}>
             Produk
           </NavLink>
@@ -84,6 +99,9 @@ const AdminApp = () => {
           </NavLink>
           <NavLink to="/admin/invoice" className={tabClass}>
             Invoice
+          </NavLink>
+          <NavLink to="/admin/settings" className={tabClass}>
+            Pengaturan Toko
           </NavLink>
           <NavLink to="/admin/activity" className={tabClass}>
             Log aktivitas
@@ -95,6 +113,9 @@ const AdminApp = () => {
       </div>
       <Routes>
         <Route index element={<Dashboard />} />
+        <Route path="orders" element={<OrdersList />} />
+        <Route path="orders/:id" element={<AdminOrderDetail />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="products" element={<Products />} />
         <Route path="categories" element={<Categories />} />
         <Route path="invoice" element={<InvoiceCreate />} />
