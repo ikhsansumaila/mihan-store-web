@@ -60,13 +60,22 @@ test('waNumber/waLink: normalisasi ke 62xxx dan menolak nomor tidak valid', () =
 });
 
 test('teks konfirmasi pelanggan memuat nomor pesanan, item, total, nama; tanpa alamat/telepon', () => {
-  const t = buildCustomerConfirmText(order, 'Budi');
+  const t = buildCustomerConfirmText(order, 'Akun Google Berbeda');
   expect(t).toContain('MS-261002-0001');
   expect(t).toContain('Kerupuk Udang x2 = Rp 90.000');
   expect(t).toContain('Total: Rp 152.000');
-  expect(t).toContain('Nama: Budi');
+  expect(t).toContain(`Nama: ${order.recipient.name}`);
+  expect(t).not.toContain('Akun Google Berbeda'); // nama penerima diutamakan, bukan nama akun login
   expect(t).not.toContain('Melati');
   expect(t).not.toContain('6281311112222');
+});
+
+test('teks konfirmasi: nama akun hanya cadangan bila nama penerima kosong, lalu "-"', () => {
+  const noRecipient = { ...order, recipient: { ...order.recipient, name: '  ' } };
+  expect(buildCustomerConfirmText(noRecipient, 'Akun Google')).toContain('Nama: Akun Google');
+  expect(buildCustomerConfirmText({ ...order, recipient: undefined }, 'Akun Google')).toContain('Nama: Akun Google');
+  expect(buildCustomerConfirmText({ ...order, recipient: undefined }, '')).toContain('Nama: -');
+  expect(buildCustomerConfirmText({ ...order, recipient: undefined })).toContain('Nama: -');
 });
 
 test('ringkasan admin ke pelanggan memuat diskon, ongkir, total, dan rekening bila menunggu pembayaran', () => {

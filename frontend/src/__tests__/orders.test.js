@@ -249,6 +249,9 @@ test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko, tombol batal s
   expect(text).toContain('MS-261002-0001');
   expect(text).toContain('Rp 152.000');
   expect(text).not.toContain('Melati');
+  // Nama di teks WhatsApp = nama penerima pesanan, bukan nama akun login (USER.name = 'Budi').
+  expect(text).toContain('Nama: Budi Penerima');
+  expect(text).not.toMatch(/Nama: Budi$/m);
   expect(container.textContent).toContain('Info rekening toko belum diatur');
   expect(btn('Batalkan pesanan')).toBeTruthy();
   expect(container.textContent).toContain('-Rp 5.000');

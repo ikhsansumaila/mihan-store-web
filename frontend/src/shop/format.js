@@ -36,12 +36,14 @@ export const waLink = (phone, text) => {
 };
 
 // Teks konfirmasi pelanggan -> toko (nomor pesanan, item, total, nama).
-export const buildCustomerConfirmText = (order, customerName) => {
+// Nama = nama PENERIMA di pesanan; nama akun (mis. dari login Google) hanya cadangan bila penerima kosong.
+export const buildCustomerConfirmText = (order, accountName) => {
+  const name = String(order.recipient?.name || '').trim() || String(accountName || '').trim() || '-';
   const lines = [
     'Halo Mihan Store, saya ingin konfirmasi pesanan:',
     '',
     `No. pesanan: ${order.orderNo}`,
-    `Nama: ${customerName || order.recipient?.name || '-'}`,
+    `Nama: ${name}`,
     '',
     'Item:',
   ];
