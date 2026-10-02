@@ -4,6 +4,9 @@ import axios from 'axios';
 import InvoiceCreate from './components/InvoiceCreate';
 import Login from './components/Login';
 import Register from './components/Register';
+import CompleteProfile from './components/CompleteProfile';
+import { PrivacyPolicy, TermsOfService } from './components/Legal';
+import AdminApp from './admin/AdminApp';
 import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession } from './auth';
 
 const API_BASE_URL = '/api';
@@ -32,9 +35,21 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [categoryNames, setCategoryNames] = useState({});
 
   useEffect(() => {
     fetchProducts();
+    // Nama kategori dari database (opsional; bila gagal, slug tetap dipakai).
+    axios
+      .get(`${API_BASE_URL}/categories`)
+      .then((res) => {
+        const m = {};
+        (res.data || []).forEach((c) => {
+          m[c.slug] = c.name;
+        });
+        setCategoryNames(m);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchProducts = async () => {
@@ -91,7 +106,7 @@ const Home = () => {
         >
           <option value="">Semua Kategori</option>
           {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
+            <option key={cat} value={cat}>{categoryNames[cat.toLowerCase()] || cat}</option>
           ))}
         </select>
       </div>
@@ -156,20 +171,27 @@ const AppContent = ({ user, setUser }) => {
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="bg-gradient-to-r from-purple-600 to-purple-800 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div 
             onClick={() => navigate('/')} 
             className="text-2xl font-bold cursor-pointer hover:opacity-80 transition"
           >
             MihanStore
           </div>
-          <div className="flex gap-6 items-center">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 items-center">
             <Link to="/" className="hover:opacity-80 transition font-medium">
               Home
             </Link>
             <Link to="/invoice/create" className="hover:opacity-80 transition font-medium text-yellow-300 font-bold">
               Buat Invoice
             </Link>
+            {user?.role === 'admin' && (
+              // Anchor biasa (muat ulang penuh), BUKAN navigasi react-router,
+              // agar Cloudflare Access bisa mencegat /admin.
+              <a href="/admin" className="hover:opacity-80 transition font-medium">
+                Admin
+              </a>
+            )}
             {user ? (
               <>
                 <span className="font-medium">
@@ -206,8 +228,22 @@ const AppContent = ({ user, setUser }) => {
           <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/register" element={<Register onRegisterSuccess={handleLoginSuccess} />} />
           <Route path="/invoice/create" element={<InvoiceCreate />} />
+          <Route path="/lengkapi-profil" element={<CompleteProfile onLoginSuccess={handleLoginSuccess} />} />
+          <Route path="/privasi" element={<PrivacyPolicy />} />
+          <Route path="/syarat" element={<TermsOfService />} />
+          <Route path="/admin/*" element={<AdminApp />} />
         </Routes>
       </main>
+
+      <footer className="border-t bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col sm:flex-row gap-3 justify-between items-center text-sm text-gray-600">
+          <span>&copy; {new Date().getFullYear()} Mihan Store</span>
+          <nav className="flex gap-4">
+            <Link to="/privasi" className="hover:text-purple-700">Kebijakan Privasi</Link>
+            <Link to="/syarat" className="hover:text-purple-700">Syarat &amp; Ketentuan</Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 };

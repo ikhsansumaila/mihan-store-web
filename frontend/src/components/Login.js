@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage } from '../auth';
+import GoogleSignIn from './GoogleSignIn';
 
 const Login = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
@@ -120,6 +121,8 @@ const Login = ({ onLoginSuccess }) => {
             {loading ? 'Sedang login...' : 'Login'}
           </button>
         </form>
+
+        <GoogleSignIn onLoginSuccess={onLoginSuccess} />
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Belum punya akun?{' '}

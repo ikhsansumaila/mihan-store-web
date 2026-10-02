@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage } from '../auth';
+import GoogleSignIn from './GoogleSignIn';
 
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -199,6 +200,8 @@ const Register = ({ onRegisterSuccess }) => {
             {loading ? 'Sedang mendaftar...' : 'Daftar'}
           </button>
         </form>
+
+        <GoogleSignIn onLoginSuccess={onRegisterSuccess} />
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Sudah punya akun?{' '}

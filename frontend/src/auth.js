@@ -2,6 +2,8 @@ import axios from 'axios';
 
 export const API_BASE_URL = '/api';
 export const TURNSTILE_SITE_KEY = process.env.REACT_APP_TURNSTILE_SITE_KEY || '';
+// Client ID Google bersifat publik (bukan rahasia). Kosong = tombol Google disembunyikan.
+export const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 // Token disimpan di localStorage seperti sebelumnya. Jangan pernah mencetaknya ke console.
 export const getToken = () => localStorage.getItem('token');
@@ -28,7 +30,7 @@ export const getStoredUser = () => {
 export const authHeader = (token = getToken()) =>
   token ? { Authorization: `Bearer ${token}` } : {};
 
-// Periksa token ke server. Mengembalikan:
+// Periksa token ke server (GET /api/auth/me, role dibaca dari database). Mengembalikan:
 //  { valid: true, user }  -> sesi aktif
 //  { valid: false }       -> token ditolak (401), sesi lokal harus dihapus
 //  { valid: null }        -> server tidak bisa dihubungi, jangan hapus sesi lokal
@@ -36,8 +38,8 @@ export const verifySession = async () => {
   const token = getToken();
   if (!token) return { valid: false };
   try {
-    const res = await axios.post(`${API_BASE_URL}/auth/verify`, null, { headers: authHeader(token) });
-    return { valid: !!res.data?.valid, user: res.data?.user };
+    const res = await axios.get(`${API_BASE_URL}/auth/me`, { headers: authHeader(token) });
+    return { valid: !!res.data?.user, user: res.data?.user };
   } catch (err) {
     if (err.response?.status === 401) return { valid: false };
     return { valid: null };

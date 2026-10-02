@@ -6,6 +6,9 @@ WORKDIR /app
 # Site key Turnstile bersifat publik dan "ditanam" saat build (React env build-time)
 ARG REACT_APP_TURNSTILE_SITE_KEY=""
 ENV REACT_APP_TURNSTILE_SITE_KEY=$REACT_APP_TURNSTILE_SITE_KEY
+# Client ID OAuth Google (publik). Kosong = tombol "Masuk dengan Google" disembunyikan.
+ARG REACT_APP_GOOGLE_CLIENT_ID=""
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
 
 # Install dependensi sesuai lockfile
 COPY package.json package-lock.json ./
