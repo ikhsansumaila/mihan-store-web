@@ -19,9 +19,13 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://store.mihan.web.id,https://mihankids.my.id}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
     networks:
-      - mihanstore-net
-      - nginx-proxy-manager-network
-      - mysql-net
+      mihanstore-net: {}
+      nginx-proxy-manager-network:
+        # IP tetap: NPM (location /api -> mihanstore_backend:8080) me-resolve nama
+        # backend hanya saat NPM start/reload. Tanpa IP tetap, recreate backend
+        # membuat /api 502 sampai NPM di-reload.
+        ipv4_address: 172.22.0.7
+      mysql-net: {}
 
   frontend:
     build:
