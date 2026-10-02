@@ -160,11 +160,11 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
 - Tautan ke `/admin` harus anchor biasa (`<a href="/admin">`) agar Cloudflare Access mencegat navigasi.
 - Rute admin frontend: `/admin` (Dashboard), `/admin/products` (Produk), `/admin/categories`
   (Kategori), `/admin/orders` (+ `/admin/orders/<id>`), `/admin/invoice` (Buat Invoice),
-  `/admin/settings` (Pengaturan Toko), `/admin/activity` (Log aktivitas).
+  `/admin/pricelist` (Pricelist), `/admin/settings` (Pengaturan Toko), `/admin/activity` (Log aktivitas).
 - **Tampilan admin (gaya cPanel)** — `src/admin/AdminLayout.js`: area `/admin*` tidak memakai navbar/footer
   toko. Sidebar gelap kiri (260px) berisi logo + "Mihan Store Admin", kolom *Cari menu* (Enter membuka hasil
   pertama), dan grup menu **Utama** (Dashboard), **Katalog** (Produk, Kategori), **Penjualan** (Pesanan dengan
-  lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Invoice), **Sistem** (Pengaturan Toko, Log
+  lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Invoice, Pricelist), **Sistem** (Pengaturan Toko, Log
   Aktivitas); bagian bawah: email admin (`/api/admin/me`), tautan anchor biasa "Kembali ke toko" (`/`), versi UI.
   Topbar: judul + breadcrumb (mis. Admin / Katalog / Produk) dan nama admin singkat. Konten mengisi seluruh
   sisa lebar layar di kanan sidebar (tanpa `max-width`); tabel lebar di-scroll di dalam wadahnya
@@ -182,6 +182,23 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   tidak lagi tampil di toko; halaman itu hanya mengalihkan dengan muat ulang penuh
   (`window.location.replace('/admin/invoice')`) agar dicegat Cloudflare Access. Catatan: kode
   komponen invoice tetap ada di bundel JavaScript publik; yang dijaga adalah akses ke halamannya.
+- **Pricelist** (`/admin/pricelist`, grup Penjualan; pintasan "Buat Pricelist" di Dashboard): membuat gambar PNG
+  daftar harga di browser dengan Canvas 2D (tanpa dependensi/font/CDN baru, tanpa perubahan backend). Data dari
+  `GET /api/admin/products` (semua halaman, `per_page=100`), `/api/admin/categories`, dan `store_whatsapp` dari
+  `/api/admin/settings`. Pengaturan: judul (default "Daftar Harga Mihan Store"), keterangan tanggal (default
+  "Berlaku per <tanggal hari ini>"), catatan opsional ≤200 karakter, tema Ungu/Hijau/Biru, 1 atau 2 kolom, centang
+  kategori/produk (default semua produk aktif; produk nonaktif hanya ikut bila dicentang manual dan diberi tanda
+  + peringatan). Urutan: kategori menurut `sortOrder` lalu nama, produk menurut nama. Gambar lebar 1080 px, tinggi
+  mengikuti isi (maks 2400 px per gambar, skala 1:1); kategori tidak dipotong bila muat di satu gambar (pindah ke
+  gambar berikutnya), kategori yang lebih panjang dari satu gambar dilanjutkan dengan judul "(lanjutan)". Header
+  memakai logo `/mihan-store-logo.png` (same-origin), footer "Pemesanan: WhatsApp +62 …" (disembunyikan bila nomor
+  belum diisi) dan "Halaman n/N". Tombol: **Unduh PNG** (semua gambar berurutan,
+  `pricelist-mihan-store-YYYYMMDD-<n>.png`; ada juga tombol unduh per halaman) dan **Bagikan ke WhatsApp**: di HP
+  memakai Web Share API (`navigator.share({files, text})`, gambar langsung terlampir); di komputer gambar diunduh lalu
+  `https://wa.me/?text=…` dibuka di tab baru, dan file PNG harus dilampirkan manual (WhatsApp Web tidak menerima gambar
+  dari tautan). Teks pendamping bisa diedit dan disalin. Kode: logika murni `src/pricelist/layout.js` (diuji di
+  `src/__tests__/pricelistLayout.test.js`), penggambaran `src/pricelist/render.js`, unduh/berbagi
+  `src/pricelist/share.js`, halaman `src/admin/Pricelist.js`.
 - **Tidak perlu promosi manual**: cukup masukkan email ke `ADMIN_EMAILS`. Untuk mencabut akses,
   hapus email dari `ADMIN_EMAILS` (dan dari policy Access) lalu `docker compose up -d backend`;
   untuk memblokir segera: `UPDATE users SET status="suspended" WHERE email="..."`.

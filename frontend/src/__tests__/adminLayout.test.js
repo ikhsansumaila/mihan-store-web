@@ -120,6 +120,7 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
     ['Kategori', '/admin/categories'],
     ['Pesanan, 4 menunggu pembayaran', '/admin/orders'],
     ['Invoice', '/admin/invoice'],
+    ['Pricelist', '/admin/pricelist'],
     ['Pengaturan Toko', '/admin/settings'],
     ['Log Aktivitas', '/admin/activity'],
   ]);
@@ -142,6 +143,7 @@ test.each([
   ['/admin/categories', 'Kategori', ['Admin', 'Katalog', 'Kategori']],
   ['/admin/orders', 'Pesanan', ['Admin', 'Penjualan', 'Pesanan']],
   ['/admin/orders/5', 'Pesanan', ['Admin', 'Penjualan', 'Pesanan', 'Detail']],
+  ['/admin/pricelist', 'Pricelist', ['Admin', 'Penjualan', 'Pricelist']],
   ['/admin/settings', 'Pengaturan Toko', ['Admin', 'Sistem', 'Pengaturan Toko']],
   ['/admin/activity', 'Log Aktivitas', ['Admin', 'Sistem', 'Log Aktivitas']],
 ])('rute %s: menu aktif %s dan breadcrumb sesuai', async (path, label, crumbs) => {
@@ -167,7 +169,13 @@ test('pencarian menu memfilter item; Enter membuka hasil pertama', async () => {
   await flush();
   expect(window.location.pathname).toBe('/admin/invoice');
   expect(searchInput().value).toBe('');
-  expect(menuLinks()).toHaveLength(7);
+  expect(menuLinks()).toHaveLength(8);
+  await typeInto(searchInput(), 'daftar harga');
+  expect(menuLinks().map((a) => a.textContent.trim())).toEqual(['Pricelist']);
+  await typeInto(searchInput(), 'pricelist');
+  await key(searchInput(), 'Enter');
+  await flush();
+  expect(window.location.pathname).toBe('/admin/pricelist');
 });
 
 test('layar sempit: bilah ikon selalu terlihat, label hanya untuk pembaca layar, tanpa hamburger/overlay', async () => {
@@ -248,7 +256,7 @@ test('layar sempit: bilah ikon selalu terlihat, label hanya untuk pembaca layar,
   expect(sidebar().className).toContain('w-16');
 });
 
-test.each(['/admin', '/admin/products', '/admin/orders', '/admin/orders/5', '/admin/invoice', '/admin/settings', '/admin/activity'])(
+test.each(['/admin', '/admin/products', '/admin/orders', '/admin/orders/5', '/admin/invoice', '/admin/pricelist', '/admin/settings', '/admin/activity'])(
   'halaman %s: tanpa max-width pembatas lebar halaman, tabel di dalam wadah scroll',
   async (path) => {
     await renderAt(path);
@@ -273,12 +281,14 @@ test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () 
   expect(shortcutLinks.map((a) => a.querySelector('.font-semibold').textContent)).toEqual([
     'Tambah Produk',
     'Pesanan baru',
+    'Buat Pricelist',
     'Pengaturan Toko',
     'Log Aktivitas',
   ]);
   expect(shortcutLinks.map((a) => a.getAttribute('href'))).toEqual([
     '/admin/products?tambah=1',
     '/admin/orders?status=pending_payment',
+    '/admin/pricelist',
     '/admin/settings',
     '/admin/activity',
   ]);

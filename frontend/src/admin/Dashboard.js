@@ -35,6 +35,7 @@ const StatCard = ({ icon, tone, label, value, sub, to }) => (
 const SHORTCUTS = [
   { to: '/admin/products?tambah=1', label: 'Tambah Produk', desc: 'Buat produk baru di katalog', icon: 'plus' },
   { to: '/admin/orders?status=pending_payment', label: 'Pesanan baru', desc: 'Pesanan menunggu pembayaran', icon: 'cart' },
+  { to: '/admin/pricelist', label: 'Buat Pricelist', desc: 'Gambar daftar harga untuk WhatsApp', icon: 'pricelist' },
   { to: '/admin/settings', label: 'Pengaturan Toko', desc: 'WhatsApp & rekening bank', icon: 'settings' },
   { to: '/admin/activity', label: 'Log Aktivitas', desc: 'Riwayat perubahan & akses', icon: 'clock' },
 ];
@@ -70,7 +71,7 @@ const Dashboard = () => {
         <h2 id="pintasan-cepat" className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Pintasan cepat
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {SHORTCUTS.map((s) => (
             <Link
               key={s.label}

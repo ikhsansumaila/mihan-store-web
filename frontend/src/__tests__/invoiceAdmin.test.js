@@ -98,6 +98,7 @@ test('/admin/invoice merender form invoice di dalam layout admin dengan menu Inv
     'Kategori',
     'Pesanan',
     'Invoice',
+    'Pricelist',
     'Pengaturan Toko',
     'Log Aktivitas',
   ]);

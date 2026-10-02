@@ -10,6 +10,7 @@ import Activity from './Activity';
 import InvoiceCreate from '../components/InvoiceCreate';
 import { OrdersList, AdminOrderDetail } from './Orders';
 import Settings from './Settings';
+import Pricelist from './Pricelist';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
@@ -60,6 +61,7 @@ const AdminApp = () => {
         <Route path="products" element={<Products />} />
         <Route path="categories" element={<Categories />} />
         <Route path="invoice" element={<InvoiceCreate />} />
+        <Route path="pricelist" element={<Pricelist />} />
         <Route path="activity" element={<Activity />} />
         <Route path="*" element={<p className="text-gray-600">Halaman admin tidak ditemukan.</p>} />
       </Routes>

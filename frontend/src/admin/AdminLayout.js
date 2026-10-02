@@ -8,7 +8,7 @@ import { Icon } from './icons';
 // halaman admin memakai react-router (sudah di dalam area Cloudflare Access); "Kembali ke toko" tetap
 // anchor biasa.
 
-export const ADMIN_UI_VERSION = 'v1.2.0';
+export const ADMIN_UI_VERSION = 'v1.3.0';
 
 export const MENU = [
   { group: 'Utama', items: [{ to: '/admin', end: true, label: 'Dashboard', icon: 'home', keywords: 'ringkasan beranda statistik' }] },
@@ -24,6 +24,7 @@ export const MENU = [
     items: [
       { to: '/admin/orders', label: 'Pesanan', icon: 'cart', badge: 'pendingPayment', keywords: 'order transaksi pembayaran' },
       { to: '/admin/invoice', label: 'Invoice', icon: 'doc', keywords: 'faktur pdf nota' },
+      { to: '/admin/pricelist', label: 'Pricelist', icon: 'pricelist', keywords: 'daftar harga png gambar whatsapp bagikan share' },
     ],
   },
   {
