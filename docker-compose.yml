@@ -1,3 +1,4 @@
+# Produksi. Rahasia dibaca dari file .env di folder ini (tidak di-commit; lihat .env.example).
 services:
   backend:
     build:
@@ -9,24 +10,31 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+      - DB_HOST=${DB_HOST:-mysql_db}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-mihanstore}
+      - DB_USER=${DB_USER:-mihanstore_app}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-168}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://store.mihan.web.id,https://mihankids.my.id}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
+      - mysql-net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
     container_name: mihanstore_frontend
     restart: always
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
-    environment:
-      - REACT_APP_API_URL=http://localhost:8080/api
-      - REACT_APP_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY:-}
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
@@ -35,4 +43,6 @@ networks:
   mihanstore-net:
     driver: bridge
   nginx-proxy-manager-network:
+    external: true
+  mysql-net:
     external: true

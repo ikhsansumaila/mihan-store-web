@@ -1,15 +1,20 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json ./
-RUN npm install
+# Site key Turnstile bersifat publik dan "ditanam" saat build (React env build-time)
+ARG REACT_APP_TURNSTILE_SITE_KEY=""
+ENV REACT_APP_TURNSTILE_SITE_KEY=$REACT_APP_TURNSTILE_SITE_KEY
+
+# Install dependensi sesuai lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 # Copy source code
 COPY public ./public
 COPY src ./src
+COPY tailwind.config.js postcss.config.js ./
 
 # Build the app
 RUN npm run build
@@ -23,6 +28,7 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+# Port 3000 agar sama dengan target Nginx Proxy Manager (mihanstore_frontend:3000)
+EXPOSE 3000
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,5 @@
+tmp/
+migrations/
+*_test.go
+.air.toml
+Dockerfile*

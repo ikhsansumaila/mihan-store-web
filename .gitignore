@@ -27,3 +27,8 @@ npm-debug.log*
 
 # Docker
 docker-compose.override.yml
+
+# Rahasia lain & artefak build backend
+.env.*
+!.env.example
+backend/tmp/

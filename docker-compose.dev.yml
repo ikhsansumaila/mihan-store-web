@@ -1,3 +1,5 @@
+# Pengembangan (hot reload). Memakai .env yang sama dengan produksi.
+# Untuk dev lokal tanpa Turnstile boleh set ALLOW_NO_TURNSTILE=true di .env — JANGAN di produksi.
 services:
   backend:
     build:
@@ -9,12 +11,21 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+      - DB_HOST=${DB_HOST:-mysql_db}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-mihanstore}
+      - DB_USER=${DB_USER:-mihanstore_app}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-168}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://store.mihan.web.id,https://mihankids.my.id}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
+      - ALLOW_NO_TURNSTILE=${ALLOW_NO_TURNSTILE:-false}
     volumes:
       - ./backend:/app
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
+      - mysql-net
 
   frontend:
     build:
@@ -41,4 +52,6 @@ networks:
   mihanstore-net:
     driver: bridge
   nginx-proxy-manager-network:
+    external: true
+  mysql-net:
     external: true

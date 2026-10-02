@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -35,11 +40,6 @@ var products = []Product{
 	{ID: 20, Name: "Sambal Tomat Pedas", Category: "sambal", Price: 32000, Description: "Sambal tomat ulek 300gr", Image: "sambal3.jpg"},
 }
 
-// Hardcoded users (in-memory)
-var users = map[string]User{
-	"demo@mihanstore.com": {Email: "demo@mihanstore.com", Password: "123456", Name: "Demo User"},
-}
-
 type Product struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
@@ -49,61 +49,72 @@ type Product struct {
 	Image       string `json:"image"`
 }
 
-type User struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-}
-
-type AuthRequest struct {
-	Email          string `json:"email"`
-	Password       string `json:"password"`
-	Name           string `json:"name"`
-	TurnstileToken string `json:"turnstileToken"`
-}
-
-type AuthResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message"`
-	User    *User       `json:"user,omitempty"`
-	Token   string      `json:"token,omitempty"`
-}
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
-func main() {
+func newRouter(app *App) http.Handler {
 	router := mux.NewRouter()
 
-	// CORS middleware
+	// CORS: hanya origin yang diizinkan (env CORS_ALLOWED_ORIGINS), tanpa credentials.
 	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedOrigins(app.cfg.CORSAllowedOrigins),
+		handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+		handlers.MaxAge(600),
 	)
 
 	// API Routes
 	api := router.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/products", getProducts).Methods("GET")
 	api.HandleFunc("/products/search", searchProducts).Methods("GET")
-	api.HandleFunc("/auth/register", register).Methods("POST")
-	api.HandleFunc("/auth/login", login).Methods("POST")
-	api.HandleFunc("/auth/verify", verifyToken).Methods("POST")
+	api.HandleFunc("/auth/register", app.Register).Methods("POST")
+	api.HandleFunc("/auth/login", app.Login).Methods("POST")
+	api.HandleFunc("/auth/verify", app.Verify).Methods("POST")
+	api.HandleFunc("/auth/logout", app.Logout).Methods("POST")
+	api.HandleFunc("/auth/me", app.Me).Methods("GET")
 
-	// Health check
+	// Liveness: selalu 200 selama proses hidup.
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}).Methods("GET")
+	// Readiness: memeriksa database (tanpa detail internal).
+	router.HandleFunc("/health/ready", app.Ready).Methods("GET")
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	return recoverer(securityHeaders(corsHandler(router)))
+}
+
+func main() {
+	log.SetFlags(log.LstdFlags | log.LUTC)
+	cfg := LoadConfig()
+	if cfg.DBPassword == "" {
+		log.Println("PERINGATAN: DB_PASSWORD kosong")
+	}
+	initDummyHash()
+
+	app := NewApp(cfg)
+	go app.connectWithRetry(cfg)
+
+	srv := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           newRouter(app),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    32 << 10,
 	}
 
-	fmt.Printf("🚀 MihanStore Backend running on :%s\n", port)
-	http.ListenAndServe(":"+port, corsHandler(router))
+	go func() {
+		log.Printf("MihanStore Backend berjalan di :%s (CORS: %s)", cfg.Port, strings.Join(cfg.CORSAllowedOrigins, ", "))
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server berhenti: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(ctx)
+	log.Println("server dihentikan")
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
@@ -130,131 +141,4 @@ func searchProducts(w http.ResponseWriter, r *http.Request) {
 		results = []Product{}
 	}
 	json.NewEncoder(w).Encode(results)
-}
-
-// Struct untuk memverifikasi Turnstile ke Cloudflare
-type TurnstileResponse struct {
-	Success     bool     `json:"success"`
-	ChallengeTS string   `json:"challenge_ts"`
-	Hostname    string   `json:"hostname"`
-	ErrorCodes  []string `json:"error-codes"`
-}
-
-// Fungsi helper verifikasi turnstile
-func verifyTurnstile(token string) bool {
-	secretKey := os.Getenv("TURNSTILE_SECRET_KEY")
-	if secretKey == "" {
-		// Jika secret key tidak di-set di env, bypass demi kelancaran dev (opsional, tapi disarankan)
-		fmt.Println("⚠️ TURNSTILE_SECRET_KEY not set. Bypassing Turnstile verification.")
-		return true
-	}
-
-	apiURL := "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-	resp, err := http.Post(
-		apiURL,
-		"application/x-www-form-urlencoded",
-		strings.NewReader(fmt.Sprintf("secret=%s&response=%s", secretKey, token)),
-	)
-	if err != nil {
-		fmt.Printf("Error verifying Turnstile: %v\n", err)
-		return false
-	}
-	defer resp.Body.Close()
-
-	var result TurnstileResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Printf("Error decoding Turnstile response: %v\n", err)
-		return false
-	}
-
-	return result.Success
-}
-
-func register(w http.ResponseWriter, r *http.Request) {
-	var req AuthRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
-		return
-	}
-
-	if req.Email == "" || req.Password == "" || req.Name == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Email, password, dan nama harus diisi"})
-		return
-	}
-
-	// Verifikasi Turnstile
-	if !verifyTurnstile(req.TurnstileToken) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Verifikasi keamanan gagal, coba lagi."})
-		return
-	}
-
-	if _, exists := users[req.Email]; exists {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Email sudah terdaftar"})
-		return
-	}
-
-	users[req.Email] = User{Email: req.Email, Password: req.Password, Name: req.Name}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(AuthResponse{
-		Success: true,
-		Message: "Registrasi berhasil",
-		User:    &User{Email: req.Email, Name: req.Name},
-		Token:   generateToken(req.Email),
-	})
-}
-
-func login(w http.ResponseWriter, r *http.Request) {
-	var req AuthRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
-		return
-	}
-
-	user, exists := users[req.Email]
-	if !exists || user.Password != req.Password {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Email atau password salah"})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(AuthResponse{
-		Success: true,
-		Message: "Login berhasil",
-		User:    &User{Email: user.Email, Name: user.Name},
-		Token:   generateToken(req.Email),
-	})
-}
-
-func verifyToken(w http.ResponseWriter, r *http.Request) {
-	var req map[string]string
-	json.NewDecoder(r.Body).Decode(&req)
-	token := req["token"]
-
-	if token != "" && len(token) > 0 {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]bool{"valid": true})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(map[string]bool{"valid": false})
-}
-
-func generateToken(email string) string {
-	return "token_" + strings.ReplaceAll(email, "@", "_") + "_" + fmt.Sprintf("%d", len(users))
 }

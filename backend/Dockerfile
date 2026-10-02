@@ -1,27 +1,30 @@
-FROM golang:1.21-alpine AS builder
+# Build stage
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod files and source code first
-COPY go.mod main.go ./
-
-# Download dependencies
+# Unduh dependensi dulu (cache layer)
+COPY go.mod go.sum ./
 RUN go mod download
-RUN go get github.com/gorilla/handlers
-RUN go get github.com/gorilla/mux
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# Salin source dan build binary statis
+COPY *.go ./
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/main .
 
 # Final stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates \
+    && adduser -D -H -u 10001 app
 
-WORKDIR /root/
+WORKDIR /app
+COPY --from=builder /out/main /app/main
 
-COPY --from=builder /app/main .
-
+USER app
 EXPOSE 8080
 
-CMD ["./main"]
+# /health/ready = proses hidup DAN database terhubung
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/health/ready || exit 1
+
+CMD ["/app/main"]

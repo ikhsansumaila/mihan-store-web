@@ -1,37 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-const API_BASE_URL = '/api';
+import { Turnstile } from '@marsidev/react-turnstile';
+import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage } from '../auth';
 
 const Login = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const turnstileRef = useRef(null);
+
+  const resetTurnstile = () => {
+    setTurnstileToken(null);
+    if (turnstileRef.current) turnstileRef.current.reset();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!identifier.trim() || !password) {
+      setError('Email/username dan password wajib diisi');
+      return;
+    }
+    if (!turnstileToken) {
+      setError('Harap selesaikan verifikasi keamanan');
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        email,
+        identifier: identifier.trim(),
         password,
+        turnstileToken,
       });
 
       if (response.data.success) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
+        saveSession(response.data.token, response.data.user);
         onLoginSuccess(response.data.user);
         navigate('/');
       } else {
         setError(response.data.message || 'Login gagal');
+        resetTurnstile();
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Terjadi kesalahan saat login');
+      setError(errorMessage(err, 'Terjadi kesalahan saat login'));
+      resetTurnstile();
     } finally {
       setLoading(false);
     }
@@ -50,12 +68,16 @@ const Login = ({ onLoginSuccess }) => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Email atau username</label>
             <input
-              type="email"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck="false"
+              maxLength={254}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
             />
           </div>
@@ -64,6 +86,8 @@ const Login = ({ onLoginSuccess }) => {
             <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
             <input
               type="password"
+              autoComplete="current-password"
+              maxLength={128}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -71,10 +95,27 @@ const Login = ({ onLoginSuccess }) => {
             />
           </div>
 
+          <div className="flex justify-center my-4">
+            {TURNSTILE_SITE_KEY ? (
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                options={{ language: 'id' }}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onError={() => setError('Verifikasi keamanan gagal dimuat, coba muat ulang halaman')}
+                onExpire={() => setTurnstileToken(null)}
+              />
+            ) : (
+              <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                Verifikasi keamanan belum dikonfigurasi. Login sementara tidak tersedia.
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             className="w-full bg-purple-700 text-white py-3 rounded-lg font-semibold hover:bg-purple-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
-            disabled={loading}
+            disabled={loading || !TURNSTILE_SITE_KEY}
           >
             {loading ? 'Sedang login...' : 'Login'}
           </button>

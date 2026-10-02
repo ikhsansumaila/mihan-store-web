@@ -4,6 +4,7 @@ import axios from 'axios';
 import InvoiceCreate from './components/InvoiceCreate';
 import Login from './components/Login';
 import Register from './components/Register';
+import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession } from './auth';
 
 const API_BASE_URL = '/api';
 
@@ -115,10 +116,20 @@ const App = () => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = getStoredUser();
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
+    // Periksa sesi ke server (token dikirim lewat header Authorization).
+    verifySession().then(({ valid, user: fresh }) => {
+      if (valid === true && fresh) {
+        saveSession(null, fresh);
+        setUser(fresh);
+      } else if (valid === false) {
+        clearSession();
+        setUser(null);
+      }
+    });
   }, []);
 
   return (
@@ -131,9 +142,9 @@ const App = () => {
 const AppContent = ({ user, setUser }) => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    await logoutRequest();
+    clearSession();
     setUser(null);
     navigate('/');
   };
@@ -161,7 +172,10 @@ const AppContent = ({ user, setUser }) => {
             </Link>
             {user ? (
               <>
-                <span className="font-medium">Halo, {user.name}</span>
+                <span className="font-medium">
+                  Halo, {user.name}
+                  {user.username && <span className="ml-1 text-sm opacity-80">(@{user.username})</span>}
+                </span>
                 <button
                   onClick={handleLogout}
                   className="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
