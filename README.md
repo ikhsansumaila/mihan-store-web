@@ -161,6 +161,11 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
 - Rute admin frontend: `/admin` (Dashboard), `/admin/products` (Produk), `/admin/categories`
   (Kategori), `/admin/orders` (+ `/admin/orders/<id>`), `/admin/invoice` (Buat Invoice),
   `/admin/pricelist` (Pricelist), `/admin/settings` (Pengaturan Toko), `/admin/activity` (Log aktivitas).
+- `/admin/orders/<id>` juga menerima **nomor pesanan** (`/admin/orders/MS-261002-0001`, tidak peka huruf): dicari
+  lewat `GET /api/admin/orders?q=<nomor>&per_page=100`, dicocokkan persis (pencarian backend memakai LIKE), lalu URL
+  diganti (replace) ke `/admin/orders/<id>`; bila tidak ada: "Pesanan <nomor> tidak ditemukan" + tautan ke daftar.
+  Dipakai tautan "Buka di admin: https://store.mihan.web.id/admin/orders/<nomor>" di teks WhatsApp konfirmasi
+  pelanggan → toko (`buildCustomerConfirmText`, origin dari `window.location.origin`). Tetap dijaga Cloudflare Access.
 - **Tampilan admin (gaya cPanel)** — `src/admin/AdminLayout.js`: area `/admin*` tidak memakai navbar/footer
   toko. Sidebar gelap kiri (260px) berisi logo + "Mihan Store Admin", kolom *Cari menu* (Enter membuka hasil
   pertama), dan grup menu **Utama** (Dashboard), **Katalog** (Produk, Kategori), **Penjualan** (Pesanan dengan

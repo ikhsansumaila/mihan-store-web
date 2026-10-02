@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah, fmtTime } from './api';
-import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { STATUS, buildAdminSummaryText, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 
@@ -504,4 +504,51 @@ export const AdminOrderDetail = () => {
       )}
     </div>
   );
+};
+
+// /admin/orders/:id menerima id numerik ATAU nomor pesanan (mis. dari tautan di WhatsApp konfirmasi pelanggan).
+// Nomor pesanan dicari lewat GET /api/admin/orders?q=<nomor> lalu dicocokkan PERSIS (pencarian backend memakai
+// LIKE, jadi MS-261002-0001 juga bisa mengenai MS-261002-00010); URL lalu diganti ke /admin/orders/<id>.
+export const ORDER_NO_RE = /^MS-\d{6}-\d+$/i;
+
+const OrderNoResolver = ({ orderNo }) => {
+  const navigate = useNavigate();
+  const [state, setState] = useState({ status: 'loading', error: null });
+
+  useEffect(() => {
+    let alive = true;
+    setState({ status: 'loading', error: null });
+    adminFetch(`/orders${qs({ q: orderNo, per_page: 100 })}`)
+      .then((r) => {
+        if (!alive) return;
+        const want = orderNo.toUpperCase();
+        const hit = ((r && r.items) || []).find((o) => String(o.orderNo || '').toUpperCase() === want);
+        if (hit && hit.id !== undefined && hit.id !== null) navigate(`/admin/orders/${hit.id}`, { replace: true });
+        else setState({ status: 'notfound', error: null });
+      })
+      .catch((err) => alive && setState({ status: 'error', error: err }));
+    return () => {
+      alive = false;
+    };
+  }, [orderNo, navigate]);
+
+  if (state.status === 'error') return <ErrorBox error={state.error} />;
+  if (state.status === 'notfound') {
+    return (
+      <div className={`${cardClass} p-5`} data-testid="order-not-found">
+        <p className="font-semibold text-gray-900">Pesanan {orderNo.toUpperCase()} tidak ditemukan</p>
+        <p className="mt-1 text-sm text-gray-600">Nomor pesanan mungkin salah ketik atau pesanan sudah dihapus.</p>
+        <Link to="/admin/orders" className="mt-3 inline-block text-sm font-medium text-purple-700 underline">
+          Kembali ke daftar pesanan
+        </Link>
+      </div>
+    );
+  }
+  return <p className="text-gray-500">Mencari pesanan {orderNo.toUpperCase()}...</p>;
+};
+
+export const AdminOrderRoute = () => {
+  const { id } = useParams();
+  if (ORDER_NO_RE.test(id || '')) return <OrderNoResolver key={id} orderNo={id} />;
+  return <AdminOrderDetail />;
 };

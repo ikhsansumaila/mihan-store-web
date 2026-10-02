@@ -1,5 +1,5 @@
 // Tes unit pembentuk teks WhatsApp dan generator invoice (jsPDF ditiru).
-import { buildAdminSummaryText, buildCustomerConfirmText, newIdempotencyKey, waLink, waNumber } from '../shop/format';
+import { adminOrderUrl, buildAdminSummaryText, buildCustomerConfirmText, newIdempotencyKey, siteOrigin, waLink, waNumber } from '../shop/format';
 
 const mockDocs = [];
 jest.mock('jspdf', () => ({
@@ -68,6 +68,19 @@ test('teks konfirmasi pelanggan memuat nomor pesanan, item, total, nama; tanpa a
   expect(t).not.toContain('Akun Google Berbeda'); // nama penerima diutamakan, bukan nama akun login
   expect(t).not.toContain('Melati');
   expect(t).not.toContain('6281311112222');
+});
+
+test('teks konfirmasi memuat tautan admin (origin + nomor pesanan) sebelum "Terima kasih."', () => {
+  const t = buildCustomerConfirmText(order, 'X');
+  const lines = t.split('\n');
+  const i = lines.indexOf(`Buka di admin: ${window.location.origin}/admin/orders/MS-261002-0001`);
+  expect(i).toBeGreaterThan(-1);
+  expect(lines.slice(i + 1)).toEqual(['', 'Terima kasih.']);
+  expect(adminOrderUrl('MS-261002-0001', 'https://store.mihan.web.id')).toBe('https://store.mihan.web.id/admin/orders/MS-261002-0001');
+  expect(adminOrderUrl('a b/c', 'https://x.id')).toBe('https://x.id/admin/orders/a%20b%2Fc');
+  expect(siteOrigin()).toBe(window.location.origin);
+  // Tanpa nomor pesanan: tidak ada baris tautan.
+  expect(buildCustomerConfirmText({ ...order, orderNo: '' }, 'X')).not.toContain('Buka di admin');
 });
 
 test('teks konfirmasi: nama akun hanya cadangan bila nama penerima kosong, lalu "-"', () => {

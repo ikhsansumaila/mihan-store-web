@@ -251,6 +251,7 @@ test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko, tombol batal s
   expect(text).not.toContain('Melati');
   // Nama di teks WhatsApp = nama penerima pesanan, bukan nama akun login (USER.name = 'Budi').
   expect(text).toContain('Nama: Budi Penerima');
+  expect(text).toContain(`Buka di admin: ${window.location.origin}/admin/orders/MS-261002-0001`);
   expect(text).not.toMatch(/Nama: Budi$/m);
   expect(container.textContent).toContain('Info rekening toko belum diatur');
   expect(btn('Batalkan pesanan')).toBeTruthy();
@@ -318,6 +319,54 @@ test('admin detail pesanan: diskon/ongkir, tombol status, invoice, WhatsApp pela
   const patch = mockState.calls.find((c) => c.method === 'PATCH' && c.url === 'admin/orders/5/status');
   expect(patch.body).toMatchObject({ from: 'pending_payment', to: 'paid' });
   expect(container.textContent).toContain('Terkunci');
+});
+
+test('admin /admin/orders/<nomor pesanan>: dicocokkan persis lalu URL diganti ke id numerik', async () => {
+  mockState.admin = {
+    '/orders?': {
+      // Pencarian backend memakai LIKE: hasil bisa memuat nomor lain yang mirip; harus dipilih yang persis.
+      items: [
+        { id: 9, orderNo: 'MS-261002-00010', status: 'paid', total: 1, itemCount: 1, recipientName: 'Lain', city: 'X', customerName: 'Lain', createdAt: '2026-10-02T03:00:00Z' },
+        { id: 5, orderNo: 'MS-261002-0001', status: 'pending_payment', total: 152000, itemCount: 3, recipientName: 'Budi', city: 'Tangerang', customerName: 'Budi', createdAt: '2026-10-02T03:00:00Z' },
+      ],
+      total: 2,
+      page: 1,
+      perPage: 100,
+    },
+    '/orders/5': adminOrder,
+    '/settings': { settings: {} },
+  };
+  const historyLengthAtStart = window.history.length;
+  await renderAt('/admin/orders/ms-261002-0001');
+  await flush();
+  const search = mockState.calls.find((c) => c.url.startsWith('admin/orders?'));
+  expect(search.url).toBe('admin/orders?q=ms-261002-0001&per_page=100');
+  expect(window.location.pathname).toBe('/admin/orders/5');
+  expect(mockState.calls.some((c) => c.url === 'admin/orders/5')).toBe(true);
+  expect(mockState.calls.some((c) => c.url === 'admin/orders/9')).toBe(false);
+  expect(container.querySelector('h1').textContent).toContain('MS-261002-0001');
+  // replace, bukan push: kembali (history) tidak mengarah ke URL nomor pesanan.
+  expect(window.history.length).toBe(historyLengthAtStart);
+});
+
+test('admin /admin/orders/<nomor> tidak ditemukan (hanya ada nomor mirip): pesan + tautan ke daftar', async () => {
+  mockState.admin = {
+    '/orders?': { items: [{ id: 9, orderNo: 'MS-261002-00010', status: 'paid', total: 1, itemCount: 1, createdAt: '2026-10-02T03:00:00Z' }], total: 1, page: 1, perPage: 100 },
+  };
+  await renderAt('/admin/orders/MS-261002-0001');
+  await flush();
+  const box = container.querySelector('[data-testid="order-not-found"]');
+  expect(box.textContent).toContain('Pesanan MS-261002-0001 tidak ditemukan');
+  expect(box.querySelector('a').getAttribute('href')).toBe('/admin/orders');
+  expect(window.location.pathname).toBe('/admin/orders/MS-261002-0001');
+  expect(mockState.calls.some((c) => c.url === 'admin/orders/9')).toBe(false);
+});
+
+test('admin /admin/orders/<id numerik> tetap langsung memuat detail tanpa pencarian', async () => {
+  mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: {} } };
+  await renderAt('/admin/orders/5');
+  expect(container.querySelector('h1').textContent).toContain('MS-261002-0001');
+  expect(mockState.calls.some((c) => c.url.startsWith('admin/orders?'))).toBe(false);
 });
 
 test('admin Pengaturan Toko: lima kunci dan simpan', async () => {

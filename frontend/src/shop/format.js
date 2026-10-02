@@ -35,7 +35,17 @@ export const waLink = (phone, text) => {
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
 };
 
-// Teks konfirmasi pelanggan -> toko (nomor pesanan, item, total, nama).
+// Asal (origin) situs untuk tautan admin di teks WhatsApp; cadangan alamat produksi bila window tidak tersedia.
+export const STORE_ORIGIN_FALLBACK = 'https://store.mihan.web.id';
+export const siteOrigin = () => {
+  const o = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  return /^https?:\/\/[^\s/]+$/i.test(o || '') ? o : STORE_ORIGIN_FALLBACK;
+};
+
+// Tautan halaman pesanan di admin berdasarkan NOMOR pesanan (rute admin menerjemahkannya ke id).
+export const adminOrderUrl = (orderNo, origin = siteOrigin()) => `${origin}/admin/orders/${encodeURIComponent(orderNo || '')}`;
+
+// Teks konfirmasi pelanggan -> toko (nomor pesanan, item, total, nama, tautan admin).
 // Nama = nama PENERIMA di pesanan; nama akun (mis. dari login Google) hanya cadangan bila penerima kosong.
 export const buildCustomerConfirmText = (order, accountName) => {
   const name = String(order.recipient?.name || '').trim() || String(accountName || '').trim() || '-';
@@ -56,6 +66,10 @@ export const buildCustomerConfirmText = (order, accountName) => {
   lines.push(`Total: ${rupiah(order.total)}`);
   lines.push(`Status: ${statusLabel(order.status)}`);
   lines.push('');
+  if (order.orderNo) {
+    lines.push(`Buka di admin: ${adminOrderUrl(order.orderNo)}`);
+    lines.push('');
+  }
   lines.push('Terima kasih.');
   return lines.join('\n');
 };

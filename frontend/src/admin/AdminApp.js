@@ -8,7 +8,7 @@ import Products from './Products';
 import Categories from './Categories';
 import Activity from './Activity';
 import InvoiceCreate from '../components/InvoiceCreate';
-import { OrdersList, AdminOrderDetail } from './Orders';
+import { OrdersList, AdminOrderRoute } from './Orders';
 import Settings from './Settings';
 import Pricelist from './Pricelist';
 
@@ -56,7 +56,7 @@ const AdminApp = () => {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<OrdersListRoute />} />
-        <Route path="orders/:id" element={<AdminOrderDetail />} />
+        <Route path="orders/:id" element={<AdminOrderRoute />} />
         <Route path="settings" element={<Settings />} />
         <Route path="products" element={<Products />} />
         <Route path="categories" element={<Categories />} />
