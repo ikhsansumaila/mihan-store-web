@@ -184,21 +184,30 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   komponen invoice tetap ada di bundel JavaScript publik; yang dijaga adalah akses ke halamannya.
 - **Pricelist** (`/admin/pricelist`, grup Penjualan; pintasan "Buat Pricelist" di Dashboard): membuat gambar PNG
   daftar harga di browser dengan Canvas 2D (tanpa dependensi/font/CDN baru, tanpa perubahan backend). Data dari
-  `GET /api/admin/products` (semua halaman, `per_page=100`), `/api/admin/categories`, dan `store_whatsapp` dari
-  `/api/admin/settings`. Pengaturan: judul (default "Daftar Harga Mihan Store"), keterangan tanggal (default
-  "Berlaku per <tanggal hari ini>"), catatan opsional ≤200 karakter, tema Ungu/Hijau/Biru, 1 atau 2 kolom, centang
+  `GET /api/admin/products` (semua halaman, `per_page=100`) dan `/api/admin/categories` (pengaturan toko
+  `store_whatsapp` tidak dipakai Pricelist). Pengaturan: judul (default "Daftar Harga Mihan Store"), keterangan tanggal (default
+  "Berlaku per <tanggal hari ini>"), catatan opsional ≤200 karakter, tema Ungu/Hijau/Biru, 1 atau 2 kolom, **Alamat web pemesanan** (default
+  `window.location.origin`, di produksi `https://store.mihan.web.id`; hanya http/https tanpa spasi, tanpa skema
+  dianggap https; bila tidak valid tombol unduh/bagikan dinonaktifkan), centang
   kategori/produk (default semua produk aktif; produk nonaktif hanya ikut bila dicentang manual dan diberi tanda
   + peringatan). Urutan: kategori menurut `sortOrder` lalu nama, produk menurut nama. Gambar lebar 1080 px, tinggi
   mengikuti isi (maks 2400 px per gambar, skala 1:1); kategori tidak dipotong bila muat di satu gambar (pindah ke
   gambar berikutnya), kategori yang lebih panjang dari satu gambar dilanjutkan dengan judul "(lanjutan)". Header
-  memakai logo `/mihan-store-logo.png` (same-origin), footer "Pemesanan: WhatsApp +62 …" (disembunyikan bila nomor
-  belum diisi) dan "Halaman n/N". Tombol: **Unduh PNG** (semua gambar berurutan,
+  memakai logo `/mihan-store-logo.png` (same-origin), footer "Pesan online: store.mihan.web.id" (alamat web tanpa
+  skema; tanpa nomor WhatsApp), nama toko, dan "Halaman n/N". Tombol: **Unduh PNG** (semua gambar berurutan,
   `pricelist-mihan-store-YYYYMMDD-<n>.png`; ada juga tombol unduh per halaman) dan **Bagikan ke WhatsApp**: di HP
   memakai Web Share API (`navigator.share({files, text})`, gambar langsung terlampir); di komputer gambar diunduh lalu
   `https://wa.me/?text=…` dibuka di tab baru, dan file PNG harus dilampirkan manual (WhatsApp Web tidak menerima gambar
-  dari tautan). Teks pendamping bisa diedit dan disalin. Kode: logika murni `src/pricelist/layout.js` (diuji di
+  dari tautan; `wa.me` tanpa nomor tujuan). Teks pendamping default berakhir "Pesan online di https://store.mihan.web.id"
+  (tanpa nomor WA), bisa diedit dan disalin. Kode: logika murni `src/pricelist/layout.js` (diuji di
   `src/__tests__/pricelistLayout.test.js`), penggambaran `src/pricelist/render.js`, unduh/berbagi
   `src/pricelist/share.js`, halaman `src/admin/Pricelist.js`.
+- **Tampilan HP (semua halaman, toko dan admin)** — `src/index.css`, satu media query `max-width: 639.98px` (di bawah
+  breakpoint `sm`): ukuran dasar `html` 14px (87,5%) sehingga semua ukuran rem Tailwind (huruf, padding, gap) menyusut
+  12,5%; batas bawah: `text-sm` 13px, `text-xs` 12px; input/select/textarea tetap 16px (cegah zoom otomatis iOS Safari);
+  tombol min. 40×40px, tautan bergaya tombol min. 40px; bilah ikon admin tetap 64px dan tiap tombol menu 44px. Aturan
+  kelas diberi awalan `:root` karena Tailwind CDN menyisipkan stylenya setelah CSS aplikasi. Layar ≥640px tidak
+  berubah; kanvas PNG Pricelist tidak terpengaruh. Diuji di `src/__tests__/mobileStyles.test.js`.
 - **Tidak perlu promosi manual**: cukup masukkan email ke `ADMIN_EMAILS`. Untuk mencabut akses,
   hapus email dari `ADMIN_EMAILS` (dan dari policy Access) lalu `docker compose up -d backend`;
   untuk memblokir segera: `UPDATE users SET status="suspended" WHERE email="..."`.

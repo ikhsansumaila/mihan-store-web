@@ -1,3 +1,75 @@
 body {
   background-color: #f9fafb; /* bg-gray-50 */
 }
+
+/*
+ * Tampilan HP (< 640px, di bawah breakpoint `sm` Tailwind): huruf & jarak lebih kecil agar layar terasa
+ * lebih luas, untuk SEMUA halaman (toko dan admin). Layar >= 640px (tablet/desktop) tidak berubah.
+ *
+ * Cara kerja: ukuran dasar html 16px -> 14px (87,5%), sehingga semua ukuran rem Tailwind (teks, padding,
+ * margin, gap, lebar/tinggi) ikut menyusut 12,5%. Lalu beberapa batas bawah agar tetap nyaman:
+ * - text-sm dan text-xs tidak menyusut terlalu jauh (13px dan 12px) agar tetap terbaca.
+ * - Kolom isian tetap 16px (di bawah itu iOS Safari memperbesar halaman otomatis saat kolom difokus).
+ * - Tombol dan kolom isian minimal 40px tinggi (target sentuh); bilah ikon admin tetap 64px, tiap tombol 44px.
+ * Kanvas PNG Pricelist memakai ukuran piksel sendiri, jadi tidak terpengaruh.
+ *
+ * Tailwind dimuat lewat CDN dan menyisipkan <style> setelah berkas ini, jadi aturan kelas diberi awalan
+ * `:root` (spesifisitas lebih tinggi) agar tidak kalah urutan.
+ */
+@media (max-width: 639.98px) {
+  html {
+    font-size: 14px;
+  }
+
+  :root .text-sm {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  :root .text-xs {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  /* Kolom isian: 16px (cegah zoom otomatis iOS) dan tinggi nyaman. */
+  :root input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  :root select,
+  :root textarea {
+    font-size: 16px !important;
+    line-height: 1.375;
+  }
+
+  :root input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(.sr-only),
+  :root select:not(.sr-only) {
+    min-height: 40px;
+  }
+
+  /* Target sentuh tombol minimal 40x40px (konten tombol tetap di tengah). */
+  :root button:not(.sr-only),
+  :root [role='button']:not(.sr-only) {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  /* Tautan bergaya tombol (ber-padding vertikal dan sudut membulat, mis. "Register", "Belanja sekarang"). */
+  :root a[class~='py-2'][class*='rounded']:not(.sr-only) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  /* Admin: bilah ikon tetap 64px dan tiap tombol menu 44px (tidak ikut menyusut). */
+  :root #admin-sidebar {
+    width: 64px;
+  }
+
+  :root #admin-sidebar + div {
+    padding-left: 64px;
+  }
+
+  :root #admin-sidebar nav a,
+  :root #admin-sidebar a[href='/'] {
+    height: 44px;
+  }
+}
