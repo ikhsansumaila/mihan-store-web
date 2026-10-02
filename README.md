@@ -9,6 +9,9 @@ MihanStore is a simple online store application built with React (Frontend) and 
 - Menu admin `/admin` (produk, kategori, invoice, log aktivitas) yang dijaga Cloudflare Access
 - Log aktivitas (append-only) dengan penghapusan manual log > 6 bulan
 - Halaman Kebijakan Privasi (`/privasi`) dan Syarat & Ketentuan (`/syarat`)
+- **Pesanan (Tahap 1)**: keranjang di database, checkout (wajib login), "Pesanan Saya", menu admin
+  "Pesanan" dan "Pengaturan Toko", diskon & ongkir manual, invoice PDF dari pesanan, notifikasi Discord,
+  tombol konfirmasi WhatsApp (lihat bagian [Pesanan](#pesanan-tahap-1))
 
 ## Tech Stack
 - **Frontend:** React.js, Axios, React Router DOM
@@ -56,6 +59,9 @@ sebagai user `mihanstore_app` (hanya dari subnet `mysql-net`) dengan hak **per t
 | `sessions` | SELECT, INSERT, UPDATE, DELETE (bersih-bersih sesi kedaluwarsa) |
 | `categories`, `products` | SELECT, INSERT, UPDATE (soft delete) |
 | `activity_logs` | **SELECT, INSERT saja** (append-only) |
+| `carts`, `orders`, `site_settings` | SELECT, INSERT, UPDATE (tanpa DELETE) |
+| `cart_items` | SELECT, INSERT, UPDATE, DELETE (baris keranjang boleh dihapus) |
+| `order_items`, `order_status_history` | **SELECT, INSERT saja** (snapshot/append-only) |
 | procedure `purge_activity_logs` | EXECUTE (satu-satunya cara menghapus log, hanya > 180 hari) |
 
 Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrate).
@@ -68,6 +74,10 @@ Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrat
 | `003_categories_products.sql` | tabel kategori & produk + seed 6 kategori, 20 produk (id 1–20) | `DROP TABLE products, categories` |
 | `004_activity_logs.sql` | tabel log + procedure `purge_activity_logs` (DEFINER root) | komentar di file |
 | `005_grants_per_table.sql` | ganti hak `mihanstore.*` dengan hak per tabel | komentar di file |
+| `006_carts.sql` | `carts`, `cart_items` | `DROP TABLE cart_items, carts` |
+| `007_orders.sql` | `orders`, `order_items`, `order_status_history` | komentar di file |
+| `008_site_settings.sql` | `site_settings` + 5 kunci placeholder "BELUM DIISI" | `DROP TABLE site_settings` |
+| `009_grants_orders.sql` | hak per tabel untuk tabel pesanan | komentar di file |
 
 ```bash
 cd ~/mihanstore
@@ -177,15 +187,108 @@ Turnstile wajib untuk login dan registrasi, CORS hanya untuk `CORS_ALLOWED_ORIGI
 ```bash
 # Unit test
 docker run --rm -v "$PWD/backend":/src -w /src golang:1.27-alpine go test ./...
-# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–005
+# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–009 (+ hak 005 & 009 untuk user uji)
 # (user uji tidak punya hak DELETE pada users/activity_logs, jadi DB dibuat ulang tiap putaran)
 docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e DB_PASSWORD=... \
   -v "$PWD/backend":/src -w /src golang:1.27-alpine go test -tags integration ./...
 # Tes end-to-end (tag e2e): proses tes menyajikan JWKS tiruan di :9000; container backend UJI
 # diarahkan ke sana dengan TEST_ONLY_CF_ACCESS_JWKS_URL / TEST_ONLY_GOOGLE_JWKS_URL.
 # Variabel TEST_ONLY_* hanya berlaku bila DB_NAME berakhiran _test dan TIDAK BOLEH diset di produksi.
+# Webhook Discord uji diarahkan ke server tiruan di proses tes (http://<runner>:9000/discord/api/webhooks/...);
+# URL http/host selain discord.com hanya diterima bila DB_NAME *_test.
 go test -tags e2e -run E2E ./...   # env: E2E_BACKEND_URL, E2E_AUD, E2E_GOOGLE_CLIENT, E2E_ADMIN_EMAIL
+# Frontend (jest/jsdom): cd frontend && CI=true npx react-scripts test --watchAll=false
 ```
+
+## Pesanan (Tahap 1)
+
+Belum termasuk: chat, stok, kupon, payment gateway, upload bukti transfer, email, kurir/resi.
+
+**Alur pelanggan** (wajib login): "Tambah ke keranjang" di kartu produk (belum login → `/login`, lalu
+kembali ke toko) → `/keranjang` (ubah qty, hapus; produk nonaktif ditandai) → `/checkout` (data penerima;
+item & harga diambil server dari keranjang) → halaman pesanan `/pesanan/<nomor>` berisi instruksi transfer,
+tombol "Konfirmasi via WhatsApp" (ke `store_whatsapp`, disembunyikan bila belum diisi), dan tombol batal selama
+status *Menunggu pembayaran*. Daftar pesanan: `/pesanan` (menu "Pesanan Saya").
+
+**Status** (hanya 4): `pending_payment` (Menunggu pembayaran) → `paid` (Dibayar) → `completed` (Selesai), atau
+→ `cancelled` (Dibatalkan). Izin: pending→paid (admin); pending→cancelled (admin/pemilik); paid→completed (admin);
+paid→cancelled (admin, alasan wajib). `completed`/`cancelled` final. Admin mengirim status lama (`from`); bila sudah
+berubah (admin lain), server menjawab **409**. Pembatalan pesanan tak dibayar dilakukan manual oleh admin.
+
+**Diskon & ongkir**: diisi admin di detail pesanan selama *Menunggu pembayaran* (diskon ≤ subtotal, ongkir
+0–10.000.000), `total = subtotal − diskon + ongkir` dihitung ulang di server (juga dijaga CHECK di DB). Setelah
+dibayar terkunci. Harga item adalah snapshot saat checkout (perubahan harga produk tidak memengaruhi pesanan).
+
+**Invoice**: tombol "Cetak invoice" di detail pesanan admin memakai generator PDF yang sama dengan
+`/admin/invoice` (src/invoicePdf.js) + nomor pesanan, data penerima, subtotal/diskon/ongkir, stempel LUNAS bila
+status Dibayar/Selesai, dan rekening dari Pengaturan Toko (bila kosong: rekening default invoice manual).
+Tombol "Kirim ringkasan ke WhatsApp pelanggan" membuka `wa.me` ke nomor penerima.
+
+**Notifikasi Discord**: `DISCORD_ORDER_WEBHOOK_URL` (rahasia, hanya `https://discord.com/api/webhooks/...`).
+Dikirim setelah commit, asinkron (timeout 5 detik, 1x ulang); gagal tidak menggagalkan pesanan (hanya log, tanpa
+URL). Kejadian: pesanan dibuat, dibayar, dibatalkan. Isi: nomor pesanan, nama pemesan (markdown/mention
+dinetralkan, `allowed_mentions` kosong), jumlah item, total, status, tautan `PUBLIC_BASE_URL/admin/orders/<id>`.
+**Tidak** ada alamat, telepon, email, atau catatan. Kosong → log `PERINGATAN: notifikasi Discord dinonaktifkan`.
+
+**Endpoint pelanggan** (Bearer sesi; tanpa login → 401; batas laju per pengguna: keranjang 120/menit,
+checkout 10/10 menit, batal 10/10 menit):
+
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/api/cart` | `{items[{productId,name,price,qty,lineTotal,available}], subtotal, itemCount, hasUnavailable}` |
+| POST | `/api/cart/items` | `{productId, qty?=1}` tambah (maks. 999/produk, 50 produk) |
+| PUT | `/api/cart/items` | `{productId, qty}` set qty (0 = hapus) |
+| DELETE | `/api/cart/items/{productId}`, `/api/cart` | hapus item / kosongkan |
+| POST | `/api/orders` | `{recipientName, recipientPhone, address, city, postalCode?, note?, idempotencyKey(UUID)}` → 201; kunci sama → 200 pesanan yang sama. Field harga/total dari browser diabaikan |
+| GET | `/api/orders`, `/api/orders/{orderNo}` | milik sendiri; milik orang lain → 404 (sama seperti tidak ada) |
+| POST | `/api/orders/{orderNo}/cancel` | `{reason?}` hanya pemilik, hanya dari `pending_payment` |
+| GET | `/api/store-info` | WA toko & rekening (null bila belum diisi) |
+
+**Endpoint admin** (Cloudflare Access + CSRF untuk mutasi): `GET /api/admin/orders?status=&from=&to=&q=&page=`,
+`GET /api/admin/orders/{id}`, `PATCH /api/admin/orders/{id}/pricing {discount, discountNote, shippingFee}`,
+`PATCH /api/admin/orders/{id}/status {from, to, reason?, paymentNote?, note?}`,
+`PATCH /api/admin/orders/{id}/note {adminNote}`, `GET/PUT /api/admin/settings` (kunci `store_whatsapp`,
+`bank_name`, `bank_account_number`, `bank_account_holder`, `payment_note`), `GET /api/admin/summary` (+ `orders`).
+
+**Log aktivitas** (dalam transaksi yang sama dengan perubahannya): `order.create`, `order.cancel`, `order.pay`,
+`order.complete`, `order.pricing_update` (dari→menjadi), `order.note_update` (hanya panjang, bukan isi),
+`settings.update` (hanya nama kunci + "diubah", bukan nilai rekening). Tanpa alamat/telepon. Setiap perubahan status
+juga menulis `order_status_history`. Cara memeriksa: buka `/admin/activity`, filter *Jenis entitas* `order` atau
+aksi `order.pay` dsb.; atau sebagai root:
+```bash
+docker exec mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore -e \
+  "SELECT created_at, action, entity_id, actor_label, summary FROM activity_logs WHERE entity_type IN (\"order\",\"site_settings\") ORDER BY id DESC LIMIT 30"'
+```
+
+**Migrasi pesanan** (root, setelah `~/mysql-stack/dump.sh`):
+```bash
+cd ~/mihanstore
+for f in 006_carts 007_orders 008_site_settings; do
+  docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' < backend/migrations/$f.sql
+done
+docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot' < backend/migrations/009_grants_orders.sql
+```
+
+### Langkah pemilik (pesanan, berurutan)
+a. **Webhook Discord**: buat channel baru (mis. `#pesanan-toko`) → Edit channel → Integrasi → Webhook → Webhook
+   Baru → Salin URL. Ketik sendiri di `~/mihanstore/.env`: `DISCORD_ORDER_WEBHOOK_URL=<url>` (jangan dibagikan), lalu
+   `cd ~/mihanstore && docker compose up -d backend`. Cek `docker logs mihanstore_backend 2>&1 | grep -i discord`
+   menampilkan `notifikasi Discord aktif` dan **tidak** lagi `notifikasi Discord dinonaktifkan`.
+b. **Admin → Pengaturan Toko** (`/admin/settings`): isi nomor WhatsApp toko, nama bank, nomor rekening, atas nama,
+   catatan pembayaran → Simpan.
+c. **Uji alur**: daftar/login sebagai pelanggan → tambah produk ke keranjang → checkout → cek notifikasi Discord
+   (hanya nomor, nama, jumlah item, total, status; tanpa alamat/telepon) → buka `/admin/orders` → set diskon/ongkir →
+   Tandai Dibayar (notifikasi "Pesanan dibayar") → Cetak invoice (ada LUNAS) → Tandai Selesai. Cek tampilan di HP.
+d. **Log & rollback**: periksa `/admin/activity` (aksi `order.*`, `settings.update`). Rollback aplikasi:
+   ```bash
+   cd ~/mihanstore
+   docker tag mihanstore-backend:pre-orders mihanstore-backend:latest
+   docker tag mihanstore-frontend:pre-orders mihanstore-frontend:latest
+   docker compose up -d --no-build backend frontend
+   # Kode: agar build berikutnya tidak membawa fitur pesanan lagi, buat commit pembalik:
+   git revert --no-edit pre-orders..HEAD
+   ```
+   Tabel baru boleh dibiarkan (kode lama tidak membacanya; hak per tabel tambahan tidak mengganggu).
 
 ## Tugas pemilik (sekali saja, berurutan)
 

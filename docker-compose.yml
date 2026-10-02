@@ -25,6 +25,9 @@ services:
       # Login Google pelanggan (kosong = /api/auth/google* menjawab 503)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - AUTH_HMAC_SECRET=${AUTH_HMAC_SECRET:-}
+      # Notifikasi pesanan ke Discord (rahasia; kosong = nonaktif, backend tetap jalan)
+      - DISCORD_ORDER_WEBHOOK_URL=${DISCORD_ORDER_WEBHOOK_URL:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://store.mihan.web.id}
     networks:
       mihanstore-net: {}
       nginx-proxy-manager-network:
