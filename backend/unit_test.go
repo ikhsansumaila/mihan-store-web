@@ -400,7 +400,8 @@ func TestSecurityHeadersAndHealth(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/products", nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "Kerupuk") {
-		t.Fatal("/api/products rusak")
+	// Produk kini dari database: tanpa DB -> 503 tanpa detail internal.
+	if w.Code != 503 || strings.Contains(w.Body.String(), "mysql") {
+		t.Fatalf("/api/products tanpa DB harus 503: %d", w.Code)
 	}
 }

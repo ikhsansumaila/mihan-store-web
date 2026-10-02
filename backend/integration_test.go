@@ -24,9 +24,8 @@ func setupIntegration(t *testing.T) (*App, http.Handler) {
 	if err != nil {
 		t.Fatalf("koneksi DB uji: %v", err)
 	}
-	// Bersihkan data uji (hard delete).
-	db.Exec("DELETE FROM sessions")
-	db.Exec("DELETE FROM users")
+	// Database uji dibuat ulang dari migrasi sebelum setiap putaran tes (user aplikasi
+	// tidak punya hak DELETE pada users/activity_logs), jadi tiap tes memakai nama unik.
 
 	// Turnstile palsu lokal (hanya di tes): token "lulus" diterima.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +90,7 @@ func TestIntegrationAuthFlow(t *testing.T) {
 	// Hash tersimpan argon2id, token tersimpan hanya sebagai SHA-256.
 	var u User
 	db.Where("username = ?", "budi_uji").Take(&u)
-	if !strings.HasPrefix(u.PasswordHash, "$argon2id$v=19$m=19456,t=2,p=1$") || strings.Contains(u.PasswordHash, "passwordku123") {
+	if u.PasswordHash == nil || !strings.HasPrefix(*u.PasswordHash, "$argon2id$v=19$m=19456,t=2,p=1$") || strings.Contains(*u.PasswordHash, "passwordku123") {
 		t.Fatal("password tidak di-hash argon2id")
 	}
 	var s Session

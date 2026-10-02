@@ -29,7 +29,24 @@ type Config struct {
 	// dipercaya. Backend hanya bisa dijangkau lewat Nginx Proxy Manager di jaringan
 	// Docker, jadi defaultnya rentang privat.
 	TrustedProxyCIDRs []string
+
+	// Admin lewat Cloudflare Access (fail-closed bila salah satu kosong).
+	AdminEmails        []string // huruf kecil
+	CFAccessTeamDomain string   // mis. namateam.cloudflareaccess.com
+	CFAccessAUD        string   // Application Audience (AUD) tag aplikasi "Mihan Store Admin"
+
+	// Login Google pelanggan (503 bila GOOGLE_CLIENT_ID kosong).
+	GoogleClientID string
+	AuthHMACSecret string // menandatangani profileToken (min. 32 karakter)
+
+	// Override URL JWKS KHUSUS UJI. Hanya dipakai bila DB_NAME berakhiran "_test";
+	// di produksi diabaikan (lihat LoadConfig). Jangan diset di produksi.
+	TestCFAccessJWKSURL string
+	TestGoogleJWKSURL   string
 }
+
+// IsTestDB: true bila memakai database uji (*_test).
+func (c Config) IsTestDB() bool { return strings.HasSuffix(c.DBName, "_test") }
 
 var defaultCORSOrigins = []string{"https://store.mihan.web.id", "https://mihankids.my.id"}
 
@@ -70,7 +87,12 @@ func LoadConfig() Config {
 		proxies = []string{"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7"}
 	}
 
-	return Config{
+	var admins []string
+	for _, e := range splitList(os.Getenv("ADMIN_EMAILS")) {
+		admins = append(admins, strings.ToLower(e))
+	}
+
+	cfg := Config{
 		Port:               getenv("PORT", "8080"),
 		DBHost:             getenv("DB_HOST", "mysql_db"),
 		DBPort:             getenv("DB_PORT", "3306"),
@@ -82,5 +104,28 @@ func LoadConfig() Config {
 		TurnstileSecret:    strings.TrimSpace(os.Getenv("TURNSTILE_SECRET_KEY")),
 		AllowNoTurnstile:   os.Getenv("ALLOW_NO_TURNSTILE") == "true",
 		TrustedProxyCIDRs:  proxies,
+		AdminEmails:        admins,
+		CFAccessTeamDomain: normalizeTeamDomain(os.Getenv("CF_ACCESS_TEAM_DOMAIN")),
+		CFAccessAUD:        strings.TrimSpace(os.Getenv("CF_ACCESS_AUD_STORE")),
+		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		AuthHMACSecret:     strings.TrimSpace(os.Getenv("AUTH_HMAC_SECRET")),
 	}
+	tAccess := strings.TrimSpace(os.Getenv("TEST_ONLY_CF_ACCESS_JWKS_URL"))
+	tGoogle := strings.TrimSpace(os.Getenv("TEST_ONLY_GOOGLE_JWKS_URL"))
+	if tAccess != "" || tGoogle != "" {
+		if cfg.IsTestDB() {
+			log.Println("PERINGATAN: override JWKS uji aktif (TEST_ONLY_*_JWKS_URL) — hanya untuk container uji")
+			cfg.TestCFAccessJWKSURL, cfg.TestGoogleJWKSURL = tAccess, tGoogle
+		} else {
+			log.Println("PERINGATAN: TEST_ONLY_*_JWKS_URL diabaikan karena DB_NAME bukan database uji (*_test)")
+		}
+	}
+	return cfg
+}
+
+// normalizeTeamDomain menerima "nama.cloudflareaccess.com" atau "https://nama.cloudflareaccess.com/".
+func normalizeTeamDomain(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.TrimPrefix(s, "https://")
+	return strings.TrimSuffix(s, "/")
 }

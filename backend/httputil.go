@@ -77,7 +77,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
-		if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+		if strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/") {
 			h.Set("Cache-Control", "no-store")
 			h.Set("Pragma", "no-cache")
 		}

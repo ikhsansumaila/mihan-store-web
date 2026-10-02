@@ -32,24 +32,42 @@ const (
 )
 
 type App struct {
-	cfg             Config
-	db              atomic.Pointer[gorm.DB]
-	ips             *IPResolver
-	turnstile       *TurnstileVerifier
-	loginLimiter    *RateLimiter
-	registerLimiter *RateLimiter
-	now             func() time.Time
+	cfg              Config
+	db               atomic.Pointer[gorm.DB]
+	ips              *IPResolver
+	turnstile        *TurnstileVerifier
+	access           *AccessVerifier // nil = akses admin belum dikonfigurasi (503)
+	google           *GoogleVerifier // nil = login Google belum dikonfigurasi (503)
+	loginLimiter     *RateLimiter
+	registerLimiter  *RateLimiter
+	googleLimiter    *RateLimiter
+	adminLimiter     *RateLimiter
+	deniedLogLimiter *RateLimiter
+	now              func() time.Time
 }
 
 func NewApp(cfg Config) *App {
-	return &App{
-		cfg:             cfg,
-		ips:             NewIPResolver(cfg.TrustedProxyCIDRs),
-		turnstile:       NewTurnstileVerifier(cfg),
-		loginLimiter:    NewRateLimiter(10, time.Minute),
-		registerLimiter: NewRateLimiter(5, time.Hour),
-		now:             func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
+	a := &App{
+		cfg:              cfg,
+		ips:              NewIPResolver(cfg.TrustedProxyCIDRs),
+		turnstile:        NewTurnstileVerifier(cfg),
+		google:           NewGoogleVerifier(cfg),
+		loginLimiter:     NewRateLimiter(10, time.Minute),
+		registerLimiter:  NewRateLimiter(5, time.Hour),
+		googleLimiter:    NewRateLimiter(20, time.Minute),
+		adminLimiter:     NewRateLimiter(300, time.Minute),
+		deniedLogLimiter: NewRateLimiter(1, 5*time.Minute),
+		now:              func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
 	}
+	if av, err := NewAccessVerifier(cfg); err == nil {
+		a.access = av
+	} else {
+		log.Println("PERINGATAN: akses admin belum dikonfigurasi (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD_STORE / ADMIN_EMAILS) — /api/admin/* menjawab 503")
+	}
+	if a.google == nil {
+		log.Println("PERINGATAN: login Google belum dikonfigurasi (GOOGLE_CLIENT_ID / AUTH_HMAC_SECRET) — /api/auth/google* menjawab 503")
+	}
+	return a
 }
 
 type RegisterRequest struct {
@@ -184,6 +202,19 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Aturan B2: email yang sudah terdaftar lewat Google tidak bisa didaftarkan dengan password.
+	var googleOwned int64
+	if err := db.WithContext(r.Context()).Model(&User{}).
+		Where("email = ? AND google_sub IS NOT NULL", email).Count(&googleOwned).Error; err != nil {
+		log.Printf("register: gagal memeriksa email: %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
+	if googleOwned > 0 {
+		writeError(w, http.StatusConflict, msgEmailIsGoogle)
+		return
+	}
+
 	hash, err := HashPassword(req.Password)
 	if err != nil {
 		log.Printf("register: gagal membuat hash: %v", err)
@@ -198,7 +229,7 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 	now := a.now()
 	u := User{
 		PublicID: pid, Username: username, Email: email, Name: name,
-		PasswordHash: hash, Role: "customer", Status: "active", PasswordChangedAt: &now,
+		PasswordHash: &hash, Role: "customer", Status: "active", PasswordChangedAt: &now,
 	}
 	if phone != "" {
 		u.Phone = &phone
@@ -212,6 +243,10 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, msgServerError)
 		return
 	}
+
+	a.logAuth(r, LogEntry{UserID: uid(&u), ActorLabel: u.Email, Action: "auth.register",
+		EntityType: "user", EntityID: u.PublicID, Summary: "Pendaftaran akun: " + u.Username,
+		Details: map[string]any{"metode": "password", "username": u.Username}})
 
 	token, exp, err := a.createSession(r.Context(), db, u.ID, r, ip)
 	if err != nil {
@@ -256,8 +291,17 @@ func (a *App) Login(w http.ResponseWriter, r *http.Request) {
 	if !a.checkTurnstile(w, r, req.TurnstileToken, ip) {
 		return
 	}
+	failed := func(u *User, reason string) {
+		e := LogEntry{UserID: uid(u), ActorLabel: truncateUTF8(ident, 100), Action: "auth.login_failed",
+			Summary: "Login gagal", Details: map[string]any{"metode": "password", "alasan": reason}}
+		if u != nil {
+			e.EntityType, e.EntityID = "user", u.PublicID
+		}
+		a.logAuth(r, e)
+	}
 	if !identOK || len(req.Password) > 4*passwordMaxLen {
 		burnDummyVerify(req.Password)
+		failed(nil, "format_tidak_valid")
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
@@ -273,6 +317,7 @@ func (a *App) Login(w http.ResponseWriter, r *http.Request) {
 	err := q.Take(&u).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		burnDummyVerify(req.Password)
+		failed(nil, "akun_tidak_ada")
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
@@ -286,22 +331,39 @@ func (a *App) Login(w http.ResponseWriter, r *http.Request) {
 	if isLocked(u.LockedUntil, now) {
 		// Akun sedang dikunci: tetap hitung hash dummy agar waktu respons seragam.
 		burnDummyVerify(req.Password)
+		failed(&u, "akun_terkunci")
+		writeError(w, http.StatusUnauthorized, msgLoginFailed)
+		return
+	}
+	if u.PasswordHash == nil {
+		// Aturan B3: akun tanpa password (Google) -> gagal dengan pesan umum,
+		// tetap hitung hash dummy agar waktu respons sama. Tidak menaikkan penghitung kunci.
+		burnDummyVerify(req.Password)
+		failed(&u, "akun_tanpa_password")
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
 
-	ok, err := VerifyPassword(req.Password, u.PasswordHash)
+	ok, err := VerifyPassword(req.Password, *u.PasswordHash)
 	if err != nil {
 		log.Printf("login: hash user id=%d tidak valid", u.ID)
 	}
 	if !ok {
-		if err := a.recordFailedLogin(ctx, db, u.ID); err != nil {
+		lockedNow, err := a.recordFailedLogin(ctx, db, u.ID)
+		if err != nil {
 			log.Printf("login: gagal mencatat kegagalan: %v", err)
+		}
+		failed(&u, "password_salah")
+		if lockedNow {
+			a.logAuth(r, LogEntry{UserID: uid(&u), ActorLabel: u.Email, Action: "auth.locked",
+				EntityType: "user", EntityID: u.PublicID,
+				Summary: "Akun " + u.Username + " dikunci 15 menit setelah 5 kali gagal login"})
 		}
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
 	if u.Status != "active" {
+		failed(&u, "suspended")
 		writeError(w, http.StatusForbidden, msgAccountSuspended)
 		return
 	}
@@ -322,13 +384,18 @@ func (a *App) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u.LastLoginAt = &now
+	a.logAuth(r, LogEntry{UserID: uid(&u), ActorLabel: u.Email, Action: "auth.login",
+		EntityType: "user", EntityID: u.PublicID, Summary: "Login: " + u.Username,
+		Details: map[string]any{"metode": "password"}})
 	writeJSON(w, http.StatusOK, AuthResponse{Success: true, Message: "Login berhasil", User: toDTO(&u), Token: token, ExpiresAt: &exp})
 }
 
 // recordFailedLogin menaikkan failed_logins secara atomik (SELECT ... FOR UPDATE)
 // dan mengunci akun 15 menit pada kegagalan ke-5 berturut-turut.
-func (a *App) recordFailedLogin(ctx context.Context, db *gorm.DB, userID uint64) error {
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+// Mengembalikan true bila kegagalan ini membuat akun terkunci.
+func (a *App) recordFailedLogin(ctx context.Context, db *gorm.DB, userID uint64) (bool, error) {
+	lockedNow := false
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var cur User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Select("id", "failed_logins", "locked_until").Where("id = ?", userID).Take(&cur).Error; err != nil {
@@ -339,9 +406,11 @@ func (a *App) recordFailedLogin(ctx context.Context, db *gorm.DB, userID uint64)
 			return nil // request paralel lain sudah mengunci
 		}
 		failed, until := nextFailedState(cur.FailedLogins, now)
+		lockedNow = until != nil
 		return tx.Model(&User{}).Where("id = ?", userID).
 			Updates(map[string]any{"failed_logins": failed, "locked_until": until}).Error
 	})
+	return lockedNow && err == nil, err
 }
 
 // authenticate mencari sesi aktif untuk token. Mengembalikan (nil, nil, nil) bila tidak valid.
@@ -439,6 +508,7 @@ func (a *App) Me(w http.ResponseWriter, r *http.Request) {
 		"user": map[string]any{
 			"id": u.PublicID, "username": u.Username, "email": u.Email, "phone": u.Phone,
 			"name": u.Name, "role": u.Role, "emailVerified": u.EmailVerifiedAt != nil,
+			"avatarUrl": u.AvatarURL, "googleLinked": u.GoogleSub != nil, "hasPassword": u.PasswordHash != nil,
 			"createdAt": u.CreatedAt, "lastLoginAt": u.LastLoginAt,
 		},
 	})
@@ -456,12 +526,18 @@ func (a *App) Logout(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 			return
 		}
-		if err := db.WithContext(r.Context()).Model(&Session{}).
+		u, _, _ := a.authenticate(r.Context(), db, token)
+		res := db.WithContext(r.Context()).Model(&Session{}).
 			Where("token_hash = ? AND revoked_at IS NULL", HashToken(token)).
-			Update("revoked_at", a.now()).Error; err != nil {
-			log.Printf("logout: %v", err)
+			Update("revoked_at", a.now())
+		if res.Error != nil {
+			log.Printf("logout: %v", res.Error)
 			writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 			return
+		}
+		if u != nil && res.RowsAffected > 0 {
+			a.logAuth(r, LogEntry{UserID: uid(u), ActorLabel: u.Email, Action: "auth.logout",
+				EntityType: "user", EntityID: u.PublicID, Summary: "Logout: " + u.Username})
 		}
 	}
 	// Idempoten: token tidak dikenal/sudah dicabut tetap dianggap berhasil logout.
