@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 		w.Header().Set("Cache-Control", "public, max-age=21600")
 		w.Write(jwksJSON("gk1", &e2eGoogleKey.PublicKey))
 	})
+	mux.HandleFunc("/discord/", discordMockHandler) // server tiruan webhook Discord (e2e_orders_test.go)
 	go http.ListenAndServe(":9000", mux)
 	e2eBackend = strings.TrimSuffix(os.Getenv("E2E_BACKEND_URL"), "/")
 	e2eFrontend = strings.TrimSuffix(os.Getenv("E2E_FRONTEND_URL"), "/")
@@ -155,7 +156,8 @@ func TestE2EPublicAndFrontend(t *testing.T) {
 	if e2eFrontend == "" {
 		return
 	}
-	for _, p := range []string{"/", "/privasi", "/syarat", "/admin", "/admin/products", "/lengkapi-profil", "/login", "/invoice/create"} {
+	for _, p := range []string{"/", "/privasi", "/syarat", "/admin", "/admin/products", "/lengkapi-profil", "/login", "/invoice/create",
+		"/keranjang", "/checkout", "/pesanan", "/pesanan/MS-261002-0001", "/admin/orders", "/admin/orders/1", "/admin/settings"} {
 		r := e2e(t, "GET", e2eFrontend+p, nil, nil)
 		if r.Code != 200 || !strings.Contains(string(r.Raw), `<div id="root">`) {
 			t.Errorf("frontend %s: %d", p, r.Code)
