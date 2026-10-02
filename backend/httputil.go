@@ -35,9 +35,22 @@ var (
 // decodeJSON membaca body JSON maksimal 16 KB, menolak field tak dikenal dan data tambahan.
 // Body kosong diperbolehkan bila allowEmpty.
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any, allowEmpty bool) error {
+	return decodeJSONOpts(w, r, dst, allowEmpty, false)
+}
+
+// decodeJSONLenient seperti decodeJSON tetapi MENGABAIKAN field tak dikenal. Dipakai untuk
+// keranjang/checkout pelanggan: field seperti harga/total dari browser diabaikan begitu saja
+// (semua nominal dihitung ulang di server dari database).
+func decodeJSONLenient(w http.ResponseWriter, r *http.Request, dst any, allowEmpty bool) error {
+	return decodeJSONOpts(w, r, dst, allowEmpty, true)
+}
+
+func decodeJSONOpts(w http.ResponseWriter, r *http.Request, dst any, allowEmpty, allowUnknown bool) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
+	if !allowUnknown {
+		dec.DisallowUnknownFields()
+	}
 	if err := dec.Decode(dst); err != nil {
 		var mbe *http.MaxBytesError
 		switch {
@@ -77,7 +90,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
-		if strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/") {
+		if strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/") ||
+			r.URL.Path == "/api/cart" || strings.HasPrefix(r.URL.Path, "/api/cart/") ||
+			r.URL.Path == "/api/orders" || strings.HasPrefix(r.URL.Path, "/api/orders/") || r.URL.Path == "/api/store-info" {
 			h.Set("Cache-Control", "no-store")
 			h.Set("Pragma", "no-cache")
 		}

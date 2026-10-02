@@ -21,7 +21,7 @@ func newRouter(app *App) http.Handler {
 	// CORS: hanya origin yang diizinkan (env CORS_ALLOWED_ORIGINS), tanpa credentials.
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins(app.cfg.CORSAllowedOrigins),
-		handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 		handlers.MaxAge(600),
 	)
@@ -38,6 +38,18 @@ func newRouter(app *App) http.Handler {
 	api.HandleFunc("/auth/me", app.Me).Methods("GET")
 	api.HandleFunc("/auth/google", app.GoogleLogin).Methods("POST")
 	api.HandleFunc("/auth/google/complete", app.GoogleComplete).Methods("POST")
+
+	// Pelanggan (wajib login, sesi Bearer): keranjang, pesanan, info pembayaran toko.
+	api.Handle("/cart", app.customer(app.GetCart)).Methods("GET")
+	api.Handle("/cart", app.customer(app.ClearCart)).Methods("DELETE")
+	api.Handle("/cart/items", app.customer(app.AddCartItem)).Methods("POST")
+	api.Handle("/cart/items", app.customer(app.SetCartItem)).Methods("PUT")
+	api.Handle("/cart/items/{productId:[0-9]+}", app.customer(app.DeleteCartItem)).Methods("DELETE")
+	api.Handle("/orders", app.customer(app.ListMyOrders)).Methods("GET")
+	api.Handle("/orders", app.customer(app.CreateOrder)).Methods("POST")
+	api.Handle("/orders/{orderNo}", app.customer(app.GetMyOrder)).Methods("GET")
+	api.Handle("/orders/{orderNo}/cancel", app.customer(app.CancelMyOrder)).Methods("POST")
+	api.Handle("/store-info", app.customer(app.StoreInfo)).Methods("GET")
 
 	// Admin: identitas dari Cloudflare Access + ADMIN_EMAILS (lihat admin.go).
 	admin := api.PathPrefix("/admin").Subrouter()
@@ -56,6 +68,13 @@ func newRouter(app *App) http.Handler {
 	admin.HandleFunc("/categories/{id:[0-9]+}", app.AdminDeleteCategory).Methods("DELETE")
 	admin.HandleFunc("/activity-logs", app.AdminListLogs).Methods("GET")
 	admin.HandleFunc("/activity-logs/purge", app.AdminPurgeLogs).Methods("POST")
+	admin.HandleFunc("/orders", app.AdminListOrders).Methods("GET")
+	admin.HandleFunc("/orders/{id:[0-9]+}", app.AdminGetOrder).Methods("GET")
+	admin.HandleFunc("/orders/{id:[0-9]+}/pricing", app.AdminUpdatePricing).Methods("PATCH")
+	admin.HandleFunc("/orders/{id:[0-9]+}/status", app.AdminUpdateStatus).Methods("PATCH")
+	admin.HandleFunc("/orders/{id:[0-9]+}/note", app.AdminUpdateNote).Methods("PATCH")
+	admin.HandleFunc("/settings", app.AdminGetSettings).Methods("GET")
+	admin.HandleFunc("/settings", app.AdminUpdateSettings).Methods("PUT")
 
 	// Liveness: selalu 200 selama proses hidup.
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

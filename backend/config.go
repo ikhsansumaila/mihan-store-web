@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -43,6 +44,11 @@ type Config struct {
 	// di produksi diabaikan (lihat LoadConfig). Jangan diset di produksi.
 	TestCFAccessJWKSURL string
 	TestGoogleJWKSURL   string
+
+	// Notifikasi pesanan ke Discord (rahasia; kosong = nonaktif dengan peringatan di log).
+	DiscordOrderWebhookURL string
+	// URL publik toko untuk tautan di notifikasi (default https://store.mihan.web.id).
+	PublicBaseURL string
 }
 
 // IsTestDB: true bila memakai database uji (*_test).
@@ -109,6 +115,9 @@ func LoadConfig() Config {
 		CFAccessAUD:        strings.TrimSpace(os.Getenv("CF_ACCESS_AUD_STORE")),
 		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
 		AuthHMACSecret:     strings.TrimSpace(os.Getenv("AUTH_HMAC_SECRET")),
+
+		DiscordOrderWebhookURL: strings.TrimSpace(os.Getenv("DISCORD_ORDER_WEBHOOK_URL")),
+		PublicBaseURL:          normalizeBaseURL(os.Getenv("PUBLIC_BASE_URL")),
 	}
 	tAccess := strings.TrimSpace(os.Getenv("TEST_ONLY_CF_ACCESS_JWKS_URL"))
 	tGoogle := strings.TrimSpace(os.Getenv("TEST_ONLY_GOOGLE_JWKS_URL"))
@@ -128,4 +137,20 @@ func normalizeTeamDomain(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = strings.TrimPrefix(s, "https://")
 	return strings.TrimSuffix(s, "/")
+}
+
+const defaultPublicBaseURL = "https://store.mihan.web.id"
+
+// normalizeBaseURL menerima http(s)://host[:port][/path] tanpa query; selain itu default.
+func normalizeBaseURL(s string) string {
+	s = strings.TrimRight(strings.TrimSpace(s), "/")
+	if s == "" {
+		return defaultPublicBaseURL
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		log.Println("PERINGATAN: PUBLIC_BASE_URL tidak valid, memakai default " + defaultPublicBaseURL)
+		return defaultPublicBaseURL
+	}
+	return s
 }
