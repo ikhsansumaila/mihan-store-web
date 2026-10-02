@@ -3,10 +3,12 @@
 MihanStore is a simple online store application built with React (Frontend) and Go (Backend), deployed using Docker Compose.
 
 ## Features
-- Product listing with categories (kerupuk, tepung, saos, sambal, sendok plastik, box hampers)
-- Product search
-- User registration and login (MySQL + GORM, argon2id, sesi di database, Cloudflare Turnstile)
-- Basic UI for browsing products
+- Katalog produk & kategori di database MySQL (20 produk awal dipindahkan dari kode)
+- Pencarian produk
+- Registrasi & login pelanggan: email/username + password (argon2id, Turnstile) atau "Masuk dengan Google"
+- Menu admin `/admin` (produk, kategori, log aktivitas) yang dijaga Cloudflare Access
+- Log aktivitas (append-only) dengan penghapusan manual log > 6 bulan
+- Halaman Kebijakan Privasi (`/privasi`) dan Syarat & Ketentuan (`/syarat`)
 
 ## Tech Stack
 - **Frontend:** React.js, Axios, React Router DOM
@@ -43,11 +45,38 @@ mihanstore/
 
 ## Autentikasi Pengguna (MySQL)
 
-Data pengguna disimpan di database `mihanstore` pada container `mysql_db`
+Data disimpan di database `mihanstore` pada container `mysql_db`
 (proyek `~/mysql-stack`, jaringan Docker internal `mysql-net`). Backend terhubung
-sebagai user `mihanstore_app` yang hanya punya hak `SELECT, INSERT, UPDATE, DELETE`
-pada `mihanstore.*` dan hanya dari subnet `mysql-net`. Skema dibuat oleh root lewat
-file migrasi, bukan oleh aplikasi (tanpa AutoMigrate).
+sebagai user `mihanstore_app` (hanya dari subnet `mysql-net`) dengan hak **per tabel**
+(lihat `backend/migrations/005_grants_per_table.sql`):
+
+| Tabel / objek | Hak `mihanstore_app` |
+|---|---|
+| `users` | SELECT, INSERT, UPDATE (hapus = soft delete) |
+| `sessions` | SELECT, INSERT, UPDATE, DELETE (bersih-bersih sesi kedaluwarsa) |
+| `categories`, `products` | SELECT, INSERT, UPDATE (soft delete) |
+| `activity_logs` | **SELECT, INSERT saja** (append-only) |
+| procedure `purge_activity_logs` | EXECUTE (satu-satunya cara menghapus log, hanya > 180 hari) |
+
+Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrate).
+
+### Migrasi (urut, dijalankan sebagai root)
+| File | Isi | Rollback |
+|---|---|---|
+| `001_users_sessions.sql` | users + sessions | — |
+| `002_users_google.sql` | `google_sub`, `avatar_url`, `password_hash` boleh NULL | komentar di file |
+| `003_categories_products.sql` | tabel kategori & produk + seed 6 kategori, 20 produk (id 1–20) | `DROP TABLE products, categories` |
+| `004_activity_logs.sql` | tabel log + procedure `purge_activity_logs` (DEFINER root) | komentar di file |
+| `005_grants_per_table.sql` | ganti hak `mihanstore.*` dengan hak per tabel | komentar di file |
+
+```bash
+cd ~/mihanstore
+for f in 002_users_google 003_categories_products 004_activity_logs; do
+  docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' < backend/migrations/$f.sql
+done
+docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot' < backend/migrations/005_grants_per_table.sql
+```
+Jalankan `~/mysql-stack/dump.sh` sebelum migrasi sebagai cadangan.
 
 ### Konfigurasi (`.env`, tidak di-commit)
 Salin `.env.example` ke `.env` (`chmod 600 .env`) lalu isi `DB_PASSWORD`,
@@ -70,6 +99,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON mihanstore.* TO 'mihanstore_app'@'172.20
 docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' \
   < backend/migrations/001_users_sessions.sql
 ```
+Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak `mihanstore.*` di atas dengan hak per tabel.
 
 ### Endpoint
 | Method | Path | Keterangan |
@@ -78,32 +108,111 @@ docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroo
 | POST | `/api/auth/login` | `{identifier, password, turnstileToken}` (identifier = email bila ada `@`, selain itu username; field lama `email` juga diterima) |
 | POST | `/api/auth/verify` | token via `Authorization: Bearer <token>` atau body `{token}` → 200 `{valid:true,user}` / 401 `{valid:false}` |
 | POST | `/api/auth/logout` | mencabut sesi (idempoten) |
-| GET  | `/api/auth/me` | data akun (termasuk `role`) |
+| GET  | `/api/auth/me` | data akun (termasuk `role`, `avatarUrl`, `googleLinked`) |
+| POST | `/api/auth/google` | `{credential}` (ID token Google) → sesi, atau `{needsProfile:true, profileToken, profile}` |
+| POST | `/api/auth/google/complete` | `{profileToken, username, phone?}` → 201 sesi (akun baru tanpa password) |
+| GET  | `/api/products`, `/api/products/search?q=&category=` | publik, dari DB (hanya produk aktif), bentuk respons sama seperti dulu |
+| GET  | `/api/categories` | publik: `[{id, slug, name, sortOrder}]` |
+| *    | `/api/admin/*` | admin (Cloudflare Access), lihat bagian Admin |
 | GET  | `/health` | liveness; `/health/ready` memeriksa database |
+
+### Login Google (pelanggan)
+- Tombol "Masuk dengan Google" (Google Identity Services) tampil di Login & Daftar hanya bila
+  `REACT_APP_GOOGLE_CLIENT_ID` diisi saat build. Backend memverifikasi ID token (RS256, JWKS
+  Google dengan cache mengikuti `Cache-Control`, `iss`, `aud` = `GOOGLE_CLIENT_ID`, `exp`,
+  `email_verified`). Tanpa `GOOGLE_CLIENT_ID`/`AUTH_HMAC_SECRET` → 503 "Login Google belum dikonfigurasi".
+- Login Google pertama → layar "Lengkapi profil" (username wajib, telepon opsional).
+  `profileToken` ditandatangani HMAC (`AUTH_HMAC_SECRET`), berlaku 10 menit.
+- Aturan penyambungan akun:
+  1. Email Google sudah punya akun password → akun disambungkan ke Google, **password lama dihapus**
+     dan **semua sesi lama dicabut** (log `auth.google_link`). Selanjutnya hanya login Google.
+  2. Daftar dengan password memakai email akun Google → 409 "Email sudah terdaftar, silakan masuk dengan Google".
+  3. Akun tanpa password yang mencoba login password → gagal dengan pesan umum.
+  4. Email yang ada di `ADMIN_EMAILS` otomatis mendapat role `admin` (log `user.role_change`).
+
+### Admin (Cloudflare Access)
+- Rute `/admin` (frontend) dan `/api/admin/*` (backend) dilindungi Cloudflare Access.
+  Backend memverifikasi header `Cf-Access-Jwt-Assertion` (RS256, JWKS
+  `https://<CF_ACCESS_TEAM_DOMAIN>/cdn-cgi/access/certs`, `aud` = `CF_ACCESS_AUD_STORE`, `iss`,
+  `exp`, `nbf`) dan email harus ada di `ADMIN_EMAILS`. **Fail-closed**: bila salah satu dari
+  `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD_STORE`, `ADMIN_EMAILS` kosong → 503 "Akses admin belum dikonfigurasi".
+- Admin tidak memakai password. Baris `users` untuk email admin dibuat otomatis (role admin,
+  tanpa password) atau dinaikkan ke admin bila sudah ada. Role & status dibaca ulang dari DB di
+  setiap permintaan: akun `suspended` atau bukan admin → 403 (dicatat `admin.access_denied`,
+  maks. 1 catatan / 5 menit per IP+email+alasan).
+- Permintaan yang mengubah data wajib `Content-Type: application/json`, header
+  `X-Requested-With: mihanstore-admin`, dan `Origin`/`Sec-Fetch-Site` sama-origin (CSRF).
+- Endpoint: `GET /api/admin/me`, `GET /api/admin/summary`, produk (`GET/POST /products`,
+  `GET/PUT/DELETE /products/{id}`, `PATCH /products/{id}/active`), kategori
+  (`GET/POST /categories`, `PUT/DELETE /categories/{id}`; hapus ditolak bila masih ada produk aktif),
+  log (`GET /activity-logs?action=&actor=&entity_type=&from=YYYY-MM-DD&to=YYYY-MM-DD&page=&per_page=`,
+  `POST /activity-logs/purge`). Hapus produk/kategori = soft delete.
+- Tautan ke `/admin` harus anchor biasa (`<a href="/admin">`) agar Cloudflare Access mencegat navigasi.
+- **Tidak perlu promosi manual**: cukup masukkan email ke `ADMIN_EMAILS`. Untuk mencabut akses,
+  hapus email dari `ADMIN_EMAILS` (dan dari policy Access) lalu `docker compose up -d backend`;
+  untuk memblokir segera: `UPDATE users SET status="suspended" WHERE email="..."`.
+
+### Log aktivitas
+Tabel `activity_logs` (tanpa FK, IP + user agent). Perubahan admin dicatat dalam transaksi yang
+sama dengan perubahannya; log autentikasi best-effort. `details` tidak pernah memuat password,
+hash, token, cookie/Authorization, atau id_token. Log disimpan 6 bulan; hapus dengan tombol
+"Hapus log lebih dari 6 bulan" di `/admin/activity` (procedure `purge_activity_logs`).
 
 Keamanan: password argon2id (m=19456 KiB, t=2, p=1), token sesi acak 32 byte yang
 disimpan hanya sebagai SHA-256, sesi 7 hari (`SESSION_TTL_HOURS`), akun terkunci
 15 menit setelah 5 kali gagal, batas laju per IP (login 10/menit, registrasi 5/jam),
 Turnstile wajib untuk login dan registrasi, CORS hanya untuk `CORS_ALLOWED_ORIGINS`.
 
-### Menjadikan akun sebagai admin
-Tidak ada akun admin bawaan. Setelah akun didaftarkan lewat situs, promosikan dengan:
-```bash
-docker exec -it mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore -e \
-  "UPDATE users SET role=\"admin\" WHERE username=\"USERNAME_ANDA\" AND deleted_at IS NULL; \
-   SELECT username, email, role FROM users WHERE username=\"USERNAME_ANDA\";"'
-```
-Kembalikan ke pelanggan biasa dengan `role="customer"`. Membuka kunci akun:
-`UPDATE users SET failed_logins=0, locked_until=NULL WHERE username="...";`
+### Membuka kunci akun
+`UPDATE users SET failed_logins=0, locked_until=NULL WHERE username="...";` (sebagai root).
 
 ### Tes
 ```bash
 # Unit test
 docker run --rm -v "$PWD/backend":/src -w /src golang:1.27-alpine go test ./...
-# Tes integrasi: butuh database *_test terpisah (DB_NAME harus berakhiran _test)
+# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–005
+# (user uji tidak punya hak DELETE pada users/activity_logs, jadi DB dibuat ulang tiap putaran)
 docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e DB_PASSWORD=... \
   -v "$PWD/backend":/src -w /src golang:1.27-alpine go test -tags integration ./...
+# Tes end-to-end (tag e2e): proses tes menyajikan JWKS tiruan di :9000; container backend UJI
+# diarahkan ke sana dengan TEST_ONLY_CF_ACCESS_JWKS_URL / TEST_ONLY_GOOGLE_JWKS_URL.
+# Variabel TEST_ONLY_* hanya berlaku bila DB_NAME berakhiran _test dan TIDAK BOLEH diset di produksi.
+go test -tags e2e -run E2E ./...   # env: E2E_BACKEND_URL, E2E_AUD, E2E_GOOGLE_CLIENT, E2E_ADMIN_EMAIL
 ```
+
+## Tugas pemilik (sekali saja, berurutan)
+
+**a. Google Cloud (login Google pelanggan)**
+1. https://console.cloud.google.com → buat **project baru** "Mihan Store".
+2. Google Auth Platform (OAuth consent screen): tipe **External**; nama app "Mihan Store"; email dukungan;
+   logo (opsional); beranda `https://store.mihan.web.id`; kebijakan privasi `https://store.mihan.web.id/privasi`;
+   syarat `https://store.mihan.web.id/syarat`; authorized domain `mihan.web.id`; scope dasar
+   `openid`, `email`, `profile`; lalu **Publish app** ke Production.
+3. Credentials → Create credentials → **OAuth client ID** → tipe **Web application**;
+   Authorized JavaScript origins: `https://store.mihan.web.id` (tambah `https://mihankids.my.id` bila dipakai);
+   **tanpa** redirect URI. Salin **Client ID** (bukan rahasia; client secret tidak dipakai).
+4. Isi di `~/mihanstore/.env`: `GOOGLE_CLIENT_ID=<client id>` dan `REACT_APP_GOOGLE_CLIENT_ID=<client id yang sama>`, lalu:
+   ```bash
+   cd ~/mihanstore && docker compose up -d --build frontend && docker compose up -d backend
+   ```
+
+**b. Cloudflare (proteksi admin)**
+1. DNS: ubah record `store` menjadi **Proxied** (oranye). Dampak: IP klien dibaca dari
+   `CF-Connecting-IP` (backend sudah mendukung, hanya dipercaya dari rentang IP Cloudflare);
+   mode SSL zona harus **Full (strict)** (sertifikat Let's Encrypt di NPM untuk host store valid).
+2. Zero Trust → Access → Applications → Add → **Self-hosted**: nama "Mihan Store Admin";
+   dua destinasi pada domain `store.mihan.web.id`: path `admin*` dan path `api/admin*`;
+   policy **Allow** → Include → Emails: `ikhsan.sumaila@gmail.com`, `qomariahakmala@gmail.com`;
+   login method **Google**; session duration **30 hari**.
+3. Salin **Application Audience (AUD) tag** ke `~/mihanstore/.env` sebagai `CF_ACCESS_AUD_STORE=...`
+   (ketik sendiri), lalu `cd ~/mihanstore && docker compose up -d backend`.
+
+**c. Tes**: buka `https://store.mihan.web.id/admin` (harus muncul login Google Cloudflare), kelola produk,
+cek `/admin/activity`.
+
+**d. Admin**: tidak perlu promosi manual — email di `ADMIN_EMAILS` otomatis jadi admin saat masuk lewat
+Cloudflare Access atau login Google. Catatan: bila akun password lama (mis. `octavarium`) login dengan
+Google, password lamanya dihapus dan login selanjutnya lewat Google.
 
 ## Getting Started
 

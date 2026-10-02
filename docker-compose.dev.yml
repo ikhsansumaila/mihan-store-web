@@ -19,6 +19,13 @@ services:
       - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-168}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://store.mihan.web.id,https://mihankids.my.id}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
+      # Admin lewat Cloudflare Access (kosong = /api/admin/* menjawab 503, fail-closed)
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - CF_ACCESS_TEAM_DOMAIN=${CF_ACCESS_TEAM_DOMAIN:-}
+      - CF_ACCESS_AUD_STORE=${CF_ACCESS_AUD_STORE:-}
+      # Login Google pelanggan (kosong = /api/auth/google* menjawab 503)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - AUTH_HMAC_SECRET=${AUTH_HMAC_SECRET:-}
       - ALLOW_NO_TURNSTILE=${ALLOW_NO_TURNSTILE:-false}
     volumes:
       - ./backend:/app
@@ -45,6 +52,7 @@ services:
       - REACT_APP_API_URL=http://localhost:8080/api
       - WDS_SOCKET_PORT=0
       - REACT_APP_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY:-}
+      - REACT_APP_GOOGLE_CLIENT_ID=${REACT_APP_GOOGLE_CLIENT_ID:-}
     volumes:
       - ./frontend:/app
       - /app/node_modules
