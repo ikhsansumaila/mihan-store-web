@@ -46,17 +46,21 @@ const Settings = () => {
   const missing = FIELDS.filter((f) => f.key !== 'payment_note' && !form[f.key]);
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pengaturan Toko</h1>
       {missing.length > 0 && (
         <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
           Belum diisi: {missing.map((f) => f.label).join(', ')}. Pelanggan akan melihat peringatan sampai info ini diisi.
         </div>
       )}
-      <form onSubmit={save} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 space-y-4">
-        <ErrorBox error={error} />
+      <form onSubmit={save} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {error && (
+          <div className="lg:col-span-2">
+            <ErrorBox error={error} />
+          </div>
+        )}
         {FIELDS.map((f) => (
-          <label key={f.key} className="block">
+          <label key={f.key} className={`block min-w-0 ${f.multiline ? 'lg:col-span-2' : ''}`}>
             <span className="block text-sm font-semibold text-gray-700 mb-1">{f.label}</span>
             {f.multiline ? (
               <textarea
@@ -79,7 +83,7 @@ const Settings = () => {
             {f.hint && <span className="block text-xs text-gray-500 mt-1">{f.hint}</span>}
           </label>
         ))}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-3 lg:col-span-2">
           {saved && <span className="text-sm text-green-700">Tersimpan</span>}
           <button type="submit" className={btnPrimary} disabled={saving}>
             {saving ? 'Menyimpan...' : 'Simpan pengaturan'}

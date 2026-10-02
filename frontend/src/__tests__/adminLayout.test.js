@@ -1,4 +1,4 @@
-// Tes render layout admin bergaya cPanel (sidebar, topbar, laci, pencarian menu, dashboard).
+// Tes render layout admin bergaya cPanel (sidebar, bilah ikon layar sempit, topbar, pencarian menu, dashboard).
 // Catatan: CRA memakai resetMocks, jadi mock modul memakai fungsi biasa (bukan jest.fn).
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -94,7 +94,6 @@ afterEach(() => {
 const sidebar = () => container.querySelector('#admin-sidebar');
 const menuLinks = () => [...sidebar().querySelectorAll('nav a')];
 const linkByLabel = (label) => menuLinks().find((a) => a.textContent.trim().startsWith(label));
-const hamburger = () => container.querySelector('button[aria-label="Buka menu"]');
 const searchInput = () => sidebar().querySelector('input[type="search"]');
 const typeInto = async (el, value) => {
   await act(async () => {
@@ -115,16 +114,19 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
   expect(sb.querySelector('img[src="/mihan-store-logo.png"]')).not.toBeNull();
   const groups = [...sb.querySelectorAll('[data-group]')].map((g) => g.getAttribute('data-group'));
   expect(groups).toEqual(['Utama', 'Katalog', 'Penjualan', 'Sistem']);
-  expect(menuLinks().map((a) => [a.textContent.trim(), a.getAttribute('href')])).toEqual([
+  expect(menuLinks().map((a) => [a.getAttribute('aria-label'), a.getAttribute('href')])).toEqual([
     ['Dashboard', '/admin'],
     ['Produk', '/admin/products'],
     ['Kategori', '/admin/categories'],
-    ['Pesanan4', '/admin/orders'],
+    ['Pesanan, 4 menunggu pembayaran', '/admin/orders'],
     ['Invoice', '/admin/invoice'],
     ['Pengaturan Toko', '/admin/settings'],
     ['Log Aktivitas', '/admin/activity'],
   ]);
-  expect(sb.querySelector('[aria-label="4 menunggu pembayaran"]')).not.toBeNull();
+  const orders = linkByLabel('Pesanan');
+  expect(orders.getAttribute('title')).toBe('Pesanan, 4 menunggu pembayaran');
+  expect(orders.querySelector('[data-badge="icon"]').textContent).toBe('4');
+  expect(orders.querySelector('[data-badge="full"]').textContent).toBe('4');
   expect(sb.textContent).toContain('Masuk sebagai pemilik@example.com');
   const back = [...sb.querySelectorAll('a')].find((a) => a.textContent.trim() === 'Kembali ke toko');
   expect(back.getAttribute('href')).toBe('/');
@@ -168,48 +170,97 @@ test('pencarian menu memfilter item; Enter membuka hasil pertama', async () => {
   expect(menuLinks()).toHaveLength(7);
 });
 
-test('laci di layar sempit: buka lewat hamburger, tutup lewat Escape, overlay, dan saat memilih menu; fokus dikelola', async () => {
+test('layar sempit: bilah ikon selalu terlihat, label hanya untuk pembaca layar, tanpa hamburger/overlay', async () => {
   await renderAt('/admin/products');
-  const btn = hamburger();
-  expect(btn.getAttribute('aria-controls')).toBe('admin-sidebar');
-  expect(btn.getAttribute('aria-expanded')).toBe('false');
-  expect(sidebar().getAttribute('data-open')).toBe('false');
-  expect(sidebar().className).toContain('invisible');
-  expect(sidebar().className).toContain('lg:visible');
+  const sb = sidebar();
+  // Bilah 64px (w-16) di bawah 1024px, sidebar penuh 260px di >= 1024px; selalu tampil (bukan laci).
+  expect(sb.className).toContain('w-16');
+  expect(sb.className).toContain('lg:w-[260px]');
+  expect(sb.className).toContain('inset-y-0');
+  ['invisible', '-translate-x-full', 'max-w-[85vw]'].forEach((c) => expect(sb.className.split(' ')).not.toContain(c));
+  expect(sb.getAttribute('role')).toBeNull();
+  expect(sb.getAttribute('aria-modal')).toBeNull();
+  expect(sb.hasAttribute('data-open')).toBe(false);
+  // Tidak ada hamburger, tombol tutup, maupun overlay.
+  expect(container.querySelector('button[aria-label="Buka menu"]')).toBeNull();
+  expect(container.querySelector('button[aria-label="Tutup menu"]')).toBeNull();
   expect(container.querySelector('[data-testid="admin-overlay"]')).toBeNull();
+  expect(container.querySelector('[aria-controls="admin-sidebar"]')).toBeNull();
 
-  // Buka -> fokus ke tombol tutup, Escape -> tutup dan fokus kembali ke hamburger.
-  await act(async () => btn.click());
-  expect(btn.getAttribute('aria-expanded')).toBe('true');
-  expect(sidebar().getAttribute('data-open')).toBe('true');
-  expect(sidebar().getAttribute('role')).toBe('dialog');
-  expect(sidebar().className).toContain('translate-x-0');
-  expect(container.querySelector('[data-testid="admin-overlay"]')).not.toBeNull();
-  expect(document.activeElement.getAttribute('aria-label')).toBe('Tutup menu');
-  expect(document.body.style.overflow).toBe('hidden');
-  await key(document, 'Escape');
-  expect(sidebar().getAttribute('data-open')).toBe('false');
-  expect(document.activeElement).toBe(hamburger());
-  expect(document.body.style.overflow).toBe('');
+  // Setiap menu: ikon SVG, target sentuh 44px (h-11), tooltip title + aria-label; label teks
+  // disembunyikan secara visual (sr-only) di mode ikon tetapi tetap ada di DOM.
+  for (const a of menuLinks()) {
+    expect(a.querySelector('svg')).not.toBeNull();
+    expect(a.className).toContain('h-11');
+    expect(a.getAttribute('title')).toBeTruthy();
+    expect(a.getAttribute('aria-label')).toBe(a.getAttribute('title'));
+    const label = a.querySelector('span.sr-only');
+    expect(label).not.toBeNull();
+    expect(label.className).toContain('lg:not-sr-only');
+    expect(a.getAttribute('aria-label').startsWith(label.textContent)).toBe(true);
+  }
+  // Judul grup, kolom cari menu, email, dan versi hanya tampil di mode penuh.
+  const fullOnly = (el) => {
+    const c = el.className.split(/\s+/);
+    return c.includes('hidden') && c.includes('lg:block');
+  };
+  const headings = [...sb.querySelectorAll('[data-group] > div:not([aria-hidden])')];
+  expect(headings).toHaveLength(4);
+  headings.forEach((h) => expect(fullOnly(h)).toBe(true));
+  expect(fullOnly(searchInput().closest('div'))).toBe(true);
+  expect(fullOnly(sb.querySelector('[data-testid="admin-email"]'))).toBe(true);
+  // Kembali ke toko: ikon + tooltip, anchor biasa.
+  const back = sb.querySelector('a[href="/"]');
+  expect(back.getAttribute('title')).toBe('Kembali ke toko');
+  expect(back.getAttribute('aria-label')).toBe('Kembali ke toko');
+  expect(back.querySelector('svg')).not.toBeNull();
+  expect(back.querySelector('span.sr-only').textContent).toBe('Kembali ke toko');
 
-  // Overlay menutup.
-  await act(async () => hamburger().click());
-  await act(async () => container.querySelector('[data-testid="admin-overlay"]').click());
-  expect(sidebar().getAttribute('data-open')).toBe('false');
+  // Menu aktif ditandai (aria-current + garis kiri/latar).
+  const active = linkByLabel('Produk');
+  expect(active.getAttribute('aria-current')).toBe('page');
+  expect(active.className).toContain('border-purple-400');
+  expect(active.className).toContain('bg-purple-600/30');
+  expect(linkByLabel('Kategori').className).toContain('border-transparent');
 
-  // Tombol tutup menutup.
-  await act(async () => hamburger().click());
-  await act(async () => sidebar().querySelector('button[aria-label="Tutup menu"]').click());
-  expect(sidebar().getAttribute('data-open')).toBe('false');
+  // Konten mengisi sisa lebar di samping bilah/sidebar, tanpa max-width pembatas.
+  const main = container.querySelector('#admin-main');
+  expect(main.className).not.toMatch(/max-w-/);
+  expect(main.parentElement.className).toContain('pl-16');
+  expect(main.parentElement.className).toContain('lg:pl-[260px]');
+  expect(main.parentElement.className).toContain('min-w-0');
 
-  // Memilih menu menavigasi dan menutup laci.
-  await act(async () => hamburger().click());
+  // Topbar: judul + breadcrumb ringkas, inisial admin.
+  expect(container.querySelector('[data-testid="admin-title"]').textContent).toBe('Produk');
+  const crumbs = [...container.querySelectorAll('nav[aria-label="Breadcrumb"] li')];
+  expect(crumbs[0].className).toContain('hidden sm:flex'); // "Admin" disembunyikan di layar sempit
+  expect(crumbs[2].className).not.toContain('hidden');
+  expect(container.querySelector('[aria-label="Admin: pemilik@example.com"]').textContent).toBe('p');
+
+  // Memilih menu menavigasi tanpa mengunci scroll halaman.
   await act(async () => linkByLabel('Pesanan').click());
   await flush();
   expect(window.location.pathname).toBe('/admin/orders');
-  expect(sidebar().getAttribute('data-open')).toBe('false');
   expect(linkByLabel('Pesanan').getAttribute('aria-current')).toBe('page');
+  expect(linkByLabel('Produk').getAttribute('aria-current')).toBeNull();
+  expect(document.body.style.overflow).toBe('');
+  await key(document, 'Escape');
+  expect(sidebar().className).toContain('w-16');
 });
+
+test.each(['/admin', '/admin/products', '/admin/orders', '/admin/orders/5', '/admin/invoice', '/admin/settings', '/admin/activity'])(
+  'halaman %s: tanpa max-width pembatas lebar halaman, tabel di dalam wadah scroll',
+  async (path) => {
+    await renderAt(path);
+    const main = container.querySelector('#admin-main');
+    expect(main.className).toContain('min-w-0');
+    expect(main.className).toContain('break-words');
+    const wrappers = [main, ...main.querySelectorAll(':scope > div, :scope > div > div')];
+    wrappers.forEach((el) => expect(String(el.className)).not.toMatch(/\bmax-w-(2xl|3xl|4xl|5xl|6xl|7xl|screen)/));
+    expect(container.innerHTML).not.toMatch(/w-screen|100vw/);
+    main.querySelectorAll('table').forEach((t) => expect(t.parentElement.className).toContain('overflow-x-auto'));
+  }
+);
 
 test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () => {
   await renderAt('/admin');

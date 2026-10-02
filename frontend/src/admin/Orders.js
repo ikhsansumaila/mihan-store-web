@@ -129,7 +129,7 @@ export const OrdersList = () => {
                     </Link>
                   </td>
                   <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
-                  <td className="p-3">
+                  <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
                     <div>{o.customerName}</div>
                     <div className="text-xs text-gray-500">
                       → {o.recipientName}, {o.city}

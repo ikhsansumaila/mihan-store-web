@@ -52,7 +52,7 @@ export const LogTable = ({ items, compact }) => (
                 <span className="font-medium text-gray-800">{ACTION_LABELS[l.action] || l.action}</span>
                 <div className="text-xs text-gray-400 font-mono">{l.action}</div>
               </td>
-              <td className="px-3 py-2 break-all">{actorOf(l)}</td>
+              <td className="px-3 py-2 min-w-[10rem] break-all">{actorOf(l)}</td>
               <td className="px-3 py-2 min-w-[14rem]">
                 <div>{l.summary}</div>
                 {!compact && l.details && (
@@ -65,10 +65,14 @@ export const LogTable = ({ items, compact }) => (
                 )}
               </td>
               {!compact && (
-                <td className="px-3 py-2 text-xs text-gray-500 max-w-[14rem]">
-                  <div>{l.ip || '-'}</div>
-                  <div className="truncate" title={l.userAgent || ''}>
-                    {l.userAgent || ''}
+                <td className="px-3 py-2 text-xs text-gray-500">
+                  {/* Lebar kolom dikunci lewat div (max-width pada sel tabel diabaikan browser);
+                      IPv6 boleh patah, user agent dipotong dengan elipsis. */}
+                  <div className="w-44 xl:w-56">
+                    <div className="break-all">{l.ip || '-'}</div>
+                    <div className="truncate" title={l.userAgent || ''}>
+                      {l.userAgent || ''}
+                    </div>
                   </div>
                 </td>
               )}

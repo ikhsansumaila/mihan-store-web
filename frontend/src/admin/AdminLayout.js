@@ -3,11 +3,12 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { adminFetch } from './api';
 import { Icon } from './icons';
 
-// Layout admin bergaya cPanel: sidebar kiri tetap (desktop >= 1024px) / laci (layar sempit),
-// topbar dengan breadcrumb, konten di kanan. Navigasi antar halaman admin memakai react-router
-// (sudah di dalam area Cloudflare Access); "Kembali ke toko" tetap anchor biasa.
+// Layout admin bergaya cPanel: sidebar kiri tetap 260px (>= 1024px) / bilah ikon 64px yang selalu
+// terlihat (layar sempit), topbar dengan breadcrumb, konten mengisi sisa lebar di kanan. Navigasi antar
+// halaman admin memakai react-router (sudah di dalam area Cloudflare Access); "Kembali ke toko" tetap
+// anchor biasa.
 
-export const ADMIN_UI_VERSION = 'v1.1.0';
+export const ADMIN_UI_VERSION = 'v1.2.0';
 
 export const MENU = [
   { group: 'Utama', items: [{ to: '/admin', end: true, label: 'Dashboard', icon: 'home', keywords: 'ringkasan beranda statistik' }] },
@@ -95,18 +96,23 @@ const SummaryProvider = ({ children }) => {
   return <SummaryContext.Provider value={value}>{children}</SummaryContext.Provider>;
 };
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// Teks yang hanya terlihat di mode penuh (>= 1024px); di bilah ikon tetap ada untuk pembaca layar.
+const LABEL_FULL = 'sr-only lg:not-sr-only';
 
-const Sidebar = ({ me, open, onClose, closeBtnRef, asideRef }) => {
+const Sidebar = ({ me }) => {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const { summary } = useAdminSummary();
   const groups = filterMenu(query);
 
-  const pick = () => {
-    setQuery('');
-    onClose();
-  };
+  // Kolom cari disembunyikan di mode ikon; kosongkan agar menu tidak tersaring diam-diam.
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => !e.matches && setQuery('');
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
 
   const onSearchKey = (e) => {
     if (e.key === 'Enter') {
@@ -114,7 +120,7 @@ const Sidebar = ({ me, open, onClose, closeBtnRef, asideRef }) => {
       const first = groups[0]?.items[0];
       if (first) {
         navigate(first.to);
-        pick();
+        setQuery('');
       }
     } else if (e.key === 'Escape' && query) {
       e.stopPropagation();
@@ -129,37 +135,27 @@ const Sidebar = ({ me, open, onClose, closeBtnRef, asideRef }) => {
   };
 
   return (
+    // < 1024px: bilah ikon sempit (64px) yang selalu terlihat; >= 1024px: sidebar penuh 260px.
+    // Keduanya fixed setinggi layar; daftar menu scroll sendiri bila tidak muat.
     <aside
       id="admin-sidebar"
-      ref={asideRef}
       aria-label="Sidebar admin"
-      role={open ? 'dialog' : undefined}
-      aria-modal={open ? 'true' : undefined}
-      data-open={open ? 'true' : 'false'}
-      className={`fixed inset-y-0 left-0 z-40 flex w-[260px] max-w-[85vw] flex-col bg-slate-900 text-slate-200 shadow-xl duration-200 lg:visible lg:translate-x-0 lg:shadow-none ${
-        // Saat dibuka visibility langsung aktif (agar fokus bisa pindah); saat ditutup baru
-        // disembunyikan setelah animasi geser selesai (keluar dari urutan Tab).
-        open ? 'visible translate-x-0 transition-transform' : 'invisible -translate-x-full transition-[transform,visibility]'
-      }`}
+      className="fixed inset-y-0 left-0 z-30 flex w-16 flex-col overflow-hidden bg-slate-900 text-slate-200 lg:w-[260px]"
     >
-      <div className="flex items-center gap-3 border-b border-slate-800 px-4 py-4">
-        <img src="/mihan-store-logo.png" alt="" className="h-9 w-9 shrink-0 rounded-md bg-white object-contain p-0.5" />
-        <div className="min-w-0 flex-1">
+      <div className="flex shrink-0 items-center justify-center gap-3 border-b border-slate-800 px-2 py-3 lg:justify-start lg:px-4 lg:py-4">
+        <img
+          src="/mihan-store-logo.png"
+          alt=""
+          title="Mihan Store Admin"
+          className="h-10 w-10 shrink-0 rounded-md bg-white object-contain p-0.5 lg:h-9 lg:w-9"
+        />
+        <div className={`${LABEL_FULL} lg:min-w-0 lg:flex-1`}>
           <div className="truncate text-sm font-semibold text-white">Mihan Store Admin</div>
-          <div className="text-[11px] text-slate-400">Panel pengelola toko</div>
+          <div className="hidden text-[11px] text-slate-400 lg:block">Panel pengelola toko</div>
         </div>
-        <button
-          type="button"
-          ref={closeBtnRef}
-          onClick={onClose}
-          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 lg:hidden"
-          aria-label="Tutup menu"
-        >
-          <Icon name="close" />
-        </button>
       </div>
 
-      <div className="px-3 pt-3">
+      <div className="hidden px-3 pt-3 lg:block">
         <label className="relative block">
           <span className="sr-only">Cari menu</span>
           <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-slate-500">
@@ -177,38 +173,54 @@ const Sidebar = ({ me, open, onClose, closeBtnRef, asideRef }) => {
         </label>
       </div>
 
-      <nav aria-label="Menu admin" className="mt-2 flex-1 overflow-y-auto px-3 pb-4">
+      <nav aria-label="Menu admin" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4 lg:mt-2 lg:px-3">
         {groups.length === 0 && <p className="px-2 py-4 text-sm text-slate-400">Tidak ada menu yang cocok.</p>}
-        {groups.map((g) => (
-          <div key={g.group} className="mt-3" data-group={g.group}>
-            <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{g.group}</div>
-            <ul className="space-y-0.5">
+        {groups.map((g, gi) => (
+          <div key={g.group} className="mt-2 lg:mt-3" data-group={g.group}>
+            {gi > 0 && <div aria-hidden="true" className="mx-2 mb-2 border-t border-slate-800 lg:hidden" />}
+            <div className="hidden px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 lg:block">{g.group}</div>
+            <ul className="space-y-1 lg:space-y-0.5">
               {g.items.map((it) => {
                 const badge = badgeOf(it);
+                const name = badge !== null ? `${it.label}, ${badge} menunggu pembayaran` : it.label;
                 return (
                   <li key={it.to}>
                     <NavLink
                       to={it.to}
                       end={it.end}
-                      onClick={pick}
+                      onClick={() => setQuery('')}
+                      title={name}
+                      aria-label={name}
+                      data-menu={it.label}
                       className={({ isActive }) =>
-                        `group flex items-center gap-3 rounded-md border-l-4 px-2.5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                        `group relative flex h-11 items-center justify-center rounded-md border-l-4 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 lg:h-auto lg:justify-start lg:gap-3 lg:px-2.5 lg:py-2 ${
                           isActive
-                            ? 'border-purple-400 bg-purple-600/25 text-white'
+                            ? 'border-purple-400 bg-purple-600/30 text-white'
                             : 'border-transparent text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`
                       }
                     >
-                      <Icon name={it.icon} className="h-5 w-5 shrink-0 opacity-90" />
-                      <span className="flex-1 truncate">{it.label}</span>
+                      <Icon name={it.icon} className="h-6 w-6 shrink-0 opacity-90 lg:h-5 lg:w-5" />
+                      <span className={`${LABEL_FULL} lg:flex-1 lg:truncate`}>{it.label}</span>
                       {badge !== null && (
-                        <span
-                          className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold leading-none text-slate-900"
-                          aria-label={`${badge} menunggu pembayaran`}
-                          title={`${badge} pesanan menunggu pembayaran`}
-                        >
-                          {badge}
-                        </span>
+                        <>
+                          {/* Mode ikon: angka kecil di pojok ikon. */}
+                          <span
+                            aria-hidden="true"
+                            data-badge="icon"
+                            className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold leading-none text-slate-900 ring-2 ring-slate-900 lg:hidden"
+                          >
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                          {/* Mode penuh: lencana di ujung kanan baris. */}
+                          <span
+                            aria-hidden="true"
+                            data-badge="full"
+                            className="hidden rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold leading-none text-slate-900 lg:inline-block"
+                          >
+                            {badge}
+                          </span>
+                        </>
                       )}
                     </NavLink>
                   </li>
@@ -219,54 +231,51 @@ const Sidebar = ({ me, open, onClose, closeBtnRef, asideRef }) => {
         ))}
       </nav>
 
-      <div className="border-t border-slate-800 px-4 py-3 text-xs">
-        <div className="text-slate-400">
+      <div className="shrink-0 border-t border-slate-800 px-2 py-2 text-xs lg:px-4 lg:py-3">
+        <div className="hidden text-slate-400 lg:block" data-testid="admin-email">
           Masuk sebagai <span className="break-all font-medium text-slate-200">{me?.email || '-'}</span>
         </div>
         <a
           href="/"
-          className="mt-2 inline-flex items-center gap-1.5 rounded text-sm font-medium text-purple-300 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          title="Kembali ke toko"
+          aria-label="Kembali ke toko"
+          className="flex h-11 items-center justify-center rounded-md text-sm font-medium text-purple-300 hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 lg:mt-2 lg:inline-flex lg:h-auto lg:justify-start lg:gap-1.5 lg:hover:bg-transparent"
         >
-          <Icon name="back" className="h-4 w-4" />
-          Kembali ke toko
+          <Icon name="back" className="h-6 w-6 lg:h-4 lg:w-4" />
+          <span className={LABEL_FULL}>Kembali ke toko</span>
         </a>
-        <div className="mt-2 text-[11px] text-slate-500">Mihan Store Admin {ADMIN_UI_VERSION}</div>
+        <div className="mt-2 hidden text-[11px] text-slate-500 lg:block">Mihan Store Admin {ADMIN_UI_VERSION}</div>
       </div>
     </aside>
   );
 };
 
-const Topbar = ({ me, open, onOpen, menuBtnRef }) => {
+const Topbar = ({ me }) => {
   const { pathname } = useLocation();
   const { title, crumbs } = breadcrumbFor(pathname);
   const email = me?.email || '';
   const short = email.split('@')[0] || 'admin';
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-gray-200 bg-white/95 px-4 backdrop-blur lg:px-8">
-      <button
-        type="button"
-        ref={menuBtnRef}
-        onClick={onOpen}
-        className="-ml-1 rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 lg:hidden"
-        aria-label="Buka menu"
-        aria-controls="admin-sidebar"
-        aria-expanded={open}
-      >
-        <Icon name="menu" className="h-6 w-6" />
-      </button>
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-gray-200 bg-white/95 px-3 backdrop-blur sm:h-16 sm:px-6 lg:px-8">
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-semibold text-gray-900" data-testid="admin-title">
           {title}
         </p>
-        <nav aria-label="Breadcrumb" className="hidden sm:block">
-          <ol className="flex items-center gap-1 text-xs text-gray-500">
+        <nav aria-label="Breadcrumb" className="min-w-0">
+          {/* Layar sempit: hanya dua tingkat terakhir (mis. "Penjualan / Pesanan"). */}
+          <ol className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-xs text-gray-500">
             {crumbs.map((c, i) => {
               const last = i === crumbs.length - 1;
+              const compactHidden = i < crumbs.length - 2;
               return (
-                <li key={`${i}-${c.label}`} className="flex items-center gap-1">
-                  {i > 0 && <span aria-hidden="true">/</span>}
+                <li key={`${i}-${c.label}`} className={`${compactHidden ? 'hidden sm:flex' : 'flex'} min-w-0 items-center gap-1`}>
+                  {i > 0 && (
+                    <span aria-hidden="true" className={i === crumbs.length - 2 ? 'hidden sm:inline' : undefined}>
+                      /
+                    </span>
+                  )}
                   {last ? (
-                    <span aria-current="page" className="font-medium text-gray-700">
+                    <span aria-current="page" className="truncate font-medium text-gray-700">
                       {c.label}
                     </span>
                   ) : c.to ? (
@@ -283,7 +292,7 @@ const Topbar = ({ me, open, onOpen, menuBtnRef }) => {
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2" title={email}>
-        <span className="hidden max-w-[10rem] truncate text-sm text-gray-600 sm:inline">{short}</span>
+        <span className="hidden max-w-[12rem] truncate text-sm text-gray-600 md:inline">{short}</span>
         <span
           className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-700 text-sm font-semibold uppercase text-white"
           aria-label={`Admin: ${email}`}
@@ -295,100 +304,26 @@ const Topbar = ({ me, open, onOpen, menuBtnRef }) => {
   );
 };
 
-const AdminLayout = ({ me, children }) => {
-  const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
-  const menuBtnRef = useRef(null);
-  const closeBtnRef = useRef(null);
-  const asideRef = useRef(null);
-  const wasOpen = useRef(false);
-
-  const close = useCallback(() => setOpen(false), []);
-
-  // Tutup laci saat rute berubah.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  // Fokus: saat dibuka pindah ke tombol tutup; saat ditutup kembali ke tombol hamburger.
-  useEffect(() => {
-    if (open) {
-      wasOpen.current = true;
-      // Browser bisa menolak fokus selama laci masih dalam transisi tampil; coba ulang singkat.
-      const focusClose = () => {
-        if (asideRef.current && !asideRef.current.contains(document.activeElement)) closeBtnRef.current?.focus();
-      };
-      focusClose();
-      const timers = [0, 60, 250].map((ms) => window.setTimeout(focusClose, ms));
-      return () => timers.forEach((t) => window.clearTimeout(t));
-    }
-    if (wasOpen.current) {
-      wasOpen.current = false;
-      menuBtnRef.current?.focus();
-    }
-    return undefined;
-  }, [open]);
-
-  // Escape menutup, Tab dikurung di dalam laci, scroll halaman dikunci selama laci terbuka.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-      } else if (e.key === 'Tab' && asideRef.current) {
-        const els = [...asideRef.current.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement);
-        if (els.length === 0) return;
-        const first = els[0];
-        const last = els[els.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  // Bila layar melebar ke desktop, laci tidak relevan lagi.
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return undefined;
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const onChange = (e) => e.matches && setOpen(false);
-    mq.addEventListener?.('change', onChange);
-    return () => mq.removeEventListener?.('change', onChange);
-  }, []);
-
-  return (
-    <SummaryProvider>
-      <div className="min-h-screen bg-gray-100 text-gray-800">
-        <a
-          href="#admin-main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow"
-        >
-          Lewati ke konten
-        </a>
-        <Sidebar me={me} open={open} onClose={close} closeBtnRef={closeBtnRef} asideRef={asideRef} />
-        {open && (
-          <div className="fixed inset-0 z-30 bg-slate-900/60 lg:hidden" onClick={close} aria-hidden="true" data-testid="admin-overlay" />
-        )}
-        <div className="flex min-h-screen min-w-0 flex-col lg:pl-[260px]">
-          <Topbar me={me} open={open} onOpen={() => setOpen(true)} menuBtnRef={menuBtnRef} />
-          <main id="admin-main" tabIndex={-1} className="w-full min-w-0 max-w-7xl flex-1 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-6">
-            {children}
-          </main>
-        </div>
+const AdminLayout = ({ me, children }) => (
+  <SummaryProvider>
+    <div className="min-h-screen bg-gray-100 text-gray-800">
+      <a
+        href="#admin-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+      >
+        Lewati ke konten
+      </a>
+      <Sidebar me={me} />
+      {/* Konten mengisi seluruh sisa lebar (viewport - bilah 64px / sidebar 260px), tanpa max-width;
+          kata panjang (email, username) dipatah agar tidak mendorong halaman melebar. */}
+      <div className="flex min-h-screen min-w-0 flex-col pl-16 lg:pl-[260px]">
+        <Topbar me={me} />
+        <main id="admin-main" tabIndex={-1} className="w-full min-w-0 flex-1 break-words px-3 py-4 focus:outline-none sm:px-6 lg:px-8 lg:py-6 2xl:px-10">
+          {children}
+        </main>
       </div>
-    </SummaryProvider>
-  );
-};
+    </div>
+  </SummaryProvider>
+);
 
 export default AdminLayout;

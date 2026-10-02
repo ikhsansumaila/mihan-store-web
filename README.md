@@ -166,9 +166,14 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   pertama), dan grup menu **Utama** (Dashboard), **Katalog** (Produk, Kategori), **Penjualan** (Pesanan dengan
   lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Invoice), **Sistem** (Pengaturan Toko, Log
   Aktivitas); bagian bawah: email admin (`/api/admin/me`), tautan anchor biasa "Kembali ke toko" (`/`), versi UI.
-  Topbar: judul + breadcrumb (mis. Admin / Katalog / Produk) dan nama admin singkat. Di bawah 1024px sidebar
-  menjadi laci (hamburger; tutup lewat overlay, Escape, tombol ×, atau memilih menu; fokus dikurung di laci
-  dan kembali ke hamburger). Dashboard (`src/admin/Dashboard.js`): kartu statistik, pintasan cepat
+  Topbar: judul + breadcrumb (mis. Admin / Katalog / Produk) dan nama admin singkat. Konten mengisi seluruh
+  sisa lebar layar di kanan sidebar (tanpa `max-width`); tabel lebar di-scroll di dalam wadahnya
+  (`overflow-x-auto`), halaman tidak pernah scroll horizontal. Di bawah 1024px sidebar menjadi **bilah ikon**
+  sempit (64px, selalu terlihat, tanpa hamburger/overlay): logo kecil, ikon menu (target sentuh 44px, tooltip
+  `title` + `aria-label`, menu aktif bergaris kiri + latar, `aria-current="page"`), angka kecil *menunggu
+  pembayaran* di pojok ikon Pesanan, ikon "Kembali ke toko" di bawah; label teks hanya untuk pembaca layar
+  (`sr-only`), kolom cari menu dan email admin disembunyikan (topbar menampilkan inisial). Breadcrumb di layar
+  sempit diringkas menjadi dua tingkat terakhir. Dashboard (`src/admin/Dashboard.js`): kartu statistik, pintasan cepat
   (`/admin/products?tambah=1` membuka form tambah produk, `/admin/orders?status=pending_payment` memfilter
   pesanan), dan 10 aktivitas terakhir. Navigasi antar halaman admin memakai react-router (sudah di dalam area
   Cloudflare Access).

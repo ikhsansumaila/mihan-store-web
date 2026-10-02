@@ -99,7 +99,7 @@ const InvoiceCreate = () => {
 
   return (
     // Dirender di dalam layout admin (/admin/invoice); padding luar sudah dari layout.
-    <div className="max-w-4xl">
+    <div>
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Buat Invoice</h1>
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-8">
 
