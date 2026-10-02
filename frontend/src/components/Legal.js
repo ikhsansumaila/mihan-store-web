@@ -48,6 +48,12 @@ export const PrivacyPolicy = () => (
           (argon2id), bukan password aslinya.
         </li>
         <li>
+          <strong>Data pesanan dan alamat pengiriman:</strong> saat Anda membuat pesanan, kami menyimpan nama penerima,
+          nomor telepon penerima, alamat, kota, kode pos (opsional), dan catatan pesanan (opsional), beserta isi pesanan
+          (produk, jumlah, harga saat dipesan), diskon, ongkir, total, status pesanan, dan waktu perubahannya. Isi
+          keranjang belanja juga disimpan di server kami selama Anda login.
+        </li>
+        <li>
           <strong>Catatan aktivitas keamanan:</strong> waktu login/logout, percobaan login yang gagal, alamat IP, dan
           informasi perangkat/peramban (user agent). Catatan ini disimpan paling lama sekitar 6 bulan.
         </li>
@@ -60,7 +66,15 @@ export const PrivacyPolicy = () => (
         <li>Membuat dan mengelola akun Anda serta membuat Anda tetap masuk (sesi login).</li>
         <li>Menjaga keamanan: mencegah penyalahgunaan, menebak password, dan akun palsu.</li>
         <li>Menjalankan layanan toko, misalnya menampilkan produk dan menghubungi Anda terkait pesanan.</li>
+        <li>
+          Memproses pesanan: menghitung total, mengonfirmasi pembayaran transfer, mengirim barang ke alamat yang Anda isi,
+          dan menghubungi Anda (misalnya lewat WhatsApp) tentang pesanan tersebut.
+        </li>
       </UL>
+      <p>
+        <strong>Siapa yang bisa melihat data pesanan:</strong> Anda sendiri (lewat menu “Pesanan Saya”) dan pemilik/admin
+        Mihan Store yang mengelola pesanan. Data pesanan tidak ditampilkan kepada pengguna lain.
+      </p>
     </section>
 
     <section>
@@ -79,6 +93,16 @@ export const PrivacyPolicy = () => (
         <li>
           <strong>Cloudflare Turnstile</strong> — verifikasi bahwa Anda bukan robot pada formulir login dan daftar.
         </li>
+        <li>
+          <strong>Discord</strong> — notifikasi internal ke pengelola toko saat ada pesanan baru, dibayar, atau
+          dibatalkan. Notifikasi ini <strong>hanya</strong> memuat nomor pesanan, nama pemesan, jumlah item, total, dan
+          status; <strong>tidak</strong> memuat alamat, nomor telepon, email, atau catatan pesanan.
+        </li>
+        <li>
+          <strong>WhatsApp</strong> — bila Anda menekan tombol “Konfirmasi via WhatsApp”, aplikasi WhatsApp dibuka dengan
+          ringkasan pesanan yang Anda kirim sendiri ke toko (berlaku juga kebijakan privasi WhatsApp). Admin juga dapat
+          mengirim ringkasan pesanan ke nomor telepon penerima lewat WhatsApp.
+        </li>
       </UL>
       <p>Kami juga dapat mengungkapkan data bila diwajibkan oleh hukum yang berlaku.</p>
     </section>
@@ -89,6 +113,12 @@ export const PrivacyPolicy = () => (
         Data disimpan di server yang kami kelola. Kami memakai koneksi terenkripsi (HTTPS), hash password, token sesi
         yang hanya disimpan dalam bentuk hash, pembatasan percobaan login, dan pembatasan akses admin. Tidak ada sistem
         yang sepenuhnya bebas risiko, tetapi kami berupaya melindungi data Anda secara wajar.
+      </p>
+      <p>
+        <strong>Masa penyimpanan data pesanan:</strong> data pesanan (termasuk data penerima dan alamat pengiriman)
+        disimpan untuk keperluan pencatatan dan pembukuan toko, termasuk setelah pesanan selesai atau dibatalkan. Isi
+        keranjang dihapus setelah pesanan dibuat atau saat Anda menghapusnya. Anda dapat meminta penghapusan data sesuai
+        bagian “Hak Anda”, kecuali data yang perlu kami simpan untuk pencatatan transaksi atau menurut hukum.
       </p>
     </section>
 
@@ -108,7 +138,8 @@ export const PrivacyPolicy = () => (
     <section>
       <H>6. Cookie dan penyimpanan lokal</H>
       <p>
-        Situs memakai penyimpanan lokal peramban untuk menyimpan sesi login Anda. Cloudflare dapat memasang cookie yang
+        Situs memakai penyimpanan lokal peramban untuk menyimpan sesi login Anda (keranjang belanja disimpan di server,
+        bukan di peramban). Cloudflare dapat memasang cookie yang
         diperlukan untuk keamanan. Kami tidak memakai cookie iklan.
       </p>
     </section>
@@ -167,10 +198,17 @@ export const TermsOfService = () => (
 
     <section>
       <H>3. Pemesanan dan pembayaran</H>
-      <p>
-        Detail pemesanan, pembayaran, dan pengiriman disepakati langsung dengan Mihan Store (misalnya lewat WhatsApp)
-        dan dikonfirmasi melalui invoice.
-      </p>
+      <UL>
+        <li>Pemesanan dilakukan setelah login: tambahkan produk ke keranjang, isi data penerima, lalu buat pesanan.</li>
+        <li>
+          Pembayaran dengan transfer bank manual ke rekening yang tertera di halaman pesanan. Ongkir dan diskon (bila ada)
+          ditetapkan admin; total akhir terlihat di halaman pesanan.
+        </li>
+        <li>
+          Pesanan yang belum dibayar dapat Anda batalkan sendiri. Status pesanan diperbarui admin setelah pembayaran
+          dikonfirmasi; pengiriman dan invoice disepakati dengan Mihan Store (misalnya lewat WhatsApp).
+        </li>
+      </UL>
     </section>
 
     <section>
