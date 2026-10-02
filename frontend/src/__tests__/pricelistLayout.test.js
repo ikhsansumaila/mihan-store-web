@@ -4,7 +4,8 @@ import {
   formatDateId,
   defaultDateText,
   fileNameFor,
-  normalizeWhatsapp,
+  normalizeOrderUrl,
+  defaultOrderUrl,
   groupProducts,
   defaultSelection,
   catalogForSelection,
@@ -51,21 +52,21 @@ test('tanggal id-ID, teks default, dan nama file', () => {
   expect(fileNameFor(d, 1)).toBe('pricelist-mihan-store-20261002-2.png');
 });
 
-test('normalizeWhatsapp: format +62 rapi; kosong/placeholder/tidak valid -> null', () => {
-  expect(normalizeWhatsapp('081234567890')).toEqual({ digits: '6281234567890', display: '+62 812-3456-7890' });
-  expect(normalizeWhatsapp('+62 812-3456-7890')).toEqual({ digits: '6281234567890', display: '+62 812-3456-7890' });
-  expect(normalizeWhatsapp('6281311112222').display).toBe('+62 813-1111-2222');
-  expect(normalizeWhatsapp('0812345678').display).toBe('+62 812-3456-78');
-  expect(normalizeWhatsapp('08123456789').display).toBe('+62 812-3456-789');
-  expect(normalizeWhatsapp('081234567890123').display).toBe('+62 812-3456-7890-123');
-  expect(normalizeWhatsapp('BELUM DIISI')).toBeNull();
-  expect(normalizeWhatsapp(' belum diisi ')).toBeNull();
-  expect(normalizeWhatsapp('')).toBeNull();
-  expect(normalizeWhatsapp(null)).toBeNull();
-  expect(normalizeWhatsapp(undefined)).toBeNull();
-  expect(normalizeWhatsapp('12345')).toBeNull();
-  expect(normalizeWhatsapp('021-5551234')).toBeNull(); // bukan nomor HP
-  expect(normalizeWhatsapp('abc')).toBeNull();
+test('normalizeOrderUrl: hanya http/https tanpa spasi; display tanpa skema', () => {
+  expect(normalizeOrderUrl('https://store.mihan.web.id')).toEqual({ href: 'https://store.mihan.web.id', display: 'store.mihan.web.id' });
+  expect(normalizeOrderUrl(' https://store.mihan.web.id/ ')).toEqual({ href: 'https://store.mihan.web.id', display: 'store.mihan.web.id' });
+  expect(normalizeOrderUrl('HTTPS://Store.Mihan.Web.ID/')).toEqual({ href: 'https://store.mihan.web.id', display: 'store.mihan.web.id' });
+  expect(normalizeOrderUrl('http://localhost:3000')).toEqual({ href: 'http://localhost:3000', display: 'localhost:3000' });
+  expect(normalizeOrderUrl('store.mihan.web.id')).toEqual({ href: 'https://store.mihan.web.id', display: 'store.mihan.web.id' }); // tanpa skema -> https
+  expect(normalizeOrderUrl('https://store.mihan.web.id/katalog/')).toEqual({
+    href: 'https://store.mihan.web.id/katalog',
+    display: 'store.mihan.web.id/katalog',
+  });
+  ['', '   ', null, undefined, 'https://store mihan.web.id', 'https://store.mihan.web.id/a b', 'ftp://store.mihan.web.id', `${'javascript'}:alert(1)`,
+    'mailto:a@b.c', 'https://user:pass@store.mihan.web.id', 'https://', 'http://', `https://${'a'.repeat(130)}.id`].forEach((v) =>
+    expect(normalizeOrderUrl(v)).toBeNull()
+  );
+  expect(defaultOrderUrl()).toBe(window.location.origin);
 });
 
 test('groupProducts: default hanya produk aktif, urut kategori (sortOrder, nama) lalu nama produk', () => {
@@ -168,13 +169,15 @@ test('paginate: input kosong -> tanpa halaman', () => {
   expect(paginate([mk('A', 0)], opt)).toEqual([]);
 });
 
-test('buildShareText: judul, tanggal, catatan, nomor; nomor disembunyikan bila belum diisi', () => {
-  const t = buildShareText({ title: 'Daftar Harga Mihan Store', dateText: 'Berlaku per 2 Oktober 2026', note: 'Promo ongkir', whatsapp: '081234567890' });
-  expect(t).toBe('*Daftar Harga Mihan Store*\nBerlaku per 2 Oktober 2026\n\nPromo ongkir\n\nInfo dan pemesanan: wa.me/6281234567890');
-  const noWa = buildShareText({ title: 'Judul', dateText: 'Tgl', note: '', whatsapp: 'BELUM DIISI' });
-  expect(noWa).not.toMatch(/wa\.me\/\d/);
-  expect(noWa).toContain('Info dan pemesanan');
-  expect(noWa).not.toContain('\n\n\n');
-  expect(buildShareText({ title: 'X', whatsapp: '123' })).not.toMatch(/wa\.me\/\d/);
+test('buildShareText: judul, tanggal, catatan, alamat web; tanpa nomor WhatsApp', () => {
+  const t = buildShareText({ title: 'Daftar Harga Mihan Store', dateText: 'Berlaku per 2 Oktober 2026', note: 'Promo ongkir', orderUrl: 'https://store.mihan.web.id' });
+  expect(t).toBe('*Daftar Harga Mihan Store*\nBerlaku per 2 Oktober 2026\n\nPromo ongkir\n\nPesan online di https://store.mihan.web.id');
+  expect(t).not.toMatch(/wa\.me|whatsapp|\+62|08\d{6}/i);
+  // Alamat tidak valid/kosong: baris pemesanan dihilangkan, tanpa baris kosong berlebih.
+  const noUrl = buildShareText({ title: 'Judul', dateText: 'Tgl', note: '', orderUrl: 'ftp://x' });
+  expect(noUrl).toBe('*Judul*\nTgl');
+  expect(buildShareText({ title: 'X', orderUrl: 'store.mihan.web.id/' })).toBe('*X*\n\nPesan online di https://store.mihan.web.id');
+  // Parameter lama (whatsapp) tidak lagi dipakai.
+  expect(buildShareText({ title: 'X', whatsapp: '081234567890' })).not.toMatch(/wa\.me|6281234567890/);
   expect(waShareUrl('a b&c')).toBe('https://wa.me/?text=a%20b%26c');
 });

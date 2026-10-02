@@ -1,11 +1,10 @@
-// Logika murni pricelist (tanpa DOM/canvas) agar bisa diuji unit: format rupiah & tanggal, nomor WhatsApp,
-// pengelompokan + urutan produk per kategori, pembungkusan teks, pemecahan halaman gambar, teks pendamping.
-import { waNumber } from '../shop/format';
+// Logika murni pricelist (tanpa DOM/canvas) agar bisa diuji unit: format rupiah & tanggal, alamat web
+// pemesanan, pengelompokan + urutan produk per kategori, pembungkusan teks, pemecahan halaman gambar, teks pendamping.
 
-export const PLACEHOLDER = 'BELUM DIISI';
 export const NOTE_MAX = 200;
 export const TITLE_MAX = 80;
 export const DATE_MAX = 80;
+export const URL_MAX = 120;
 export const DEFAULT_TITLE = 'Daftar Harga Mihan Store';
 export const STORE_NAME = 'Mihan Store';
 
@@ -35,24 +34,28 @@ export const dateStamp = (d = new Date()) =>
 
 export const fileNameFor = (d, index) => `pricelist-mihan-store-${dateStamp(d)}-${index + 1}.png`;
 
-// Nomor WhatsApp toko -> { digits: '6281234567890', display: '+62 812-3456-7890' } atau null bila kosong,
-// placeholder "BELUM DIISI", atau tidak valid.
-export const normalizeWhatsapp = (raw) => {
+// Alamat web pemesanan (halaman toko untuk pelanggan) -> { href: 'https://store.mihan.web.id', display:
+// 'store.mihan.web.id' } atau null bila kosong/tidak valid. Hanya http/https, tanpa spasi, tanpa user:password.
+// Tanpa skema dianggap https (mis. "store.mihan.web.id"). display = tanpa skema dan tanpa "/" di akhir.
+export const normalizeOrderUrl = (raw) => {
   if (raw === null || raw === undefined) return null;
   const s = String(raw).trim();
-  if (!s || s.toUpperCase() === PLACEHOLDER) return null;
-  const digits = waNumber(s);
-  if (!digits) return null;
-  const rest = digits.slice(2);
-  const parts = [rest.slice(0, 3)];
-  for (let i = 3; i < rest.length; i += 4) parts.push(rest.slice(i, i + 4));
-  // Hindari kelompok terakhir 1 digit (mis. 812-3456-7890-1 -> 812-3456-78901).
-  if (parts.length > 2 && parts[parts.length - 1].length === 1) {
-    const last = parts.pop();
-    parts[parts.length - 1] += last;
+  if (!s || s.length > URL_MAX || /\s/.test(s)) return null;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(s);
+  if (hasScheme && !/^https?:\/\//i.test(s)) return null; // ftp:, javascript:, mailto:, dll.
+  let u;
+  try {
+    u = new URL(hasScheme ? s : `https://${s}`);
+  } catch {
+    return null;
   }
-  return { digits, display: `+62 ${parts.join('-')}` };
+  if ((u.protocol !== 'http:' && u.protocol !== 'https:') || !u.hostname || u.username || u.password) return null;
+  const href = `${u.protocol}//${u.host}${u.pathname === '/' ? '' : u.pathname.replace(/\/+$/, '')}${u.search}${u.hash}`;
+  return { href, display: href.replace(/^https?:\/\//i, '') };
 };
+
+// Alamat bawaan: asal (origin) halaman admin yang sedang dibuka, mis. https://store.mihan.web.id.
+export const defaultOrderUrl = () => (typeof window !== 'undefined' && window.location && window.location.origin) || '';
 
 const collator = typeof Intl !== 'undefined' ? new Intl.Collator('id', { sensitivity: 'base', numeric: true }) : null;
 const cmpText = (a, b) => (collator ? collator.compare(a, b) : a < b ? -1 : a > b ? 1 : 0);
@@ -224,8 +227,8 @@ export const paginate = (groups, { budget, catHeaderH, groupGap }) => {
   return pages;
 };
 
-// Teks pendamping untuk WhatsApp.
-export const buildShareText = ({ title, dateText, note, whatsapp }) => {
+// Teks pendamping untuk WhatsApp (tanpa nomor WA; pemesanan lewat web toko).
+export const buildShareText = ({ title, dateText, note, orderUrl }) => {
   const lines = [];
   const t = String(title || '').trim();
   if (t) lines.push(`*${t}*`);
@@ -233,8 +236,8 @@ export const buildShareText = ({ title, dateText, note, whatsapp }) => {
   if (d) lines.push(d);
   const n = String(note || '').trim();
   if (n) lines.push('', n);
-  const wa = normalizeWhatsapp(whatsapp);
-  lines.push('', wa ? `Info dan pemesanan: wa.me/${wa.digits}` : 'Info dan pemesanan: hubungi kami via WhatsApp.');
+  const u = normalizeOrderUrl(orderUrl);
+  if (u) lines.push('', `Pesan online di ${u.href}`);
   return lines.join('\n');
 };
 

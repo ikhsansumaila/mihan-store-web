@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { adminFetch, qs } from './api';
 import { ErrorBox, cardClass, inputClass, btnPrimary, btnSecondary } from './ui';
 import { Icon } from './icons';
@@ -10,6 +9,7 @@ import {
   NOTE_MAX,
   TITLE_MAX,
   DATE_MAX,
+  URL_MAX,
   defaultDateText,
   defaultSelection,
   catalogForSelection,
@@ -17,7 +17,8 @@ import {
   formatRupiah,
   fileNameFor,
   buildShareText,
-  normalizeWhatsapp,
+  normalizeOrderUrl,
+  defaultOrderUrl,
   waShareUrl,
 } from '../pricelist/layout';
 import { renderPricelist, canvasToBlob, loadLogo } from '../pricelist/render';
@@ -25,7 +26,8 @@ import { canShareFiles, copyText, downloadAll, downloadBlob, shareFiles, toFiles
 
 // Halaman Pricelist: pilih produk, atur judul/tanggal/catatan/tema/kolom, pratinjau PNG langsung (dibuat di
 // browser dengan Canvas 2D), unduh PNG, dan bagikan ke WhatsApp (Web Share API di HP; di komputer: unduh +
-// buka wa.me dengan teks pendamping). Tidak ada perubahan data di backend.
+// buka wa.me dengan teks pendamping). Pemesanan diarahkan ke alamat web toko (bukan nomor WhatsApp).
+// Tidak ada perubahan data di backend.
 
 const MAX_PAGES_FETCH = 50;
 
@@ -131,7 +133,9 @@ const CategoryChecklist = ({ group, selected, onToggle, onSetMany }) => {
 const Pricelist = () => {
   const [catalog, setCatalog] = useState(null); // { products, categories }
   const [loadError, setLoadError] = useState(null);
-  const [whatsapp, setWhatsapp] = useState('');
+  const [orderUrl, setOrderUrl] = useState(() => defaultOrderUrl());
+  // Alamat valid terakhir: dipakai pratinjau & teks pendamping selama isian sedang tidak valid.
+  const [renderUrl, setRenderUrl] = useState(() => (normalizeOrderUrl(defaultOrderUrl()) || { href: '' }).href);
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [dateText, setDateText] = useState(() => defaultDateText(new Date()));
   const [note, setNote] = useState('');
@@ -156,10 +160,6 @@ const Pricelist = () => {
         setSelected(defaultSelection(products));
       })
       .catch((err) => alive && setLoadError(err));
-    // Nomor WhatsApp toko opsional: gagal dimuat = footer tanpa nomor.
-    adminFetch('/settings')
-      .then((r) => alive && setWhatsapp((r && r.settings && r.settings.store_whatsapp) || ''))
-      .catch(() => {});
     loadLogoWithTimeout().then((img) => alive && setLogo(img || null));
     return () => {
       alive = false;
@@ -179,8 +179,10 @@ const Pricelist = () => {
   const groups = useMemo(() => (catalog ? groupProducts(catalog.products, catalog.categories, selected) : []), [catalog, selected]);
   const selectedCount = groups.reduce((s, g) => s + g.items.length, 0);
   const inactiveSelected = groups.reduce((s, g) => s + g.items.filter((it) => !it.active).length, 0);
-  const wa = normalizeWhatsapp(whatsapp);
-  const autoText = buildShareText({ title, dateText, note, whatsapp });
+  const url = normalizeOrderUrl(orderUrl);
+  const urlInvalid = !url;
+  // Alamat tidak valid: tombol unduh/bagikan dinonaktifkan sampai diperbaiki.
+  const autoText = buildShareText({ title, dateText, note, orderUrl: renderUrl });
   const shareText = customText ?? autoText;
   const canShare = useMemo(() => {
     try {
@@ -203,7 +205,7 @@ const Pricelist = () => {
     setPreview((p) => ({ ...p, busy: true }));
     const t = setTimeout(async () => {
       try {
-        const rendered = renderPricelist({ groups, columns, title, dateText, note, whatsapp, theme }, { logo });
+        const rendered = renderPricelist({ groups, columns, title, dateText, note, orderUrl: renderUrl, theme }, { logo });
         const blobs = await Promise.all(rendered.map((r) => canvasToBlob(r.canvas)));
         if (cancelled) return;
         const pages = rendered.map((r, i) => ({
@@ -224,7 +226,7 @@ const Pricelist = () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [catalog, groups, columns, title, dateText, note, whatsapp, theme, logo, today]);
+  }, [catalog, groups, columns, title, dateText, note, renderUrl, theme, logo, today]);
 
   const toggle = useCallback((id) => {
     setSelected((prev) => {
@@ -245,7 +247,7 @@ const Pricelist = () => {
   const clearAll = () => setSelected(new Set());
 
   const pages = preview.pages;
-  const ready = pages.length > 0 && !preview.busy;
+  const ready = pages.length > 0 && !preview.busy && !urlInvalid;
 
   const onDownload = () => {
     setShareMsg(null);
@@ -362,22 +364,40 @@ const Pricelist = () => {
               </div>
             </fieldset>
           </div>
-          <p className="text-xs text-gray-500">
-            Footer gambar:{' '}
-            {wa ? (
-              <>
-                Pemesanan: WhatsApp <span className="font-medium text-gray-700">{wa.display}</span>
-              </>
-            ) : (
-              <>
-                nomor WhatsApp toko belum diisi di{' '}
-                <Link to="/admin/settings" className="text-purple-700 underline">
-                  Pengaturan Toko
-                </Link>
-                , jadi tidak ditampilkan.
-              </>
-            )}
-          </p>
+          <div>
+            <Label htmlFor="pl-url" hint="(untuk pelanggan memesan)">
+              Alamat web pemesanan
+            </Label>
+            <input
+              id="pl-url"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              className={urlInvalid ? inputClass.replace('border-gray-300', 'border-red-500') : inputClass}
+              maxLength={URL_MAX}
+              value={orderUrl}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOrderUrl(v);
+                const n = normalizeOrderUrl(v);
+                if (n) setRenderUrl(n.href);
+              }}
+              aria-invalid={urlInvalid}
+              aria-describedby="pl-url-help"
+              placeholder="https://store.mihan.web.id"
+            />
+            <p id="pl-url-help" className={`mt-1 text-xs ${urlInvalid ? 'text-red-700' : 'text-gray-500'}`} data-testid="pl-url-help">
+              {urlInvalid ? (
+                'Alamat tidak valid: gunakan http:// atau https:// tanpa spasi, mis. https://store.mihan.web.id.'
+              ) : (
+                <>
+                  Footer gambar: Pesan online: <span className="font-medium text-gray-700">{url.display}</span>. Teks pendamping memakai{' '}
+                  <span className="break-all font-medium text-gray-700">{url.href}</span>.
+                </>
+              )}
+            </p>
+          </div>
         </section>
 
         {/* Pratinjau + aksi */}
@@ -411,6 +431,11 @@ const Pricelist = () => {
               : 'WhatsApp Web tidak bisa menerima gambar dari tombol web: lampirkan file PNG yang baru diunduh secara manual.'}
             {pages.length > 1 && ' Bila browser bertanya, izinkan pengunduhan beberapa file sekaligus, atau unduh per halaman di bawah.'}
           </p>
+          {urlInvalid && (
+            <p role="alert" className="mt-2 text-sm text-red-700" data-testid="pl-url-blocked">
+              Perbaiki "Alamat web pemesanan" dulu sebelum mengunduh atau membagikan.
+            </p>
+          )}
           {fallbackShown && (
             <div role="status" className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="pl-fallback">
               <p className="font-semibold">WhatsApp dibuka di tab baru dengan teks pendamping.</p>
@@ -486,8 +511,9 @@ const Pricelist = () => {
                   </span>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-purple-700 hover:bg-purple-50"
+                    className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-purple-700 hover:bg-purple-50 disabled:opacity-50"
                     onClick={() => downloadBlob(p.blob, p.name)}
+                    disabled={urlInvalid}
                     aria-label={`Unduh halaman ${i + 1} (${p.name})`}
                   >
                     <Icon name="download" className="h-4 w-4" />

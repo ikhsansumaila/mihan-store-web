@@ -214,9 +214,14 @@ test('pengaturan default, pilihan produk default (aktif saja), pratinjau, tombol
   expect(imgs[0].getAttribute('width')).toBe('1080');
   expect(imgs[0].className).toContain('w-full'); // skala turun lewat CSS
   // Isi kanvas: judul, kategori, nama, harga, footer WA.
-  ['Daftar Harga Mihan Store', 'Kerupuk', 'Kerupuk Aci', 'Rp 25.000', 'Tepung Beras', 'Pemesanan: WhatsApp +62 812-3456-7890', 'Mihan Store'].forEach((t) =>
+  // Footer: alamat web pemesanan (bawaan = origin halaman, jsdom: http://localhost) tanpa skema, tanpa nomor WA.
+  ['Daftar Harga Mihan Store', 'Kerupuk', 'Kerupuk Aci', 'Rp 25.000', 'Tepung Beras', 'Pesan online: localhost', 'Mihan Store'].forEach((t) =>
     expect(drawn).toContain(t)
   );
+  expect(drawn.join('\n')).not.toMatch(/WhatsApp|\+62|812|Pemesanan/);
+  expect(byLabel('Alamat web pemesanan').value).toBe(window.location.origin);
+  // Pengaturan toko (store_whatsapp) tidak lagi dibaca halaman Pricelist.
+  expect(mockState.calls).not.toContain('/settings');
   expect(drawn).not.toContain('Tepung Maizena');
   expect(drawn.some((t) => t.startsWith('Halaman'))).toBe(false);
 
@@ -226,7 +231,8 @@ test('pengaturan default, pilihan produk default (aktif saja), pratinjau, tombol
   expect(button('Salin teks pendamping')).toBeTruthy();
   const text = container.querySelector('#pl-share-text').value;
   expect(text).toContain('Daftar Harga Mihan Store');
-  expect(text).toContain('Info dan pemesanan: wa.me/6281234567890');
+  expect(text).toContain(`Pesan online di ${window.location.origin}`);
+  expect(text).not.toMatch(/wa\.me|\+62|6281234567890/);
 
   // Unduh: nama file berpola tanggal.
   await click(button('Unduh PNG'));
@@ -298,13 +304,60 @@ test('Web Share API (HP): file PNG + teks dibagikan; batal tanpa pesan error; ga
   expect(container.querySelector('[role="alert"]').textContent).toContain('tidak bisa dibagikan langsung');
 });
 
-test('nomor WhatsApp belum diisi: footer & teks pendamping tanpa nomor', async () => {
-  mockState.settings = { store_whatsapp: 'BELUM DIISI' };
+const setValue = async (el, value) => {
+  const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  await act(async () => {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await flush();
+};
+
+test('alamat web pemesanan: dipakai di footer (tanpa https://) dan teks pendamping; tidak valid -> tombol nonaktif', async () => {
   await renderAt('/admin/pricelist');
   await waitPreview();
-  expect(drawn.some((t) => t.startsWith('Pemesanan'))).toBe(false);
-  expect(container.querySelector('#pl-share-text').value).not.toMatch(/wa\.me\/\d/);
-  expect(container.textContent).toContain('nomor WhatsApp toko belum diisi');
+  const input = container.querySelector('#pl-url');
+  expect(input.getAttribute('type')).toBe('url');
+  await setValue(input, 'https://store.mihan.web.id/');
+  await waitPreview();
+  expect(drawn).toContain('Pesan online: store.mihan.web.id');
+  expect(drawn.some((t) => t.includes('https://'))).toBe(false);
+  expect(container.querySelector('#pl-share-text').value).toContain('\n\nPesan online di https://store.mihan.web.id');
+  expect(container.querySelector('[data-testid="pl-url-help"]').textContent).toContain('store.mihan.web.id');
+  expect(input.getAttribute('aria-invalid')).toBe('false');
+
+  // Tidak valid (skema lain / spasi): pesan galat, unduh & bagikan nonaktif, teks tetap memakai alamat valid terakhir.
+  for (const bad of ['ftp://store.mihan.web.id', 'https://store mihan.web.id', `${'javascript'}:alert(1)`]) {
+    // eslint-disable-next-line no-await-in-loop
+    await setValue(input, bad);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(container.querySelector('[data-testid="pl-url-help"]').textContent).toContain('Alamat tidak valid');
+    expect(container.querySelector('[data-testid="pl-url-blocked"]')).not.toBeNull();
+    expect(button('Bagikan ke WhatsApp').disabled).toBe(true);
+    expect(button('Unduh PNG').disabled).toBe(true);
+    expect(button('Unduh halaman 1').disabled).toBe(true);
+    expect(container.querySelector('#pl-share-text').value).toContain('Pesan online di https://store.mihan.web.id');
+  }
+
+  // Diperbaiki (tanpa skema dianggap https) -> aktif lagi.
+  await setValue(input, 'store.mihan.web.id');
+  await waitPreview();
+  expect(input.getAttribute('aria-invalid')).toBe('false');
+  expect(container.querySelector('[data-testid="pl-url-blocked"]')).toBeNull();
+  expect(button('Bagikan ke WhatsApp').disabled).toBe(false);
+  expect(drawn).toContain('Pesan online: store.mihan.web.id');
+});
+
+test('fallback komputer membuka wa.me tanpa nomor tujuan, teks berisi alamat web', async () => {
+  mockState.settings = { store_whatsapp: '081234567890' };
+  await renderAt('/admin/pricelist');
+  await waitPreview();
+  await click(button('Bagikan ke WhatsApp'));
+  expect(opened).toHaveLength(1);
+  expect(opened[0][0]).toMatch(/^https:\/\/wa\.me\/\?text=/);
+  const sent = decodeURIComponent(opened[0][0].split('text=')[1]);
+  expect(sent).toContain(`Pesan online di ${window.location.origin}`);
+  expect(sent).not.toMatch(/wa\.me|6281234567890|\+62/);
 });
 
 test('produk dibaca dari semua halaman API (per_page 100) dan dipecah jadi beberapa gambar bila panjang', async () => {

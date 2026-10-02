@@ -1,7 +1,7 @@
 // Penggambaran pricelist ke Canvas 2D (di browser, tanpa dependensi/font eksternal).
 // Lebar tetap 1080 px, tinggi menyesuaikan isi (maks MAX_HEIGHT per gambar), skala 1:1 (tanpa devicePixelRatio)
 // agar hasil sama di semua perangkat. Logika urutan/pemecahan halaman ada di ./layout.
-import { THEMES, DEFAULT_THEME, STORE_NAME, formatRupiah, normalizeWhatsapp, wrapText, ellipsize, toRows, paginate } from './layout';
+import { THEMES, DEFAULT_THEME, STORE_NAME, formatRupiah, normalizeOrderUrl, wrapText, ellipsize, toRows, paginate } from './layout';
 
 export const WIDTH = 1080;
 export const MAX_HEIGHT = 2400;
@@ -31,7 +31,7 @@ const G = {
   cellPadX: 20,
   colGap: 16,
   nameLH: 40,
-  footerWa: 150,
+  footerUrl: 150,
   footerPlain: 104,
 };
 
@@ -54,7 +54,7 @@ const measurer = (ctx, f) => (s) => {
 };
 
 // Hitung tata letak semua halaman. groups: hasil groupProducts().
-export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, whatsapp }, mctx) => {
+export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, orderUrl }, mctx) => {
   const cols = columns === 2 ? 2 : 1;
   const textX = M + G.logo + 36;
   const textW = WIDTH - textX - M;
@@ -66,8 +66,8 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, wh
   const noteLines = noteText ? wrapText(noteText, CW - 2 * G.notePad - 10, measurer(mctx, font(600, G.noteSize)), 4) : [];
   const noteH = noteLines.length ? noteLines.length * G.noteLH + 2 * G.notePad : 0;
   const headerH = bandH + (noteH ? G.noteGap + noteH : 0);
-  const wa = normalizeWhatsapp(whatsapp);
-  const footerH = wa ? G.footerWa : G.footerPlain;
+  const url = normalizeOrderUrl(orderUrl);
+  const footerH = url ? G.footerUrl : G.footerPlain;
 
   const cellW = cols === 2 ? (CW - G.colGap) / 2 : CW;
   const nameSize = cols === 2 ? 30 : 32;
@@ -89,7 +89,7 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, wh
     ...p,
     canvasHeight: Math.ceil(headerH + G.contentTop + p.height + G.contentBottom + footerH),
   }));
-  return { cols, cellW, nameSize, priceSize, titleLines, dateLine, noteLines, bandH, headerH, footerH, wa, pages, textX };
+  return { cols, cellW, nameSize, priceSize, titleLines, dateLine, noteLines, bandH, headerH, footerH, url, pages, textX };
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -197,7 +197,7 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
     });
   });
 
-  // Footer: nomor WhatsApp (bila ada), nama toko, nomor halaman.
+  // Footer: alamat web pemesanan (tanpa skema), nama toko, nomor halaman.
   const fy = H - L.footerH;
   ctx.fillStyle = T.primary;
   ctx.fillRect(0, fy, WIDTH, L.footerH);
@@ -205,10 +205,12 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
   ctx.fillRect(0, fy, WIDTH, 8);
   ctx.fillStyle = '#ffffff';
   let lineY = fy + 8 + (L.footerH - 8) / 2;
-  if (L.wa) {
+  if (L.url) {
     ctx.textAlign = 'center';
     ctx.font = font(800, 36);
-    ctx.fillText(`Pemesanan: WhatsApp ${L.wa.display}`, WIDTH / 2, fy + 56);
+    const line = ellipsize(`Pesan online: ${L.url.display}`, CW, measurer(ctx, font(800, 36)));
+    ctx.font = font(800, 36); // measurer mengubah font; kembalikan
+    ctx.fillText(line, WIDTH / 2, fy + 56);
     lineY = fy + 112;
   }
   ctx.font = font(600, 28);
