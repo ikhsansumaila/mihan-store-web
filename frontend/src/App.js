@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import InvoiceCreate from './components/InvoiceCreate';
 import Login from './components/Login';
 import Register from './components/Register';
 import CompleteProfile from './components/CompleteProfile';
@@ -127,6 +126,19 @@ const Home = () => {
   );
 };
 
+// Halaman invoice sudah pindah ke /admin/invoice. Pakai muat ulang penuh
+// (BUKAN navigasi react-router) agar Cloudflare Access mencegat dan meminta login admin.
+export const LegacyInvoiceRedirect = () => {
+  useEffect(() => {
+    window.location.replace('/admin/invoice');
+  }, []);
+  return (
+    <p className="max-w-3xl mx-auto px-4 py-10 text-gray-600">
+      Halaman invoice sudah dipindah ke area admin. Mengalihkan...
+    </p>
+  );
+};
+
 const App = () => {
   const [user, setUser] = useState(null);
 
@@ -182,9 +194,6 @@ const AppContent = ({ user, setUser }) => {
             <Link to="/" className="hover:opacity-80 transition font-medium">
               Home
             </Link>
-            <Link to="/invoice/create" className="hover:opacity-80 transition font-medium text-yellow-300 font-bold">
-              Buat Invoice
-            </Link>
             {user?.role === 'admin' && (
               // Anchor biasa (muat ulang penuh), BUKAN navigasi react-router,
               // agar Cloudflare Access bisa mencegat /admin.
@@ -227,7 +236,8 @@ const AppContent = ({ user, setUser }) => {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/register" element={<Register onRegisterSuccess={handleLoginSuccess} />} />
-          <Route path="/invoice/create" element={<InvoiceCreate />} />
+          {/* Rute lama: dialihkan penuh ke area admin (dijaga Cloudflare Access). */}
+          <Route path="/invoice/create" element={<LegacyInvoiceRedirect />} />
           <Route path="/lengkapi-profil" element={<CompleteProfile onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/privasi" element={<PrivacyPolicy />} />
           <Route path="/syarat" element={<TermsOfService />} />

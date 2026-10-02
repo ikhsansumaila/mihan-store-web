@@ -262,9 +262,10 @@ const InvoiceCreate = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-4">Buat Invoice Baru</h2>
+    // Dirender di dalam layout admin (/admin/invoice); padding luar sudah dari layout.
+    <div className="max-w-4xl">
+      <h1 className="text-2xl font-bold text-gray-800 mb-4">Buat Invoice</h1>
+      <div className="bg-white rounded-xl shadow p-4 sm:p-8">
 
         {/* Customer Name */}
         <div className="mb-6">
@@ -279,7 +280,7 @@ const InvoiceCreate = () => {
         </div>
 
         {/* Input Item */}
-        <div className="mb-6 bg-purple-50 p-6 rounded-lg border border-purple-100">
+        <div className="mb-6 bg-purple-50 p-4 sm:p-6 rounded-lg border border-purple-100">
           <h3 className="text-lg font-semibold text-purple-800 mb-4">Tambah Item Belanja</h3>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-5">
@@ -307,6 +308,7 @@ const InvoiceCreate = () => {
               <div className="flex gap-2 relative">
                 <span className="absolute left-3 top-2.5 text-gray-500 font-medium">Rp</span>
                 <input
+                  aria-label="Harga Satuan (Rp)"
                   type="text"
                   value={formatNumber(price)}
                   onChange={handlePriceChange}
@@ -326,8 +328,8 @@ const InvoiceCreate = () => {
         </div>
 
         {/* List Items */}
-        <div className="mb-6 border rounded-lg overflow-hidden">
-          <table className="w-full text-left border-collapse">
+        <div className="mb-6 border rounded-lg overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left border-collapse">
             <thead>
               <tr className="bg-gray-100 text-gray-700 font-semibold border-b">
                 <th className="p-4">Nama Produk</th>
@@ -380,7 +382,7 @@ const InvoiceCreate = () => {
               Pembayaran Sudah Lunas?
             </label>
           </div>
-          <div className="text-right">
+          <div className="w-full md:w-auto text-right">
             <span className="text-gray-600 block text-sm">Total Tagihan:</span>
             <span className="text-3xl font-extrabold text-purple-700">{formatCurrency(calculateTotal())}</span>
           </div>

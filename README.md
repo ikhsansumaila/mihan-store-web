@@ -6,7 +6,7 @@ MihanStore is a simple online store application built with React (Frontend) and 
 - Katalog produk & kategori di database MySQL (20 produk awal dipindahkan dari kode)
 - Pencarian produk
 - Registrasi & login pelanggan: email/username + password (argon2id, Turnstile) atau "Masuk dengan Google"
-- Menu admin `/admin` (produk, kategori, log aktivitas) yang dijaga Cloudflare Access
+- Menu admin `/admin` (produk, kategori, invoice, log aktivitas) yang dijaga Cloudflare Access
 - Log aktivitas (append-only) dengan penghapusan manual log > 6 bulan
 - Halaman Kebijakan Privasi (`/privasi`) dan Syarat & Ketentuan (`/syarat`)
 
@@ -148,6 +148,13 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   log (`GET /activity-logs?action=&actor=&entity_type=&from=YYYY-MM-DD&to=YYYY-MM-DD&page=&per_page=`,
   `POST /activity-logs/purge`). Hapus produk/kategori = soft delete.
 - Tautan ke `/admin` harus anchor biasa (`<a href="/admin">`) agar Cloudflare Access mencegat navigasi.
+- Rute admin frontend: `/admin` (Ringkasan), `/admin/products` (Produk), `/admin/categories`
+  (Kategori), `/admin/invoice` (Buat Invoice), `/admin/activity` (Log aktivitas).
+- **Buat Invoice** (`/admin/invoice`): PDF dibuat di browser dengan jsPDF (logo
+  `/mihan-store-logo.png`, `/lunas-logo.png`), tanpa API backend. Rute lama `/invoice/create`
+  tidak lagi tampil di toko; halaman itu hanya mengalihkan dengan muat ulang penuh
+  (`window.location.replace('/admin/invoice')`) agar dicegat Cloudflare Access. Catatan: kode
+  komponen invoice tetap ada di bundel JavaScript publik; yang dijaga adalah akses ke halamannya.
 - **Tidak perlu promosi manual**: cukup masukkan email ke `ADMIN_EMAILS`. Untuk mencabut akses,
   hapus email dari `ADMIN_EMAILS` (dan dari policy Access) lalu `docker compose up -d backend`;
   untuk memblokir segera: `UPDATE users SET status="suspended" WHERE email="..."`.

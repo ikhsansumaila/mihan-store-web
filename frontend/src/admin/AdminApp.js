@@ -5,6 +5,7 @@ import { ErrorBox } from './ui';
 import Products from './Products';
 import Categories from './Categories';
 import Activity, { LogTable } from './Activity';
+import InvoiceCreate from '../components/InvoiceCreate';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
@@ -81,6 +82,9 @@ const AdminApp = () => {
           <NavLink to="/admin/categories" className={tabClass}>
             Kategori
           </NavLink>
+          <NavLink to="/admin/invoice" className={tabClass}>
+            Invoice
+          </NavLink>
           <NavLink to="/admin/activity" className={tabClass}>
             Log aktivitas
           </NavLink>
@@ -93,6 +97,7 @@ const AdminApp = () => {
         <Route index element={<Dashboard />} />
         <Route path="products" element={<Products />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="invoice" element={<InvoiceCreate />} />
         <Route path="activity" element={<Activity />} />
         <Route path="*" element={<p className="text-gray-600">Halaman admin tidak ditemukan.</p>} />
       </Routes>
