@@ -286,8 +286,8 @@ test('admin Pesanan: menu baru, daftar dengan lencana status', async () => {
     },
   };
   await renderAt('/admin/orders');
-  const tabs = [...container.querySelectorAll('main nav a')].map((a) => a.textContent.trim());
-  expect(tabs).toEqual(['Ringkasan', 'Pesanan', 'Produk', 'Kategori', 'Invoice', 'Pengaturan Toko', 'Log aktivitas']);
+  const tabs = [...container.querySelectorAll('#admin-sidebar nav a')].map((a) => a.textContent.trim());
+  expect(tabs).toEqual(['Dashboard', 'Produk', 'Kategori', 'Pesanan', 'Invoice', 'Pengaturan Toko', 'Log Aktivitas']);
   expect(container.querySelector('h1').textContent).toBe('Pesanan');
   expect(container.textContent).toContain('MS-261002-0005');
   expect(container.textContent).toContain('Menunggu pembayaran');

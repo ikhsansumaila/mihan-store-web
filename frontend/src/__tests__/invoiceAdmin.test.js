@@ -66,6 +66,7 @@ const renderAt = async (path, user = null) => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
+  // eslint-disable-next-line testing-library/no-unnecessary-act -- root.render React DOM, bukan Testing Library
   await act(async () => {
     root.render(<App />);
   });
@@ -90,20 +91,20 @@ test('/admin/invoice merender form invoice di dalam layout admin dengan menu Inv
   expect(container.textContent).toContain('Preview PDF');
   expect(container.textContent).toContain('Masuk sebagai admin@example.com');
 
-  const tabs = [...container.querySelectorAll('main nav a')];
+  const tabs = [...container.querySelectorAll('#admin-sidebar nav a')];
   expect(tabs.map((a) => a.textContent.trim())).toEqual([
-    'Ringkasan',
-    'Pesanan',
+    'Dashboard',
     'Produk',
     'Kategori',
+    'Pesanan',
     'Invoice',
     'Pengaturan Toko',
-    'Log aktivitas',
+    'Log Aktivitas',
   ]);
   const inv = tabs.find((a) => a.textContent.trim() === 'Invoice');
   expect(inv.getAttribute('href')).toBe('/admin/invoice');
   expect(inv.getAttribute('aria-current')).toBe('page');
-  expect(inv.className).toContain('bg-purple-700');
+  expect(inv.className).toContain('border-purple-400');
   const active = tabs.filter((a) => a.getAttribute('aria-current') === 'page');
   expect(active).toHaveLength(1);
   expect(window.location.replace).not.toHaveBeenCalled();

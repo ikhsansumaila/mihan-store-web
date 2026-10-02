@@ -1,13 +1,14 @@
 import React from 'react';
 
+// Gaya bersama area admin (layout cPanel): kartu putih bergaris tipis, tombol & input seragam.
+export const cardClass = 'bg-white rounded-lg border border-gray-200 shadow-sm';
 export const inputClass =
-  'w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-purple-600 transition';
-export const btnPrimary =
-  'bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-800 disabled:opacity-60 transition';
-export const btnSecondary =
-  'bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-60 transition';
-export const btnDanger =
-  'bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition';
+  'w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-800 shadow-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition';
+const btnBase =
+  'inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed';
+export const btnPrimary = `${btnBase} bg-purple-700 text-white font-semibold shadow-sm hover:bg-purple-800 focus-visible:ring-purple-500`;
+export const btnSecondary = `${btnBase} bg-white border border-gray-300 text-gray-700 font-medium shadow-sm hover:bg-gray-50 focus-visible:ring-purple-500`;
+export const btnDanger = `${btnBase} bg-red-600 text-white font-semibold shadow-sm hover:bg-red-700 focus-visible:ring-red-500`;
 
 export const SessionExpired = () => (
   <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-4 text-yellow-900">
@@ -33,8 +34,8 @@ export const ErrorBox = ({ error }) => {
 
 export const Modal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" role="dialog" aria-modal="true">
-    <div className="w-full sm:max-w-lg max-h-[95vh] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-xl">
-      <div className="flex items-center justify-between border-b px-5 py-4">
+    <div className="w-full sm:max-w-lg max-h-[95vh] overflow-y-auto bg-white rounded-t-xl sm:rounded-lg shadow-xl">
+      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl leading-none" aria-label="Tutup">
           ×

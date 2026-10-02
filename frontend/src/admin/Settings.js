@@ -47,13 +47,13 @@ const Settings = () => {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Pengaturan Toko</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pengaturan Toko</h1>
       {missing.length > 0 && (
         <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
           Belum diisi: {missing.map((f) => f.label).join(', ')}. Pelanggan akan melihat peringatan sampai info ini diisi.
         </div>
       )}
-      <form onSubmit={save} className="bg-white rounded-xl shadow p-4 sm:p-6 space-y-4">
+      <form onSubmit={save} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 space-y-4">
         <ErrorBox error={error} />
         {FIELDS.map((f) => (
           <label key={f.key} className="block">

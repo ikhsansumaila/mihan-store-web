@@ -110,15 +110,15 @@ const Categories = () => {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Kategori</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Kategori</h1>
         <button className={btnPrimary} onClick={() => setEditing({ name: '', slug: '', sortOrder: '0' })}>
           + Tambah kategori
         </button>
       </div>
       <ErrorBox error={error} />
-      <div className="mt-3 overflow-x-auto bg-white rounded-xl shadow">
+      <div className="mt-3 overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-left text-gray-600">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-3 py-2">Urutan</th>
               <th className="px-3 py-2">Nama</th>
@@ -136,7 +136,7 @@ const Categories = () => {
               </tr>
             ) : (
               items.map((c) => (
-                <tr key={c.id} className="border-t">
+                <tr key={c.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 text-gray-500">{c.sortOrder}</td>
                   <td className="px-3 py-2 font-medium text-gray-800">{c.name}</td>
                   <td className="px-3 py-2 font-mono text-xs">{c.slug}</td>

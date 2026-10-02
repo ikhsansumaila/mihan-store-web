@@ -26,9 +26,9 @@ export const ACTION_LABELS = {
 export const actorOf = (l) => l.userEmail || l.actorLabel || l.username || '-';
 
 export const LogTable = ({ items, compact }) => (
-  <div className="overflow-x-auto bg-white rounded-xl shadow">
+  <div className="overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
     <table className="min-w-full text-sm">
-      <thead className="bg-gray-50 text-left text-gray-600">
+      <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
         <tr>
           <th className="px-3 py-2">Waktu</th>
           <th className="px-3 py-2">Aksi</th>
@@ -46,7 +46,7 @@ export const LogTable = ({ items, compact }) => (
           </tr>
         ) : (
           items.map((l) => (
-            <tr key={l.id} className="border-t align-top">
+            <tr key={l.id} className="border-t border-gray-100 align-top hover:bg-gray-50">
               <td className="px-3 py-2 whitespace-nowrap text-gray-600">{fmtTime(l.createdAt)}</td>
               <td className="px-3 py-2 whitespace-nowrap">
                 <span className="font-medium text-gray-800">{ACTION_LABELS[l.action] || l.action}</span>
@@ -130,7 +130,7 @@ const Activity = () => {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Log aktivitas</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Log aktivitas</h1>
         <button className={btnDanger} onClick={() => setConfirm(true)}>
           Hapus log lebih dari 6 bulan
         </button>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah, fmtTime } from './api';
 import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { STATUS, buildAdminSummaryText, statusLabel, waLink } from '../shop/format';
@@ -14,8 +14,14 @@ export const OrderStatusBadge = ({ status }) => (
 const emptyFilters = { status: '', from: '', to: '', q: '' };
 
 export const OrdersList = () => {
-  const [filters, setFilters] = useState(emptyFilters);
-  const [draft, setDraft] = useState(emptyFilters);
+  // Filter status awal boleh dari URL (?status=..., dipakai pintasan Dashboard).
+  const [searchParams] = useSearchParams();
+  const [initial] = useState(() => {
+    const st = searchParams.get('status');
+    return st && Object.prototype.hasOwnProperty.call(STATUS, st) ? { ...emptyFilters, status: st } : emptyFilters;
+  });
+  const [filters, setFilters] = useState(initial);
+  const [draft, setDraft] = useState(initial);
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ items: [], total: 0, perPage: 20 });
   const [error, setError] = useState(null);
@@ -46,8 +52,8 @@ export const OrdersList = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Pesanan</h1>
-      <form onSubmit={apply} className="bg-white rounded-xl shadow p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+      <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pesanan</h1>
+      <form onSubmit={apply} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
         <label className="block lg:col-span-2">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Cari (no. pesanan, nama, telepon)</span>
           <input className={inputClass} value={draft.q} onChange={set('q')} maxLength={100} placeholder="MS-261002-0001" />
@@ -89,9 +95,9 @@ export const OrdersList = () => {
         </div>
       </form>
       <ErrorBox error={error} />
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
-          <thead className="bg-gray-100 text-gray-700 text-left">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th className="p-3">No. pesanan</th>
               <th className="p-3">Tanggal</th>
@@ -116,8 +122,8 @@ export const OrdersList = () => {
               </tr>
             ) : (
               data.items.map((o) => (
-                <tr key={o.id} className="border-t hover:bg-purple-50">
-                  <td className="p-3 font-semibold">
+                <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
+                  <td className="p-3 font-semibold whitespace-nowrap">
                     <Link to={`/admin/orders/${o.id}`} className="text-purple-700 hover:underline">
                       {o.orderNo}
                     </Link>
@@ -284,7 +290,7 @@ const AdminNote = ({ order, onSaved }) => {
 };
 
 const Card = ({ title, children }) => (
-  <section className="bg-white rounded-xl shadow p-4">
+  <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
     <h2 className="font-semibold text-gray-800 mb-3">{title}</h2>
     {children}
   </section>
@@ -327,7 +333,7 @@ export const AdminOrderDetail = () => {
           <Link to="/admin/orders" className="text-sm text-purple-700 hover:underline">
             ‹ Semua pesanan
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-3">
             {order.orderNo} <OrderStatusBadge status={order.status} />
           </h1>
           <div className="text-sm text-gray-500">Dibuat {fmtTime(order.createdAt)}</div>

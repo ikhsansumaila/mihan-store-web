@@ -158,8 +158,20 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   log (`GET /activity-logs?action=&actor=&entity_type=&from=YYYY-MM-DD&to=YYYY-MM-DD&page=&per_page=`,
   `POST /activity-logs/purge`). Hapus produk/kategori = soft delete.
 - Tautan ke `/admin` harus anchor biasa (`<a href="/admin">`) agar Cloudflare Access mencegat navigasi.
-- Rute admin frontend: `/admin` (Ringkasan), `/admin/products` (Produk), `/admin/categories`
-  (Kategori), `/admin/invoice` (Buat Invoice), `/admin/activity` (Log aktivitas).
+- Rute admin frontend: `/admin` (Dashboard), `/admin/products` (Produk), `/admin/categories`
+  (Kategori), `/admin/orders` (+ `/admin/orders/<id>`), `/admin/invoice` (Buat Invoice),
+  `/admin/settings` (Pengaturan Toko), `/admin/activity` (Log aktivitas).
+- **Tampilan admin (gaya cPanel)** — `src/admin/AdminLayout.js`: area `/admin*` tidak memakai navbar/footer
+  toko. Sidebar gelap kiri (260px) berisi logo + "Mihan Store Admin", kolom *Cari menu* (Enter membuka hasil
+  pertama), dan grup menu **Utama** (Dashboard), **Katalog** (Produk, Kategori), **Penjualan** (Pesanan dengan
+  lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Invoice), **Sistem** (Pengaturan Toko, Log
+  Aktivitas); bagian bawah: email admin (`/api/admin/me`), tautan anchor biasa "Kembali ke toko" (`/`), versi UI.
+  Topbar: judul + breadcrumb (mis. Admin / Katalog / Produk) dan nama admin singkat. Di bawah 1024px sidebar
+  menjadi laci (hamburger; tutup lewat overlay, Escape, tombol ×, atau memilih menu; fokus dikurung di laci
+  dan kembali ke hamburger). Dashboard (`src/admin/Dashboard.js`): kartu statistik, pintasan cepat
+  (`/admin/products?tambah=1` membuka form tambah produk, `/admin/orders?status=pending_payment` memfilter
+  pesanan), dan 10 aktivitas terakhir. Navigasi antar halaman admin memakai react-router (sudah di dalam area
+  Cloudflare Access).
 - **Buat Invoice** (`/admin/invoice`): PDF dibuat di browser dengan jsPDF (logo
   `/mihan-store-logo.png`, `/lunas-logo.png`), tanpa API backend. Rute lama `/invoice/create`
   tidak lagi tampil di toko; halaman itu hanya mengalihkan dengan muat ulang penuh

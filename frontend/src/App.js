@@ -281,6 +281,7 @@ const AppContent = ({ user, setUser }) => {
 
 const Shell = ({ user, setUser }) => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const handleLogout = async () => {
     await logoutRequest();
@@ -292,6 +293,15 @@ const Shell = ({ user, setUser }) => {
   const handleLoginSuccess = (userData) => {
     setUser(userData);
   };
+
+  // Area admin memakai layout sendiri (sidebar bergaya cPanel), tanpa navbar & footer toko.
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return (
+      <Routes>
+        <Route path="/admin/*" element={<AdminApp />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -364,7 +374,6 @@ const Shell = ({ user, setUser }) => {
           <Route path="/lengkapi-profil" element={<CompleteProfile onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/privasi" element={<PrivacyPolicy />} />
           <Route path="/syarat" element={<TermsOfService />} />
-          <Route path="/admin/*" element={<AdminApp />} />
         </Routes>
       </main>
 

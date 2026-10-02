@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah } from './api';
 import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 
@@ -97,6 +98,15 @@ const Products = () => {
   const [editing, setEditing] = useState(null); // objek form atau null
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Pintasan Dashboard "Tambah Produk" (/admin/products?tambah=1): buka form tambah sekali.
+  useEffect(() => {
+    if (searchParams.get('tambah') === '1') {
+      setEditing({ ...emptyForm });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,7 +166,7 @@ const Products = () => {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Produk</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Produk</h1>
         <button className={btnPrimary} onClick={() => setEditing({ ...emptyForm })}>
           + Tambah produk
         </button>
@@ -181,9 +191,9 @@ const Products = () => {
 
       <ErrorBox error={error} />
 
-      <div className="mt-3 overflow-x-auto bg-white rounded-xl shadow">
+      <div className="mt-3 overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-left text-gray-600">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Nama</th>
@@ -208,7 +218,7 @@ const Products = () => {
               </tr>
             ) : (
               data.items.map((p) => (
-                <tr key={p.id} className="border-t">
+                <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 text-gray-500">{p.id}</td>
                   <td className="px-3 py-2">
                     <div className="font-medium text-gray-800">{p.name}</div>
