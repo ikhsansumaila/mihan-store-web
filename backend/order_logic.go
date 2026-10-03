@@ -149,6 +149,9 @@ type CheckoutInput struct {
 	PostalCode     string `json:"postalCode"`
 	Note           string `json:"note"`
 	IdempotencyKey string `json:"idempotencyKey"`
+	// ExpectedTotal: total yang DITAMPILKAN ke pelanggan. Bila berbeda dari hitungan server ->
+	// 409 price_changed tanpa membuat pesanan. nil (klien lama) tidak diperiksa.
+	ExpectedTotal *int64 `json:"expectedTotal"`
 }
 
 type checkoutFields struct {

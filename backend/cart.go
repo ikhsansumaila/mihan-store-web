@@ -1,8 +1,14 @@
 package main
 
 // Keranjang belanja pelanggan (wajib login, sesi Bearer). Disimpan di database per pengguna.
-// Harga TIDAK disimpan: respons selalu memakai harga produk terkini, dan produk yang
-// nonaktif/terhapus ditandai available=false (tidak dihitung ke subtotal).
+// Harga TIDAK disimpan sebagai sumber kebenaran: respons selalu memakai harga efektif terkini
+// (harga dasar + jenjang grosir, lihat pricing.go), dan produk yang nonaktif/terhapus ditandai
+// available=false (tidak dihitung ke subtotal).
+//
+// cart_items.seen_unit_price = harga satuan efektif yang terakhir DILIHAT pelanggan untuk baris itu.
+// Diisi saat item ditambahkan / jumlahnya diubah pelanggan / "Mengerti" (ack-prices), dan saat
+// keranjang pertama kali dibuka bila masih NULL. priceChanged = harga efektif sekarang (qty sama)
+// != seen_unit_price.
 
 import (
 	"context"
@@ -68,24 +74,51 @@ type CartItemDTO struct {
 	Name      string `json:"name" gorm:"column:name"`
 	Category  string `json:"category" gorm:"column:category"`
 	Image     string `json:"image" gorm:"column:image"`
-	Price     int64  `json:"price" gorm:"column:price"`
+	Price     int64  `json:"price" gorm:"column:price"` // harga dasar produk (field lama)
 	Qty       int64  `json:"qty" gorm:"column:qty"`
-	LineTotal int64  `json:"lineTotal" gorm:"-"`
+	LineTotal int64  `json:"lineTotal" gorm:"-"` // unitPrice * qty
 	Available bool   `json:"available" gorm:"column:available"`
+	// Harga berjenjang (grosir) & satuan.
+	Unit              string       `json:"unit" gorm:"column:unit"`
+	BaseUnitPrice     int64        `json:"baseUnitPrice" gorm:"-"`
+	UnitPrice         int64        `json:"unitPrice" gorm:"-"` // harga satuan efektif
+	TierMinQty        *int64       `json:"tierMinQty" gorm:"-"`
+	NextTier          *NextTierDTO `json:"nextTier" gorm:"-"`
+	Savings           int64        `json:"savings" gorm:"-"` // hemat dibanding harga dasar (baris ini)
+	PriceChanged      bool         `json:"priceChanged" gorm:"-"`
+	PreviousUnitPrice *int64       `json:"previousUnitPrice" gorm:"-"`
+
+	itemID uint64
+	seen   *int64
 }
 
 type CartDTO struct {
-	Items          []CartItemDTO `json:"items"`
-	Subtotal       int64         `json:"subtotal"`
-	ItemCount      int64         `json:"itemCount"` // jumlah qty produk yang tersedia
-	LineCount      int           `json:"lineCount"`
-	HasUnavailable bool          `json:"hasUnavailable"`
-	MaxQty         int           `json:"maxQty"`
-	MaxLines       int           `json:"maxLines"`
+	Items           []CartItemDTO `json:"items"`
+	Subtotal        int64         `json:"subtotal"`  // dengan harga efektif
+	ItemCount       int64         `json:"itemCount"` // jumlah qty produk yang tersedia
+	LineCount       int           `json:"lineCount"`
+	HasUnavailable  bool          `json:"hasUnavailable"`
+	MaxQty          int           `json:"maxQty"`
+	MaxLines        int           `json:"maxLines"`
+	Savings         int64         `json:"savings"`
+	HasPriceChanges bool          `json:"hasPriceChanges"`
 }
 
-const cartItemsSQL = `SELECT ci.product_id, p.name, c.slug AS category, COALESCE(p.image_path, '') AS image,
-  p.price, ci.qty, (p.is_active = 1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL) AS available
+type cartItemRow struct {
+	ItemID    uint64 `gorm:"column:item_id"`
+	ProductID uint64 `gorm:"column:product_id"`
+	Name      string `gorm:"column:name"`
+	Category  string `gorm:"column:category"`
+	Image     string `gorm:"column:image"`
+	Price     int64  `gorm:"column:price"`
+	Unit      string `gorm:"column:unit"`
+	Qty       int64  `gorm:"column:qty"`
+	Seen      *int64 `gorm:"column:seen_unit_price"`
+	Available bool   `gorm:"column:available"`
+}
+
+const cartItemsSQL = `SELECT ci.id AS item_id, ci.product_id, p.name, c.slug AS category, COALESCE(p.image_path, '') AS image,
+  p.price, p.unit, ci.qty, ci.seen_unit_price, (p.is_active = 1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL) AS available
 FROM carts ca
 JOIN cart_items ci ON ci.cart_id = ca.id AND ci.deleted_at IS NULL
 JOIN products p ON p.id = ci.product_id
@@ -93,23 +126,103 @@ JOIN categories c ON c.id = p.category_id
 WHERE ca.user_id = ? AND ca.deleted_at IS NULL
 ORDER BY ci.id`
 
+// buildCartItem menghitung harga efektif, petunjuk jenjang berikutnya, hemat, dan penanda
+// perubahan harga untuk satu baris keranjang (logika murni).
+func buildCartItem(r cartItemRow, tiers []PriceTier) CartItemDTO {
+	it := CartItemDTO{ProductID: r.ProductID, Name: r.Name, Category: r.Category, Image: r.Image, Price: r.Price,
+		Qty: r.Qty, Available: r.Available, Unit: r.Unit, BaseUnitPrice: r.Price, itemID: r.ItemID, seen: r.Seen}
+	unitPrice, tierMin := effectiveUnitPrice(r.Price, tiers, r.Qty)
+	it.UnitPrice = unitPrice
+	it.LineTotal = unitPrice * r.Qty
+	if tierMin > 0 {
+		m := tierMin
+		it.TierMinQty = &m
+		it.Savings = (r.Price - unitPrice) * r.Qty
+	}
+	if r.Available {
+		it.NextTier = nextTier(r.Price, tiers, r.Qty, maxItemQty)
+		if priceChanged(unitPrice, r.Seen) {
+			it.PriceChanged = true
+			prev := *r.Seen
+			it.PreviousUnitPrice = &prev
+		}
+	}
+	return it
+}
+
 func loadCart(db *gorm.DB, userID uint64) (*CartDTO, error) {
-	items := []CartItemDTO{}
-	if err := db.Raw(cartItemsSQL, userID).Scan(&items).Error; err != nil {
+	var rows []cartItemRow
+	if err := db.Raw(cartItemsSQL, userID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	c := &CartDTO{Items: items, LineCount: len(items), MaxQty: maxItemQty, MaxLines: maxCartLines}
-	for i := range c.Items {
-		it := &c.Items[i]
-		it.LineTotal = it.Price * it.Qty
+	ids := make([]uint64, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ProductID)
+	}
+	tiers, err := loadTiersFor(db, ids)
+	if err != nil {
+		return nil, err
+	}
+	c := &CartDTO{Items: make([]CartItemDTO, 0, len(rows)), LineCount: len(rows), MaxQty: maxItemQty, MaxLines: maxCartLines}
+	for _, r := range rows {
+		it := buildCartItem(r, tiers[r.ProductID])
 		if it.Available {
 			c.Subtotal += it.LineTotal
 			c.ItemCount += it.Qty
+			c.Savings += it.Savings
+			if it.PriceChanged {
+				c.HasPriceChanges = true
+			}
 		} else {
 			c.HasUnavailable = true
 		}
+		c.Items = append(c.Items, it)
 	}
 	return c, nil
+}
+
+// fillUnseenPrices mengisi seen_unit_price yang masih NULL dengan harga yang sedang ditampilkan
+// (baris lama sebelum fitur ini / keranjang pertama kali dibuka). Best-effort.
+func fillUnseenPrices(db *gorm.DB, c *CartDTO) {
+	for _, it := range c.Items {
+		if it.seen == nil && it.Available {
+			if err := db.Exec(`UPDATE cart_items SET seen_unit_price = ? WHERE id = ? AND seen_unit_price IS NULL`, it.UnitPrice, it.itemID).Error; err != nil {
+				log.Printf("keranjang: isi harga terlihat: %v", err)
+				return
+			}
+		}
+	}
+}
+
+// markSeen menyetel seen_unit_price = harga efektif sekarang untuk baris keranjang. productID 0 =
+// semua baris (ack-prices). Dipanggil di dalam transaksi yang sudah mengunci keranjang.
+func markSeen(tx *gorm.DB, cartID, productID uint64) error {
+	q := `SELECT ci.id AS item_id, ci.product_id, p.price, ci.qty FROM cart_items ci JOIN products p ON p.id = ci.product_id
+		WHERE ci.cart_id = ? AND ci.deleted_at IS NULL`
+	args := []any{cartID}
+	if productID != 0 {
+		q += ` AND ci.product_id = ?`
+		args = append(args, productID)
+	}
+	var rows []cartItemRow
+	if err := tx.Raw(q, args...).Scan(&rows).Error; err != nil {
+		return err
+	}
+	ids := make([]uint64, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ProductID)
+	}
+	tiers, err := loadTiersFor(tx, ids)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		p, _ := effectiveUnitPrice(r.Price, tiers[r.ProductID], r.Qty)
+		if err := tx.Exec(`UPDATE cart_items SET seen_unit_price = ? WHERE id = ?`, p, r.ItemID).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureCart membuat keranjang bila belum ada lalu mengunci barisnya (FOR UPDATE) agar
@@ -143,13 +256,36 @@ func productAvailable(tx *gorm.DB, productID uint64) (bool, error) {
 
 func (a *App) respondCart(w http.ResponseWriter, r *http.Request, status int) {
 	u := customerFrom(r.Context())
-	c, err := loadCart(a.db.Load().WithContext(r.Context()), u.ID)
+	db := a.db.Load().WithContext(r.Context())
+	c, err := loadCart(db, u.ID)
 	if err != nil {
 		log.Printf("keranjang: %v", err)
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
+	fillUnseenPrices(db, c)
 	writeJSON(w, status, c)
+}
+
+// AckCartPrices: POST /api/cart/ack-prices — pelanggan menekan "Mengerti": harga yang terlihat
+// untuk semua baris disetel ke harga efektif sekarang (penanda perubahan harga hilang).
+func (a *App) AckCartPrices(w http.ResponseWriter, r *http.Request) {
+	u := customerFrom(r.Context())
+	if !limitUser(w, a.cartLimiter, u, msgTooManyCart) {
+		return
+	}
+	err := a.db.Load().WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+		cartID, err := lockCart(tx, u.ID)
+		if err != nil || cartID == 0 {
+			return err
+		}
+		return markSeen(tx, cartID, 0)
+	})
+	if err != nil {
+		a.respondTxError(w, err, "ack harga keranjang")
+		return
+	}
+	a.respondCart(w, r, http.StatusOK)
 }
 
 func (a *App) GetCart(w http.ResponseWriter, r *http.Request) {
@@ -209,8 +345,12 @@ func (a *App) AddCartItem(w http.ResponseWriter, r *http.Request) {
 				return &httpError{http.StatusBadRequest, "Keranjang maksimal berisi 50 produk berbeda"}
 			}
 		}
-		return tx.Exec(`INSERT INTO cart_items (cart_id, product_id, qty) VALUES (?, ?, ?) AS n
-			ON DUPLICATE KEY UPDATE qty = LEAST(cart_items.qty + n.qty, 999)`, cartID, in.ProductID, qty).Error
+		if err := tx.Exec(`INSERT INTO cart_items (cart_id, product_id, qty) VALUES (?, ?, ?) AS n
+			ON DUPLICATE KEY UPDATE qty = LEAST(cart_items.qty + n.qty, 999)`, cartID, in.ProductID, qty).Error; err != nil {
+			return err
+		}
+		// Pelanggan sendiri menambah: harga yang kini tampil = harga yang dilihat (bukan "perubahan harga").
+		return markSeen(tx, cartID, in.ProductID)
 	})
 	if err != nil {
 		a.respondTxError(w, err, "tambah keranjang")
@@ -270,8 +410,12 @@ func (a *App) SetCartItem(w http.ResponseWriter, r *http.Request) {
 				return &httpError{http.StatusBadRequest, "Keranjang maksimal berisi 50 produk berbeda"}
 			}
 		}
-		return tx.Exec(`INSERT INTO cart_items (cart_id, product_id, qty) VALUES (?, ?, ?) AS n
-			ON DUPLICATE KEY UPDATE qty = n.qty`, cartID, in.ProductID, qty).Error
+		if err := tx.Exec(`INSERT INTO cart_items (cart_id, product_id, qty) VALUES (?, ?, ?) AS n
+			ON DUPLICATE KEY UPDATE qty = n.qty`, cartID, in.ProductID, qty).Error; err != nil {
+			return err
+		}
+		// Perubahan harga karena pelanggan mengubah jumlah tidak dianggap "perubahan harga".
+		return markSeen(tx, cartID, in.ProductID)
 	})
 	if err != nil {
 		a.respondTxError(w, err, "ubah keranjang")

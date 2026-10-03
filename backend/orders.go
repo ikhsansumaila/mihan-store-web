@@ -72,9 +72,13 @@ const orderCols = `o.id, o.order_no, o.user_id, o.status, o.subtotal, o.discount
 type OrderItemDTO struct {
 	ProductID *uint64 `json:"productId" gorm:"column:product_id"`
 	Name      string  `json:"name" gorm:"column:product_name"`
-	UnitPrice int64   `json:"unitPrice" gorm:"column:unit_price"`
+	UnitPrice int64   `json:"unitPrice" gorm:"column:unit_price"` // harga efektif yang dipakai (snapshot)
 	Qty       int64   `json:"qty" gorm:"column:qty"`
 	LineTotal int64   `json:"lineTotal" gorm:"column:line_total"`
+	// Snapshot harga grosir & satuan (NULL untuk pesanan sebelum fitur ini).
+	Unit          *string `json:"unit" gorm:"column:unit"`
+	BaseUnitPrice *int64  `json:"baseUnitPrice" gorm:"column:base_unit_price"`
+	TierMinQty    *int64  `json:"tierMinQty" gorm:"column:tier_min_qty"`
 }
 
 type historyRow struct {
@@ -129,7 +133,7 @@ type CustomerOrderDTO struct {
 
 func loadOrderItems(db *gorm.DB, orderID uint64) ([]OrderItemDTO, error) {
 	items := []OrderItemDTO{}
-	err := db.Raw(`SELECT product_id, product_name, unit_price, qty, line_total FROM order_items
+	err := db.Raw(`SELECT product_id, product_name, unit_price, qty, line_total, unit, base_unit_price, tier_min_qty FROM order_items
 		WHERE order_id = ? AND deleted_at IS NULL ORDER BY id`, orderID).Scan(&items).Error
 	return items, err
 }
@@ -238,9 +242,13 @@ func (a *App) notifyOrder(db *gorm.DB, kind string, orderID uint64) {
 type cartLine struct {
 	ProductID uint64 `gorm:"column:product_id"`
 	Name      string `gorm:"column:name"`
-	Price     int64  `gorm:"column:price"`
+	Price     int64  `gorm:"column:price"` // harga dasar
+	Unit      string `gorm:"column:unit"`
 	Qty       int64  `gorm:"column:qty"`
 	Available bool   `gorm:"column:available"`
+
+	unitPrice  int64 // harga efektif (effectiveUnitPrice)
+	tierMinQty int64 // 0 = harga eceran
 }
 
 // existingOrderByKey mencari pesanan dengan idempotency key yang sama dari pengguna yang sama.
@@ -303,7 +311,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			return &httpError{http.StatusBadRequest, msgCartEmpty}
 		}
 		var lines []cartLine
-		if err := tx.Raw(`SELECT ci.product_id, p.name, p.price, ci.qty,
+		if err := tx.Raw(`SELECT ci.product_id, p.name, p.price, p.unit, ci.qty,
 			(p.is_active = 1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL) AS available
 			FROM cart_items ci JOIN products p ON p.id = ci.product_id JOIN categories c ON c.id = p.category_id
 			WHERE ci.cart_id = ? AND ci.deleted_at IS NULL ORDER BY ci.id FOR SHARE`, cartID).Scan(&lines).Error; err != nil {
@@ -315,18 +323,29 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		if len(lines) > maxCartLines {
 			return &httpError{http.StatusBadRequest, "Keranjang maksimal berisi 50 produk berbeda"}
 		}
-		var subtotal, itemCount int64
+		var subtotal, itemCount, tierLines int64
 		productIDs := make([]uint64, 0, len(lines))
 		for _, l := range lines {
+			productIDs = append(productIDs, l.ProductID)
+		}
+		tiers, err := loadTiersFor(tx, productIDs)
+		if err != nil {
+			return err
+		}
+		for i := range lines {
+			l := &lines[i]
 			if !l.Available {
 				return &httpError{http.StatusConflict, msgCartUnavailable}
 			}
 			if l.Qty < 1 || l.Qty > maxItemQty {
 				return &httpError{http.StatusBadRequest, "Jumlah per produk harus 1 sampai 999"}
 			}
-			subtotal += l.Price * l.Qty
+			l.unitPrice, l.tierMinQty = effectiveUnitPrice(l.Price, tiers[l.ProductID], l.Qty)
+			if l.tierMinQty > 0 {
+				tierLines++
+			}
+			subtotal += l.unitPrice * l.Qty
 			itemCount += l.Qty
-			productIDs = append(productIDs, l.ProductID)
 		}
 		if subtotal <= 0 {
 			return &httpError{http.StatusBadRequest, "Total pesanan harus lebih dari 0"}
@@ -337,6 +356,11 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		total, err := computeTotal(subtotal, 0, 0)
 		if err != nil {
 			return &httpError{http.StatusBadRequest, err.Error()}
+		}
+		// Total yang dilihat pelanggan harus sama dengan hitungan server (harga bisa berubah
+		// setelah halaman dibuka). Berbeda -> batal tanpa menulis apa pun, keranjang tetap.
+		if err := checkExpectedTotal(in.ExpectedTotal, total); err != nil {
+			return err
 		}
 		now := a.now()
 		if err := tx.Exec(`INSERT INTO orders (user_id, status, subtotal, discount, shipping_fee, total, payment_method,
@@ -354,8 +378,14 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, l := range lines {
 			pid := l.ProductID
-			if err := tx.Exec(`INSERT INTO order_items (order_id, product_id, product_name, unit_price, qty, line_total, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, orderID, pid, l.Name, l.Price, l.Qty, l.Price*l.Qty, now, now).Error; err != nil {
+			var tierMin *int64
+			if l.tierMinQty > 0 {
+				m := l.tierMinQty
+				tierMin = &m
+			}
+			if err := tx.Exec(`INSERT INTO order_items (order_id, product_id, product_name, unit_price, base_unit_price, tier_min_qty, unit,
+				qty, line_total, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				orderID, pid, l.Name, l.unitPrice, l.Price, tierMin, l.Unit, l.Qty, l.unitPrice*l.Qty, now, now).Error; err != nil {
 				return err
 			}
 		}
@@ -368,7 +398,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			EntityType: "order", EntityID: orderNo,
 			Summary: "Pesanan dibuat: " + orderNo,
 			Details: map[string]any{"orderNo": orderNo, "jumlahItem": itemCount, "jumlahProduk": len(lines),
-				"subtotal": subtotal, "total": total, "produkId": productIDs},
+				"subtotal": subtotal, "total": total, "produkId": productIDs, "barisHargaGrosir": tierLines},
 		})); err != nil {
 			return err
 		}
@@ -381,6 +411,10 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 				a.respondCustomerOrder(w, db, ex, http.StatusOK)
 				return
 			}
+		}
+		if errors.Is(err, errPriceChanged) {
+			a.respondPriceChanged(w, r, db, u.ID)
+			return
 		}
 		a.respondTxError(w, err, "checkout")
 		return
@@ -396,6 +430,19 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.respondCustomerOrder(w, db, o, http.StatusCreated)
+}
+
+// respondPriceChanged: 409 {error:"price_changed", message, cart} — pesanan TIDAK dibuat dan
+// keranjang tidak diubah; pelanggan memeriksa keranjang terkini lalu mengonfirmasi ulang.
+func (a *App) respondPriceChanged(w http.ResponseWriter, r *http.Request, db *gorm.DB, userID uint64) {
+	c, err := loadCart(db, userID)
+	if err != nil {
+		log.Printf("checkout (keranjang terkini): %v", err)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "price_changed", "message": msgPriceChanged})
+		return
+	}
+	fillUnseenPrices(db, c)
+	writeJSON(w, http.StatusConflict, map[string]any{"error": "price_changed", "message": msgPriceChanged, "cart": c})
 }
 
 func findOrderByID(db *gorm.DB, id uint64) (*orderRow, error) {

@@ -45,6 +45,7 @@ func newRouter(app *App) http.Handler {
 	api.Handle("/cart/items", app.customer(app.AddCartItem)).Methods("POST")
 	api.Handle("/cart/items", app.customer(app.SetCartItem)).Methods("PUT")
 	api.Handle("/cart/items/{productId:[0-9]+}", app.customer(app.DeleteCartItem)).Methods("DELETE")
+	api.Handle("/cart/ack-prices", app.customer(app.AckCartPrices)).Methods("POST")
 	api.Handle("/orders", app.customer(app.ListMyOrders)).Methods("GET")
 	api.Handle("/orders", app.customer(app.CreateOrder)).Methods("POST")
 	api.Handle("/orders/{orderNo}", app.customer(app.GetMyOrder)).Methods("GET")

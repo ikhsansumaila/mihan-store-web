@@ -2,7 +2,8 @@ package main
 
 // API publik katalog: produk dibaca dari database (tabel products + categories).
 // Bentuk respons /api/products dan /api/products/search SAMA seperti versi hardcoded
-// lama: [{id, name, category (slug), price, description, image}].
+// lama: [{id, name, category (slug), price, description, image}] dengan field TAMBAHAN di
+// belakangnya: unit (satuan jual) dan tiers (jenjang grosir, [] bila tidak ada).
 
 import (
 	"log"
@@ -10,7 +11,8 @@ import (
 	"strings"
 )
 
-// PublicProduct adalah bentuk produk di API publik (tidak boleh berubah).
+// PublicProduct adalah bentuk produk di API publik. Field lama (id..image) tidak boleh berubah
+// urutan maupun isinya; field baru hanya ditambahkan di belakang.
 type PublicProduct struct {
 	ID          uint64 `json:"id" gorm:"column:id"`
 	Name        string `json:"name" gorm:"column:name"`
@@ -18,6 +20,9 @@ type PublicProduct struct {
 	Price       uint32 `json:"price" gorm:"column:price"`
 	Description string `json:"description" gorm:"column:description"`
 	Image       string `json:"image" gorm:"column:image"`
+	// Tambahan (harga grosir): satuan jual dan jenjang [{minQty, type, value, unitPrice}] urut minQty naik.
+	Unit  string    `json:"unit" gorm:"column:unit"`
+	Tiers []TierDTO `json:"tiers" gorm:"-"`
 }
 
 type PublicCategory struct {
@@ -28,7 +33,7 @@ type PublicCategory struct {
 }
 
 const publicProductSQL = `SELECT p.id, p.name, c.slug AS category, p.price,
-  COALESCE(p.description, '') AS description, COALESCE(p.image_path, '') AS image
+  COALESCE(p.description, '') AS description, COALESCE(p.image_path, '') AS image, p.unit
 FROM products p JOIN categories c ON c.id = p.category_id
 WHERE p.is_active = 1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL`
 
@@ -60,6 +65,19 @@ func (a *App) publicProducts(w http.ResponseWriter, r *http.Request, q, category
 		log.Printf("produk: %v", err)
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
+	}
+	ids := make([]uint64, 0, len(out))
+	for _, p := range out {
+		ids = append(ids, p.ID)
+	}
+	tiers, err := loadTiersFor(db.WithContext(r.Context()), ids)
+	if err != nil {
+		log.Printf("produk (jenjang): %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
+	for i := range out {
+		out[i].Tiers = tierDTOs(int64(out[i].Price), tiers[out[i].ID])
 	}
 	writeJSON(w, http.StatusOK, out)
 }

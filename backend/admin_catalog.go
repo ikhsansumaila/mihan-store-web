@@ -77,6 +77,10 @@ type ProductInput struct {
 	CategoryID  *uint64 `json:"categoryId"`
 	ImagePath   *string `json:"imagePath"`
 	IsActive    *bool   `json:"isActive"`
+	// Unit: satuan jual (nil = tidak diubah; produk baru "pcs").
+	Unit *string `json:"unit"`
+	// Tiers: daftar jenjang grosir PENGGANTI seluruh daftar lama (nil = tidak diubah; [] = hapus semua).
+	Tiers *[]TierInput `json:"tiers"`
 }
 
 // productFields adalah hasil validasi.
@@ -87,6 +91,7 @@ type productFields struct {
 	CategoryID  uint64
 	ImagePath   *string
 	IsActive    bool
+	Unit        *string // nil = tidak dikirim
 }
 
 func validateImagePath(p string) (*string, error) {
@@ -134,6 +139,13 @@ func validateProduct(in ProductInput, defaultActive bool) (productFields, error)
 	if in.IsActive != nil {
 		f.IsActive = *in.IsActive
 	}
+	if in.Unit != nil {
+		u, err := normalizeUnit(*in.Unit)
+		if err != nil {
+			return f, err
+		}
+		f.Unit = &u
+	}
 	return f, nil
 }
 
@@ -170,6 +182,8 @@ type AdminProductDTO struct {
 	Name            string    `json:"name" gorm:"column:name"`
 	Description     string    `json:"description" gorm:"column:description"`
 	Price           uint32    `json:"price" gorm:"column:price"`
+	Unit            string    `json:"unit" gorm:"column:unit"`
+	Tiers           []TierDTO `json:"tiers" gorm:"-"`
 	ImagePath       string    `json:"imagePath" gorm:"column:image_path"`
 	IsActive        bool      `json:"isActive" gorm:"column:is_active"`
 	CategoryID      uint64    `json:"categoryId" gorm:"column:category_id"`
@@ -182,7 +196,7 @@ type AdminProductDTO struct {
 	UpdatedBy       *string   `json:"updatedBy" gorm:"column:updated_by_name"`
 }
 
-const adminProductSelect = `SELECT p.id, p.name, COALESCE(p.description, '') AS description, p.price,
+const adminProductSelect = `SELECT p.id, p.name, COALESCE(p.description, '') AS description, p.price, p.unit,
   COALESCE(p.image_path, '') AS image_path, p.is_active, p.category_id,
   c.slug AS category_slug, c.name AS category_name, (c.deleted_at IS NOT NULL) AS category_deleted,
   p.created_at, p.updated_at, cu.username AS created_by_name, uu.username AS updated_by_name
@@ -223,7 +237,26 @@ func (a *App) loadAdminProduct(db *gorm.DB, id uint64) (*AdminProductDTO, error)
 	if len(out) == 0 {
 		return nil, gorm.ErrRecordNotFound
 	}
+	if err := attachAdminTiers(db, out); err != nil {
+		return nil, err
+	}
 	return &out[0], nil
+}
+
+// attachAdminTiers mengisi Tiers (selalu non-nil) untuk daftar produk admin.
+func attachAdminTiers(db *gorm.DB, items []AdminProductDTO) error {
+	ids := make([]uint64, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.ID)
+	}
+	tiers, err := loadTiersFor(db, ids)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		items[i].Tiers = tierDTOs(int64(items[i].Price), tiers[items[i].ID])
+	}
+	return nil
 }
 
 func (a *App) AdminListProducts(w http.ResponseWriter, r *http.Request) {
@@ -264,6 +297,11 @@ func (a *App) AdminListProducts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
+	if err := attachAdminTiers(db, items); err != nil {
+		log.Printf("admin produk (jenjang): %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total, "page": page, "perPage": perPage})
 }
 
@@ -296,7 +334,7 @@ func lockActiveCategory(tx *gorm.DB, id uint64) (*Category, error) {
 	return &c, nil
 }
 
-func productSnapshot(p *Product, catSlug string) map[string]any {
+func productSnapshot(p *Product, catSlug string, tiers []PriceTier) map[string]any {
 	desc, img := "", ""
 	if p.Description != nil {
 		desc = *p.Description
@@ -307,6 +345,7 @@ func productSnapshot(p *Product, catSlug string) map[string]any {
 	return map[string]any{
 		"name": p.Name, "description": desc, "price": p.Price, "categoryId": p.CategoryID,
 		"category": catSlug, "imagePath": img, "isActive": p.IsActive,
+		"unit": p.Unit, "tiers": tierSummaries(tiers),
 	}
 }
 
@@ -322,6 +361,11 @@ func (a *App) respondTxError(w http.ResponseWriter, err error, ctx string) {
 	var he *httpError
 	if errors.As(err, &he) {
 		writeError(w, he.status, he.msg)
+		return
+	}
+	var tve *TierValidationError
+	if errors.As(err, &tve) {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": tve.Error(), "tierErrors": tve.Errors})
 		return
 	}
 	log.Printf("%s: %v", ctx, err)
@@ -340,8 +384,19 @@ func (a *App) AdminCreateProduct(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	var tiers []PriceTier
+	if in.Tiers != nil {
+		if tiers, err = validateTiers(int64(f.Price), *in.Tiers); err != nil {
+			a.respondTxError(w, err, "tambah produk")
+			return
+		}
+	}
+	unit := defaultUnit
+	if f.Unit != nil {
+		unit = *f.Unit
+	}
 	db := a.db.Load().WithContext(r.Context())
-	p := Product{CategoryID: f.CategoryID, Name: f.Name, Description: f.Description, Price: f.Price,
+	p := Product{CategoryID: f.CategoryID, Name: f.Name, Description: f.Description, Price: f.Price, Unit: unit,
 		ImagePath: f.ImagePath, IsActive: f.IsActive, CreatedBy: uid(admin), UpdatedBy: uid(admin)}
 	err = db.Transaction(func(tx *gorm.DB) error {
 		cat, err := lockActiveCategory(tx, f.CategoryID)
@@ -351,14 +406,17 @@ func (a *App) AdminCreateProduct(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if err := tx.Select("CategoryID", "Name", "Description", "Price", "ImagePath", "IsActive", "CreatedBy", "UpdatedBy").Create(&p).Error; err != nil {
+		if err := tx.Select("CategoryID", "Name", "Description", "Price", "Unit", "ImagePath", "IsActive", "CreatedBy", "UpdatedBy").Create(&p).Error; err != nil {
+			return err
+		}
+		if _, err := replaceTiers(tx, p.ID, nil, tiers, a.now()); err != nil {
 			return err
 		}
 		return a.logActivity(tx, a.reqMeta(r, LogEntry{
 			UserID: uid(admin), ActorLabel: actorOf(admin), Action: "product.create",
 			EntityType: "product", EntityID: strconv.FormatUint(p.ID, 10),
 			Summary: "Produk ditambahkan: " + p.Name,
-			Details: map[string]any{"sesudah": productSnapshot(&p, cat.Slug)},
+			Details: map[string]any{"sesudah": productSnapshot(&p, cat.Slug, tiers)},
 		}))
 	})
 	if err != nil {
@@ -422,17 +480,45 @@ func (a *App) AdminUpdateProduct(w http.ResponseWriter, r *http.Request) {
 			}
 			newSlug = cat.Slug
 		}
-		before := productSnapshot(cur, curSlug)
+		existing, err := lockTiers(tx, id)
+		if err != nil {
+			return err
+		}
+		curTiers := rowsToTiers(existing)
+		// Jenjang baru: daftar pengganti dari body, atau jenjang lama yang divalidasi ulang terhadap
+		// harga dasar baru (jenjang percent mengikuti harga dasar; fixed bisa menjadi tidak valid).
+		nextTiers := curTiers
+		var terr error
+		if in.Tiers != nil {
+			nextTiers, terr = validateTiers(int64(f.Price), *in.Tiers)
+		} else if f.Price != cur.Price && len(curTiers) > 0 {
+			_, terr = validateTiers(int64(f.Price), tierInputsFrom(curTiers))
+		}
+		if terr != nil {
+			var tve *TierValidationError
+			if errors.As(terr, &tve) && f.Price != cur.Price {
+				tve.Lead = fmt.Sprintf("Harga dasar baru %s membuat jenjang grosir tidak valid; ubah atau hapus jenjang yang bermasalah.", formatRupiah(int64(f.Price)))
+			}
+			return terr
+		}
+		unit := cur.Unit
+		if f.Unit != nil {
+			unit = *f.Unit
+		}
+		before := productSnapshot(cur, curSlug, curTiers)
 		next := *cur
-		next.Name, next.Description, next.Price, next.CategoryID, next.ImagePath, next.IsActive =
-			f.Name, f.Description, f.Price, f.CategoryID, f.ImagePath, f.IsActive
-		changes := diffMaps(before, productSnapshot(&next, newSlug))
+		next.Name, next.Description, next.Price, next.CategoryID, next.ImagePath, next.IsActive, next.Unit =
+			f.Name, f.Description, f.Price, f.CategoryID, f.ImagePath, f.IsActive, unit
+		changes := diffMaps(before, productSnapshot(&next, newSlug, nextTiers))
 		if len(changes) == 0 {
 			return nil // tidak ada perubahan: tidak ditulis, tidak dicatat
 		}
+		if _, err := replaceTiers(tx, id, existing, nextTiers, a.now()); err != nil {
+			return err
+		}
 		if err := tx.Model(&Product{}).Where("id = ?", id).Updates(map[string]any{
 			"name": f.Name, "description": f.Description, "price": f.Price, "category_id": f.CategoryID,
-			"image_path": f.ImagePath, "is_active": f.IsActive, "updated_by": uid(admin),
+			"image_path": f.ImagePath, "is_active": f.IsActive, "unit": unit, "updated_by": uid(admin),
 		}).Error; err != nil {
 			return err
 		}
@@ -532,6 +618,10 @@ func (a *App) AdminDeleteProduct(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		tierRows, err := lockTiers(tx, id)
+		if err != nil {
+			return err
+		}
 		if err := tx.Model(&Product{}).Where("id = ?", id).
 			Updates(map[string]any{"deleted_at": a.now(), "updated_by": uid(admin)}).Error; err != nil {
 			return err
@@ -540,7 +630,7 @@ func (a *App) AdminDeleteProduct(w http.ResponseWriter, r *http.Request) {
 			UserID: uid(admin), ActorLabel: actorOf(admin), Action: "product.delete",
 			EntityType: "product", EntityID: strconv.FormatUint(id, 10),
 			Summary: "Produk dihapus: " + cur.Name,
-			Details: map[string]any{"sebelum": productSnapshot(cur, slug)},
+			Details: map[string]any{"sebelum": productSnapshot(cur, slug, rowsToTiers(tierRows))},
 		}))
 	})
 	if err != nil {

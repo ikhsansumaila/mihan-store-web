@@ -77,7 +77,8 @@ type Product struct {
 	CategoryID  uint64         `gorm:"column:category_id"`
 	Name        string         `gorm:"column:name"`
 	Description *string        `gorm:"column:description"`
-	Price       uint32         `gorm:"column:price"`
+	Price       uint32         `gorm:"column:price"` // harga dasar (eceran)
+	Unit        string         `gorm:"column:unit"`  // satuan jual (migrations/010), default "pcs"
 	ImagePath   *string        `gorm:"column:image_path"`
 	IsActive    bool           `gorm:"column:is_active"`
 	CreatedBy   *uint64        `gorm:"column:created_by"`
