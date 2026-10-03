@@ -62,6 +62,7 @@ sebagai user `mihanstore_app` (hanya dari subnet `mysql-net`) dengan hak **per t
 | `carts`, `orders`, `site_settings` | SELECT, INSERT, UPDATE (tanpa DELETE) |
 | `cart_items` | SELECT, INSERT, UPDATE, DELETE (baris keranjang boleh dihapus) |
 | `order_items`, `order_status_history` | **SELECT, INSERT saja** (snapshot/append-only) |
+| `product_price_tiers` | SELECT, INSERT, UPDATE (hapus jenjang = soft delete) |
 | procedure `purge_activity_logs` | EXECUTE (satu-satunya cara menghapus log, hanya > 180 hari) |
 
 Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrate).
@@ -78,6 +79,9 @@ Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrat
 | `007_orders.sql` | `orders`, `order_items`, `order_status_history` | komentar di file |
 | `008_site_settings.sql` | `site_settings` + 5 kunci placeholder "BELUM DIISI" | `DROP TABLE site_settings` |
 | `009_grants_orders.sql` | hak per tabel untuk tabel pesanan | komentar di file |
+| `010_products_unit_price_tiers.sql` | `products.unit` (default `pcs`) + tabel `product_price_tiers` | komentar di file (aman dibiarkan) |
+| `011_cart_order_price_snapshot.sql` | `cart_items.seen_unit_price`; `order_items.base_unit_price`, `tier_min_qty`, `unit` | komentar di file (aman dibiarkan) |
+| `012_grants_price_tiers.sql` | `product_price_tiers`: SELECT, INSERT, UPDATE | komentar di file |
 
 ```bash
 cd ~/mihanstore
@@ -121,7 +125,7 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
 | GET  | `/api/auth/me` | data akun (termasuk `role`, `avatarUrl`, `googleLinked`) |
 | POST | `/api/auth/google` | `{credential}` (ID token Google) → sesi, atau `{needsProfile:true, profileToken, profile}` |
 | POST | `/api/auth/google/complete` | `{profileToken, username, phone?}` → 201 sesi (akun baru tanpa password) |
-| GET  | `/api/products`, `/api/products/search?q=&category=` | publik, dari DB (hanya produk aktif), bentuk respons sama seperti dulu |
+| GET  | `/api/products`, `/api/products/search?q=&category=` | publik, dari DB (hanya produk aktif), field lama sama seperti dulu + `unit`, `tiers` (lihat Harga grosir) |
 | GET  | `/api/categories` | publik: `[{id, slug, name, sortOrder}]` |
 | *    | `/api/admin/*` | admin (Cloudflare Access), lihat bagian Admin |
 | GET  | `/health` | liveness; `/health/ready` memeriksa database |
@@ -235,7 +239,7 @@ Turnstile wajib untuk login dan registrasi, CORS hanya untuk `CORS_ALLOWED_ORIGI
 ```bash
 # Unit test
 docker run --rm -v "$PWD/backend":/src -w /src golang:1.27-alpine go test ./...
-# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–009 (+ hak 005 & 009 untuk user uji)
+# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–012 (+ hak 005, 009 & 012 untuk user uji)
 # (user uji tidak punya hak DELETE pada users/activity_logs, jadi DB dibuat ulang tiap putaran)
 docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e DB_PASSWORD=... \
   -v "$PWD/backend":/src -w /src golang:1.27-alpine go test -tags integration ./...
@@ -283,11 +287,12 @@ checkout 10/10 menit, batal 10/10 menit):
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/api/cart` | `{items[{productId,name,price,qty,lineTotal,available}], subtotal, itemCount, hasUnavailable}` |
+| GET | `/api/cart` | `{items[{productId,name,price,qty,lineTotal,available,unit,unitPrice,…}], subtotal, itemCount, hasUnavailable, savings, hasPriceChanges}` |
+| POST | `/api/cart/ack-prices` | "Mengerti": harga terlihat = harga terkini untuk semua baris |
 | POST | `/api/cart/items` | `{productId, qty?=1}` tambah (maks. 999/produk, 50 produk) |
 | PUT | `/api/cart/items` | `{productId, qty}` set qty (0 = hapus) |
 | DELETE | `/api/cart/items/{productId}`, `/api/cart` | hapus item / kosongkan |
-| POST | `/api/orders` | `{recipientName, recipientPhone, address, city, postalCode?, note?, idempotencyKey(UUID)}` → 201; kunci sama → 200 pesanan yang sama. Field harga/total dari browser diabaikan |
+| POST | `/api/orders` | `{recipientName, recipientPhone, address, city, postalCode?, note?, idempotencyKey(UUID), expectedTotal?}` → 201; kunci sama → 200 pesanan yang sama; `expectedTotal` ≠ total server → 409 `price_changed`. Field harga dari browser lainnya diabaikan |
 | GET | `/api/orders`, `/api/orders/{orderNo}` | milik sendiri; milik orang lain → 404 (sama seperti tidak ada) |
 | POST | `/api/orders/{orderNo}/cancel` | `{reason?}` hanya pemilik, hanya dari `pending_payment` |
 | GET | `/api/store-info` | WA toko & rekening (null bila belum diisi) |
@@ -337,6 +342,62 @@ d. **Log & rollback**: periksa `/admin/activity` (aksi `order.*`, `settings.upda
    git revert --no-edit pre-orders..HEAD
    ```
    Tabel baru boleh dibiarkan (kode lama tidak membacanya; hak per tabel tambahan tidak mengganggu).
+
+## Harga grosir (berjenjang) & satuan jual
+
+- **Siapa**: semua pelanggan, otomatis menurut jumlah **per produk** (bukan gabungan kategori/total). Harga
+  jenjang berlaku untuk **semua unit** di baris itu. Data awal jenjang kosong; `products.price` tetap harga eceran.
+- **Aturan (server, satu tempat: `backend/pricing.go` `effectiveUnitPrice`)**: jenjang dengan `min_qty` terbesar
+  ≤ qty (qty ≥ 2). `fixed` = harga per unit (Rp); `percent` = `round half up(harga dasar × (100 − p) / 100)`.
+  Harga efektif = min(harga jenjang, harga dasar), minimal Rp 1. Keranjang, checkout, pesanan, API publik, dan admin
+  memakai fungsi ini; harga dari browser selalu diabaikan.
+- **Validasi admin** (server, 422 + `tierErrors[{index,minQty,message}]`; form membantu dengan peringatan merah):
+  maks. **20 jenjang**/produk, `min_qty` 2–1.000.000 unik, `fixed` bilangan bulat ≥ 1, `percent` 0,01–99,99 (2 desimal),
+  harga efektif tiap jenjang **lebih murah** dari harga dasar dan **makin murah** untuk `min_qty` lebih besar. Mengubah
+  harga dasar sehingga jenjang (mis. `fixed`) tidak valid → ditolak 422 dengan pesan jenjang yang bermasalah.
+  Simpan = ganti seluruh daftar dalam satu transaksi (soft delete / update / insert) + log `product.update`
+  (selisih `unit` dan `tiers`, ringkas: `min 10: Rp 42.000`, `min 50: 10%`).
+- **Satuan** (`products.unit`, maks. 20: huruf/angka/spasi/titik/garis miring, disimpan huruf kecil, default `pcs`):
+  tampil "Rp 42.000 / pak" di kartu produk, keranjang, checkout, pesanan, invoice PDF pesanan, Pricelist, admin.
+- **Penanda perubahan harga**: `cart_items.seen_unit_price` = harga terakhir yang dilihat pelanggan (diisi saat
+  tambah / ubah jumlah / "Mengerti"; NULL diisi saat keranjang dibuka). Bila harga efektif sekarang (qty sama)
+  berbeda → `priceChanged` + banner. Perubahan karena pelanggan mengubah jumlah bukan "perubahan harga".
+- **Checkout**: frontend mengirim `expectedTotal` (total di layar). Beda dengan hitungan server → **409**
+  `{error:"price_changed", message, cart}` tanpa membuat pesanan / mengosongkan keranjang; pelanggan menekan
+  "Konfirmasi & buat pesanan" (ack + kirim ulang dengan total baru, kunci idempotensi sama). Tanpa `expectedTotal`
+  (klien lama) tidak diperiksa. Pesanan menyimpan snapshot `unit_price` (efektif), `base_unit_price`, `tier_min_qty`,
+  `unit`; pesanan yang sudah ada **tidak pernah** berubah. Pesanan lama: kolom baru `null`, tampil seperti dulu.
+- **API**: `GET /api/products` & `/search` menambah `unit` dan `tiers:[{minQty,type,value,unitPrice}]` di belakang field
+  lama (bentuk lama utuh). Keranjang per baris: `unit, baseUnitPrice, unitPrice, tierMinQty, nextTier{minQty,unitPrice,
+  moreQty}, savings, priceChanged, previousUnitPrice` (+ `savings`, `hasPriceChanges` di keranjang);
+  `POST /api/cart/ack-prices` (wajib login). Item pesanan (pelanggan & admin): `unit, baseUnitPrice, tierMinQty`.
+  Admin produk: `unit` dan `tiers:[{minQty,type,value}]` (tanpa field `tiers` = jenjang tidak diubah; `[]` = hapus semua).
+- **Teks/Invoice**: ringkasan WhatsApp admin → pelanggan "2 x Rp 42.000 / pak = …" + "(harga grosir min. N)";
+  invoice PDF pesanan: "12 PAK", "Rp 42.000 / PAK", catatan "HARGA GROSIR (MIN 10)". Invoice manual tidak berubah.
+- **Pricelist**: pilihan *Eceran + grosir* (bawaan) / *Eceran saja* / *Grosir saja*. Jenjang tampil sebagai teks kecil
+  di bawah nama produk ("10+ : Rp 42.000 · 50+ : Rp 40.500", dibungkus per jenjang, tanpa terpotong sampai 20 jenjang);
+  satuan di samping harga ("/ pak"); *Grosir saja* menyembunyikan harga eceran produk berjenjang ("per pak").
+- **Langkah pemilik**: Admin → Produk → Ubah satu produk → isi **Satuan** dan tambah jenjang di **Harga grosir**
+  (cek pratinjau) → Simpan. Uji di toko: kartu produk (lencana Grosir), keranjang (ubah jumlah melewati jenjang,
+  petunjuk "Tambah N lagi"), ubah harga di admin lalu buka keranjang lagi (penanda "Harga berubah" + Mengerti),
+  checkout. Cetak Admin → Pricelist dengan tampilan "Eceran + grosir" / "Grosir saja".
+- **Migrasi** (root, setelah `~/mysql-stack/dump.sh`):
+  ```bash
+  cd ~/mihanstore
+  for f in 010_products_unit_price_tiers 011_cart_order_price_snapshot; do
+    docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' < backend/migrations/$f.sql
+  done
+  docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot' < backend/migrations/012_grants_price_tiers.sql
+  ```
+- **Rollback aplikasi** (DB boleh dibiarkan: kode lama tidak membaca kolom/tabel baru, kolom baru nullable/berdefault,
+  hak tambahan pada `product_price_tiers` tidak dipakai kode lama):
+  ```bash
+  cd ~/mihanstore
+  docker tag mihanstore-backend:pre-tiers mihanstore-backend:latest
+  docker tag mihanstore-frontend:pre-tiers mihanstore-frontend:latest
+  docker compose up -d --no-build backend frontend
+  git revert --no-edit pre-tiers..HEAD   # agar build berikutnya tidak membawa fitur ini lagi
+  ```
 
 ## Tugas pemilik (sekali saja, berurutan)
 
