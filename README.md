@@ -12,6 +12,8 @@ MihanStore is a simple online store application built with React (Frontend) and 
 - **Pesanan (Tahap 1)**: keranjang di database, checkout (wajib login), "Pesanan Saya", menu admin
   "Pesanan" dan "Pengaturan Toko", diskon & ongkir manual, invoice PDF dari pesanan, notifikasi Discord,
   tombol konfirmasi WhatsApp (lihat bagian [Pesanan](#pesanan-tahap-1))
+- **Pelanggan & alias** (admin): daftar/detail pelanggan, alias internal hanya untuk admin, toggle nama alias di invoice
+  (lihat bagian [Pelanggan & alias](#pelanggan--alias-admin))
 
 ## Tech Stack
 - **Frontend:** React.js, Axios, React Router DOM
@@ -87,6 +89,7 @@ Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrat
 | `013_regions.sql` | `region_datasets`, `region_import_runs`, `region_import_staging` (data wilayah JSON) | komentar di file (aman dibiarkan) |
 | `014_orders_region.sql` | `orders.province_code/name`, `regency_code/name`, `district_code/name`, `village_code/name` (NULL) | komentar di file (aman dibiarkan) |
 | `015_grants_regions.sql` | `region_datasets`, `region_import_runs`: SELECT, INSERT, UPDATE; `region_import_staging`: SELECT, INSERT, DELETE | komentar di file |
+| `016_users_alias.sql` | `users.alias VARCHAR(100) NULL` (alias pelanggan, khusus admin; tanpa perubahan hak) | komentar di file (aman dibiarkan) |
 
 ```bash
 cd ~/mihanstore
@@ -169,7 +172,7 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   `POST /activity-logs/purge`). Hapus produk/kategori = soft delete.
 - Tautan ke `/admin` harus anchor biasa (`<a href="/admin">`) agar Cloudflare Access mencegat navigasi.
 - Rute admin frontend: `/admin` (Dashboard), `/admin/products` (Produk), `/admin/categories`
-  (Kategori), `/admin/orders` (+ `/admin/orders/<id>`), `/admin/invoice` (Buat Invoice),
+  (Kategori), `/admin/orders` (+ `/admin/orders/<id>`), `/admin/customers` (+ `/admin/customers/<id>`, Pelanggan), `/admin/invoice` (Buat Invoice),
   `/admin/pricelist` (Pricelist), `/admin/settings` (Pengaturan Toko), `/admin/activity` (Log aktivitas).
 - `/admin/orders/<id>` juga menerima **nomor pesanan** (`/admin/orders/MS-261002-0001`, tidak peka huruf): dicari
   lewat `GET /api/admin/orders?q=<nomor>&per_page=100`, dicocokkan persis (pencarian backend memakai LIKE), lalu URL
@@ -179,7 +182,7 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
 - **Tampilan admin (gaya cPanel)** — `src/admin/AdminLayout.js`: area `/admin*` tidak memakai navbar/footer
   toko. Sidebar gelap kiri (260px) berisi logo + "Mihan Store Admin", kolom *Cari menu* (Enter membuka hasil
   pertama), dan grup menu **Utama** (Dashboard), **Katalog** (Produk, Kategori), **Penjualan** (Pesanan dengan
-  lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Invoice, Pricelist), **Sistem** (Pengaturan Toko, Log
+  lencana jumlah *menunggu pembayaran* dari `/api/admin/summary`, Pelanggan, Invoice, Pricelist), **Sistem** (Pengaturan Toko, Log
   Aktivitas); bagian bawah: email admin (`/api/admin/me`), tautan anchor biasa "Kembali ke toko" (`/`), versi UI.
   Topbar: judul + breadcrumb (mis. Admin / Katalog / Produk) dan nama admin singkat. Konten mengisi seluruh
   sisa lebar layar di kanan sidebar (tanpa `max-width`); tabel lebar di-scroll di dalam wadahnya
@@ -245,7 +248,7 @@ Turnstile wajib untuk login dan registrasi, CORS hanya untuk `CORS_ALLOWED_ORIGI
 ```bash
 # Unit test
 docker run --rm -v "$PWD/backend":/src -w /src golang:1.27-alpine go test ./...
-# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–015 (+ hak 005, 009, 012 & 015 untuk user uji)
+# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–016 (+ hak 005, 009, 012 & 015 untuk user uji)
 # (user uji tidak punya hak DELETE pada users/activity_logs, jadi DB dibuat ulang tiap putaran)
 docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e DB_PASSWORD=... \
   -v "$PWD/backend":/src -w /src golang:1.27-alpine go test -tags integration ./...
@@ -442,6 +445,66 @@ Perilaku:
   Label, adornment "Rp", dan pesan galat tetap di pemanggil.
 - Tes: `src/__tests__/moneyInput.test.js` (format/parse & perilaku komponen), `src/__tests__/moneyForms.test.js`
   (form produk, jenjang, diskon/ongkir, Buat Invoice; payload tetap angka bulat).
+
+## Pelanggan & alias (admin)
+
+- **Alias** = nama panggilan/label internal pelanggan (mis. "Bu Siti Toko Maju") yang **hanya dilihat admin**. Kolom
+  `users.alias` (migrasi 016, NULL = tanpa alias), boleh sama antar pelanggan, maks. 100 karakter setelah dirapikan
+  (karakter kontrol, bidi, dan tak terlihat dibuang; spasi dirapikan; kosong = hapus alias). Aturan sama di backend
+  (`NormalizeAlias`, `backend/customers.go`) dan frontend (`src/admin/alias.js`).
+- **Tidak pernah dikirim ke pelanggan**: struct `User`/`UserDTO` tidak memetakan kolom ini; alias hanya dibaca dengan SQL
+  eksplisit di rute `/api/admin/*` dan untuk notifikasi Discord internal. Respons `/api/auth/*`, `/api/cart*`,
+  `/api/orders*` dan teks WhatsApp ke pelanggan tidak memuat alias (diuji di unit, integrasi, e2e, dan jest).
+- **Menu Admin → Pelanggan** (grup Penjualan, setelah Pesanan; juga di bilah ikon HP, pencarian menu, breadcrumb
+  Admin / Penjualan / Pelanggan; kartu jumlah pelanggan dan pintasan di Dashboard):
+  - `/admin/customers`: akun role `customer` yang belum dihapus (admin tidak tampil): alias (menonjol), nama akun,
+    username, email, telepon, jumlah pesanan (semua status), total belanja (jumlah `total` pesanan berstatus **Dibayar**
+    atau **Selesai**), tanggal daftar, status akun. Cari (nama, username, email, telepon termasuk format 08xx, alias),
+    urutan Terbaru / Jumlah pesanan / Total belanja, paginasi 20 per halaman. Tombol pensil = modal ubah alias
+    (penghitung karakter, kosongkan = hapus).
+  - `/admin/customers/<id>`: data akun, alias + tombol ubah, statistik (jumlah pesanan, total belanja, pesanan terakhir),
+    10 pesanan terakhir (nomor pesanan bertaut ke `/admin/orders/<nomor>`).
+- **Pesanan admin**: kolom pemesan menampilkan alias tebal dengan nama akun kecil di bawahnya; kolom cari (`q`) juga
+  mencocokkan alias; detail pesanan → kartu *Akun pemesan* menampilkan alias, tombol Beri/Ubah alias, tautan ke
+  halaman pelanggan.
+- **Invoice dari pesanan**: kotak centang **"Pakai nama alias"** di samping *Cetak invoice*, hanya muncul bila pelanggan
+  punya alias, bawaan **mati** (nama di invoice = nama penerima seperti sebelumnya); dicentang → nama pelanggan di PDF =
+  alias (blok "KIRIM KE" tetap data penerima). Teks *Kirim ringkasan ke WhatsApp pelanggan* dan invoice manual tidak berubah.
+- **Notifikasi Discord**: field "Pemesan" = alias bila ada, selain itu nama akun (markdown/mention dinetralkan, dipotong
+  64 karakter seperti sebelumnya). Tidak ada data pribadi tambahan.
+- **API admin** (Cloudflare Access + `requireAdmin`; mutasi wajib CSRF/Origin; batas laju umum admin 300/menit/IP +
+  ubah alias 60/menit per admin):
+  | Method | Path | Keterangan |
+  |---|---|---|
+  | GET | `/api/admin/customers?q=&sort=newest\|orders\|spent&page=&per_page=` | `{items[{id,name,username,email,phone,alias,status,orderCount,totalSpent,lastOrderAt,createdAt}], total, page, perPage}`; `sort` di luar daftar putih → 400; `per_page` maks. 100 |
+  | GET | `/api/admin/customers/{id}` | `{customer:{…}, recentOrders[{id,orderNo,status,statusLabel,total,createdAt}]}`; bukan customer/dihapus/tidak ada → 404 |
+  | PATCH | `/api/admin/customers/{id}/alias` | `{alias}` (string; `""`/`null` = hapus; field wajib) → `{id, alias}`; > 100 karakter → 400; bukan customer → 404 |
+
+  Respons `GET /api/admin/orders` (per item) dan `GET /api/admin/orders/{id}` menambah `customer.id` dan `customer.alias`;
+  `GET /api/admin/summary` menambah `customers` (jumlah akun pelanggan).
+- **Log aktivitas**: `customer.alias_update` (entitas `user`, `public_id`), details hanya `{"alias":{"dari":…,"menjadi":…}}`,
+  ditulis dalam transaksi yang sama dengan perubahan; alias yang tidak berubah tidak dicatat.
+- **Hak DB**: tidak berubah (`mihanstore_app` sudah punya SELECT, INSERT, UPDATE pada `users`).
+- **Migrasi** (root, setelah `~/mysql-stack/dump.sh`; sudah dijalankan di produksi 3 Okt 2026):
+  ```bash
+  cd ~/mihanstore
+  docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' < backend/migrations/016_users_alias.sql
+  ```
+- **Langkah pemilik**: buka Admin → Pelanggan, beri alias pada satu pelanggan; cek daftar pesanan (alias tebal) dan detail
+  pesanan; coba *Cetak invoice* dengan "Pakai nama alias" menyala dan mati; buat satu pesanan uji dan lihat notifikasi
+  Discord memakai alias. Pemasangan yang sama juga membawa perbaikan telepon checkout (4c71986) dan kolom uang MoneyInput
+  (33930eb): uji kolom uang (titik ribuan) di form produk, jenjang grosir, diskon & ongkir, dan Buat Invoice; uji checkout
+  dengan nomor telepon yang ditempel dari kontak HP.
+- **Rollback aplikasi** (DB boleh dibiarkan: kolom `alias` nullable dan tidak dibaca kode lama). Image `:pre-alias-bundle`
+  adalah image produksi SEBELUM bundel ini, jadi rollback juga **membatalkan perbaikan telepon dan MoneyInput**:
+  ```bash
+  cd ~/mihanstore
+  docker tag mihanstore-backend:pre-alias-bundle mihanstore-backend:latest
+  docker tag mihanstore-frontend:pre-alias-bundle mihanstore-frontend:latest
+  docker compose up -d --no-build --no-deps backend frontend
+  git revert --no-edit pre-alias-bundle..HEAD   # agar build berikutnya tidak membawa bundel ini lagi
+  ```
+  Cadangan database sebelum migrasi: `~/mihanstore_pre_alias_backup/mysql-all-2026-10-03-pre-alias.sql.gz`.
 
 ## Data wilayah & alamat checkout
 
