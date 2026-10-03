@@ -1,5 +1,6 @@
 import { generateInvoicePdf, formatCurrency as fmtIDR } from '../invoicePdf';
 import { useState } from 'react';
+import MoneyInput from './MoneyInput';
 
 const InvoiceCreate = () => {
   const [customerName, setCustomerName] = useState('');
@@ -84,19 +85,6 @@ const InvoiceCreate = () => {
     window.open(`https://wa.me/?text=${encodedText}`, '_blank');
   };
 
-  // Handle format currency input
-  const handlePriceChange = (e) => {
-    // Hanya ambil angka
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    setPrice(value);
-  };
-
-  // Format angka dengan titik pemisah ribuan untuk input
-  const formatNumber = (numString) => {
-    if (!numString) return '';
-    return numString.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  };
-
   return (
     // Dirender di dalam layout admin (/admin/invoice); padding luar sudah dari layout.
     <div>
@@ -143,11 +131,11 @@ const InvoiceCreate = () => {
               <label className="block mb-1 text-sm font-medium text-gray-700">Harga Satuan (Rp)</label>
               <div className="flex gap-2 relative">
                 <span className="absolute left-3 top-2.5 text-gray-500 font-medium">Rp</span>
-                <input
+                <MoneyInput
                   aria-label="Harga Satuan (Rp)"
-                  type="text"
-                  value={formatNumber(price)}
-                  onChange={handlePriceChange}
+                  value={price}
+                  onValueChange={(digits) => setPrice(digits)}
+                  maxDigits={10}
                   placeholder="0"
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-purple-600 bg-white font-medium"
                 />

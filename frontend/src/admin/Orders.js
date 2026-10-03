@@ -4,6 +4,11 @@ import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
 import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
+import MoneyInput from '../components/MoneyInput';
+
+// Batas server (backend/order_logic.go): ongkir maks. Rp 10.000.000, subtotal maks. Rp 2.000.000.000.
+const SHIPPING_MAX = 10000000;
+const AMOUNT_DIGITS = 10;
 
 export const OrderStatusBadge = ({ status }) => (
   <span className={`inline-block text-xs font-semibold border rounded-full px-2.5 py-0.5 whitespace-nowrap ${STATUS[status]?.cls || 'bg-gray-100'}`}>
@@ -167,7 +172,7 @@ const PricingForm = ({ order, onSaved }) => {
     e.preventDefault();
     setError(null);
     if (d > order.subtotal) return setError(new Error('Diskon tidak boleh melebihi subtotal'));
-    if (s > 10000000) return setError(new Error('Ongkir maksimal Rp 10.000.000'));
+    if (s > SHIPPING_MAX) return setError(new Error('Ongkir maksimal Rp 10.000.000'));
     setSaving(true);
     try {
       onSaved(await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } }));
@@ -184,11 +189,11 @@ const PricingForm = ({ order, onSaved }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Diskon (Rp)</span>
-          <input className={inputClass} inputMode="numeric" value={discount} onChange={(e) => setDiscount(digits(e.target.value))} />
+          <MoneyInput className={inputClass} value={discount} onValueChange={(v) => setDiscount(v)} maxDigits={AMOUNT_DIGITS} min={0} max={order.subtotal} />
         </label>
         <label className="block">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Ongkir (Rp)</span>
-          <input className={inputClass} inputMode="numeric" value={shipping} onChange={(e) => setShipping(digits(e.target.value))} />
+          <MoneyInput className={inputClass} value={shipping} onValueChange={(v) => setShipping(v)} maxDigits={AMOUNT_DIGITS} min={0} max={SHIPPING_MAX} />
         </label>
       </div>
       <label className="block">

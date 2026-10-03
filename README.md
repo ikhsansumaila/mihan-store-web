@@ -405,6 +405,44 @@ d. **Log & rollback**: periksa `/admin/activity` (aksi `order.*`, `settings.upda
   git revert --no-edit pre-tiers..HEAD   # agar build berikutnya tidak membawa fitur ini lagi
   ```
 
+## Kolom nominal uang (`MoneyInput`)
+
+Semua kolom isian rupiah memakai komponen bersama `frontend/src/components/MoneyInput.js`: tampil dengan titik
+setiap 3 digit saat diketik (`1250000` → `1.250.000`), `inputMode="numeric"` tanpa panah spinner, ukuran huruf
+mengikuti aturan global (16px di HP). Nilai yang diteruskan ke form tetap digit polos / angka bulat, jadi payload API
+tidak berubah.
+
+| Berkas | Kolom | Batas |
+| --- | --- | --- |
+| `admin/Products.js` | Harga eceran (Rp) | maks. 10 digit; validasi 0–1.000.000.000 tetap |
+| `admin/Products.js` (TierEditor) | Nilai jenjang bertipe **Rp** | maks. 10 digit (jenjang **%** tetap kolom desimal biasa) |
+| `admin/Orders.js` (detail pesanan) | Diskon (Rp), Ongkir (Rp) | maks. 10 digit; aturan "diskon ≤ subtotal", "ongkir ≤ Rp 10.000.000" tetap |
+| `components/InvoiceCreate.js` | Harga Satuan (Rp) | maks. 10 digit |
+
+Sengaja **tidak** memakai `MoneyInput` (bukan uang): jumlah minimal jenjang, nilai jenjang %, qty (keranjang & invoice),
+kode pos, telepon/WhatsApp, nomor rekening, urutan kategori.
+
+Perilaku:
+- Hanya digit yang diterima; nol di depan dirapikan (`007` → `7`); kolom kosong tetap kosong (pemanggil yang
+  memperlakukannya sebagai 0 bila perlu, mis. diskon/ongkir).
+- **Tempel (paste)**: bila teks berakhir dengan koma/titik + tepat 1–2 digit (boleh diikuti teks non-digit) *dan*
+  sebelumnya ada pemisah ribuan (titik/koma di antara dua digit), bagian desimal dibuang; selain itu semua karakter
+  non-digit dibuang. Contoh: `Rp 1.500.000`, `1,500,000`, `1.500.000,00`, `1500000` → `1500000`;
+  `IDR 25.000,-` → `25000`; `12,5` → `125` (tanpa pemisah ribuan tidak dianggap desimal). Teks tanpa digit diabaikan.
+  Aturan desimal hanya untuk tempelan, bukan ketikan.
+- **Kursor** dihitung ulang dari jumlah digit di kiri kursor (tidak melompat ke akhir saat menyunting di tengah).
+  Backspace tepat setelah titik menghapus digit sebelum titik; Delete tepat sebelum titik menghapus digit sesudahnya.
+- **Undo/redo** (Ctrl/Cmd+Z, Ctrl+Y, Ctrl/Cmd+Shift+Z, dan menu konteks) memakai riwayat milik komponen, karena
+  riwayat undo asli browser hilang saat tampilan diformat ulang.
+- `maxDigits` = batas keras (ketikan/tempelan yang melewati batas ditolak). `min`/`max` = batas lunak: kolom diberi
+  `aria-invalid="true"`, pesan galat tetap dari validasi form saat simpan.
+- Ganti jenis jenjang dari % ke Rp saat nilainya berdesimal (mis. `12,5`) mengosongkan nilai (rupiah harus bulat).
+- Prop: `value` (string digit / angka / kosong), `onValueChange(digits, number)`; atribut lain (`id`, `name`,
+  `placeholder`, `required`, `disabled`, `aria-*`, `className`, `onBlur`, `ref`) diteruskan ke `<input>`.
+  Label, adornment "Rp", dan pesan galat tetap di pemanggil.
+- Tes: `src/__tests__/moneyInput.test.js` (format/parse & perilaku komponen), `src/__tests__/moneyForms.test.js`
+  (form produk, jenjang, diskon/ongkir, Buat Invoice; payload tetap angka bulat).
+
 ## Data wilayah & alamat checkout
 
 - **Sumber**: https://wilayah.id/api (JSON statis, Kepmendagri). Disimpan di `region_datasets` dalam format JSON,

@@ -3,6 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah } from './api';
 import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { MAX_TIERS, UNIT_SUGGESTIONS, analyzeTiers, normalizeUnit, tiersToBody, tiersToRows } from '../pricing';
+import MoneyInput from '../components/MoneyInput';
+
+// Batas digit kolom uang: harga eceran/jenjang maksimal Rp 1.000.000.000 (10 digit) seperti batas server.
+const PRICE_MAX = 1000000000;
+const PRICE_DIGITS = 10;
 
 const emptyForm = { name: '', categoryId: '', price: '', unit: 'pcs', description: '', imagePath: '', isActive: true, tiers: [] };
 
@@ -57,7 +62,11 @@ export const TierEditor = ({ rows, onChange, basePrice, unit, serverErrors }) =>
                       className={`h-10 min-w-[44px] border px-3 text-sm font-semibold first:rounded-l-md last:rounded-r-md ${
                         r.type === k ? 'border-purple-700 bg-purple-700 text-white' : 'border-gray-300 bg-white text-gray-700'
                       }`}
-                      onClick={() => setRow(i, { type: k })}
+                      onClick={() =>
+                        // Ke "Rp": nilai persen berdesimal (mis. "12,5") tidak bisa jadi rupiah -> dikosongkan agar
+                        // kolom uang tidak menampilkan angka yang berbeda dari nilai sebenarnya.
+                        setRow(i, k === 'fixed' && !/^[0-9]*$/.test(String(r.value).trim()) ? { type: k, value: '' } : { type: k })
+                      }
                     >
                       {label}
                     </button>
@@ -65,14 +74,27 @@ export const TierEditor = ({ rows, onChange, basePrice, unit, serverErrors }) =>
                 </div>
                 <label className="min-w-[8rem] flex-1">
                   <span className="block text-xs text-gray-600">{r.type === 'percent' ? 'Diskon (%)' : `Harga per ${u} (Rp)`}</span>
-                  <input
-                    className={inputClass}
-                    inputMode="decimal"
-                    aria-label={`Nilai jenjang ${i + 1}`}
-                    value={r.value}
-                    onChange={(e) => setRow(i, { value: e.target.value.replace(/[^0-9.,]/g, '') })}
-                    placeholder={r.type === 'percent' ? '5' : '42000'}
-                  />
+                  {r.type === 'percent' ? (
+                    <input
+                      className={inputClass}
+                      inputMode="decimal"
+                      aria-label={`Nilai jenjang ${i + 1}`}
+                      value={r.value}
+                      onChange={(e) => setRow(i, { value: e.target.value.replace(/[^0-9.,]/g, '') })}
+                      placeholder="5"
+                    />
+                  ) : (
+                    <MoneyInput
+                      className={inputClass}
+                      aria-label={`Nilai jenjang ${i + 1}`}
+                      value={r.value}
+                      onValueChange={(digits) => setRow(i, { value: digits })}
+                      maxDigits={PRICE_DIGITS}
+                      min={1}
+                      max={PRICE_MAX}
+                      placeholder="42.000"
+                    />
+                  )}
                 </label>
                 <button
                   type="button"
@@ -157,7 +179,7 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
     const price = Number(String(form.price).replace(/[^0-9]/g, ''));
     if (!form.name.trim()) return fail(new Error('Nama produk wajib diisi'));
     if (!form.categoryId) return fail(new Error('Kategori wajib dipilih'));
-    if (String(form.price).trim() === '' || !Number.isInteger(price) || price > 1000000000)
+    if (String(form.price).trim() === '' || !Number.isInteger(price) || price > PRICE_MAX)
       return fail(new Error('Harga harus bilangan bulat 0 sampai 1.000.000.000'));
     if (!unitNorm) return fail(new Error('Satuan hanya boleh huruf, angka, spasi, titik, atau garis miring (maksimal 20 karakter)'));
     if (form.tiers.length > MAX_TIERS) return fail(new Error(`Maksimal ${MAX_TIERS} jenjang harga grosir per produk`));
@@ -219,7 +241,17 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
             <label htmlFor="pf-price" className="block text-sm font-semibold text-gray-700 mb-1">
               Harga eceran (Rp)
             </label>
-            <input id="pf-price" className={inputClass} inputMode="numeric" value={form.price} onChange={set('price')} placeholder="15000" required />
+            <MoneyInput
+              id="pf-price"
+              className={inputClass}
+              value={form.price}
+              onValueChange={(digits) => setForm((f) => ({ ...f, price: digits }))}
+              maxDigits={PRICE_DIGITS}
+              min={0}
+              max={PRICE_MAX}
+              placeholder="15.000"
+              required
+            />
           </div>
           <div>
             <label htmlFor="pf-unit" className="block text-sm font-semibold text-gray-700 mb-1">

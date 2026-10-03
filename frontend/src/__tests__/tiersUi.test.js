@@ -176,6 +176,8 @@ describe('admin produk', () => {
       setInput(rows[2].querySelector('input[aria-label="Jumlah minimal jenjang 3"]'), '100');
       setInput(rows[2].querySelector('input[aria-label="Nilai jenjang 3"]'), '41000');
     });
+    // Kolom jenjang "Rp" memakai MoneyInput: tampil berformat ribuan.
+    expect(rows[2].querySelector('input[aria-label="Nilai jenjang 3"]').value).toBe('41.000');
     expect(rows[2].textContent).toContain('harus lebih murah dari jenjang min. 50 (Rp 40.500)');
     await click(btn('Simpan'));
     expect(mockState.calls.some((c) => c.method === 'PUT')).toBe(false);
