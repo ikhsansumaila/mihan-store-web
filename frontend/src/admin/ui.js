@@ -32,9 +32,9 @@ export const ErrorBox = ({ error }) => {
   );
 };
 
-export const Modal = ({ title, onClose, children }) => (
+export const Modal = ({ title, onClose, children, wide = false }) => (
   <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" role="dialog" aria-modal="true">
-    <div className="w-full sm:max-w-lg max-h-[95vh] overflow-y-auto bg-white rounded-t-xl sm:rounded-lg shadow-xl">
+    <div className={`w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} max-h-[95vh] overflow-y-auto bg-white rounded-t-xl sm:rounded-lg shadow-xl`}>
       <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl leading-none" aria-label="Tutup">

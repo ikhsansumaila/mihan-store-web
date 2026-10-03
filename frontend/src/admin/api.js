@@ -37,6 +37,7 @@ export async function adminFetch(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const err = new Error(data?.error || `Permintaan gagal (${res.status})`);
     err.status = res.status;
+    err.data = data; // mis. tierErrors (422) untuk ditampilkan per baris jenjang
     throw err;
   }
   return data;
@@ -51,7 +52,8 @@ export const qs = (params) => {
   return s ? `?${s}` : '';
 };
 
-export const rupiah = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+// Format rupiah bersama (satu tempat: shop/format.js).
+export { rupiah, perUnit } from '../shop/format';
 
 export const fmtTime = (iso) => {
   if (!iso) return '-';

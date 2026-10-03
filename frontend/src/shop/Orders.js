@@ -4,7 +4,7 @@ import { errorMessage } from '../auth';
 import { cancelOrder, getOrder, getStoreInfo, isUnauthorized, listOrders } from './api';
 import { useCart } from './CartContext';
 import { Notice } from './Cart';
-import { STATUS, buildCustomerConfirmText, fmtDateTime, rupiah, statusLabel, waLink } from './format';
+import { STATUS, buildCustomerConfirmText, fmtDateTime, perUnit, rupiah, statusLabel, tierNote, waLink } from './format';
 
 export const StatusBadge = ({ status }) => (
   <span className={`inline-block text-xs font-semibold border rounded-full px-2.5 py-0.5 ${STATUS[status]?.cls || 'bg-gray-100'}`}>
@@ -191,8 +191,12 @@ export const OrderDetail = ({ user }) => {
                 {it.name}
                 <span className="text-gray-500">
                   {' '}
-                  · {it.qty} x {rupiah(it.unitPrice)}
+                  · {it.qty}
+                  {it.unit ? ` ${it.unit}` : ''} x {perUnit(it.unitPrice, it.unit)}
                 </span>
+                {it.tierMinQty ? (
+                  <span className="ml-1 inline-block rounded bg-green-100 px-1.5 text-xs font-semibold text-green-800">{tierNote(it.tierMinQty)}</span>
+                ) : null}
               </span>
               <span className="font-medium whitespace-nowrap">{rupiah(it.lineTotal)}</span>
             </li>

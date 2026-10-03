@@ -1,31 +1,176 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah } from './api';
 import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { MAX_TIERS, UNIT_SUGGESTIONS, analyzeTiers, normalizeUnit, tiersToBody, tiersToRows } from '../pricing';
 
-const emptyForm = { name: '', categoryId: '', price: '', description: '', imagePath: '', isActive: true };
+const emptyForm = { name: '', categoryId: '', price: '', unit: 'pcs', description: '', imagePath: '', isActive: true, tiers: [] };
+
+let tierKeySeq = 0;
+const newTierRow = () => {
+  tierKeySeq += 1;
+  return { key: `n${tierKeySeq}`, minQty: '', type: 'fixed', value: '' };
+};
+
+// Editor jenjang harga grosir: baris dinamis (jumlah minimal, jenis Rp/%, nilai, hapus), pratinjau harga efektif,
+// peringatan langsung (aturan sama dengan server), dan kesalahan server (422) per baris.
+export const TierEditor = ({ rows, onChange, basePrice, unit, serverErrors }) => {
+  const analysis = useMemo(() => analyzeTiers(basePrice, rows), [basePrice, rows]);
+  const setRow = (i, patch) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const full = rows.length >= MAX_TIERS;
+  const preview = analysis.rows.filter((r) => r.price !== null).sort((a, b) => a.minQty - b.minQty);
+  const u = unit || 'pcs';
+  return (
+    <fieldset className="rounded-md border border-gray-200 p-3" data-testid="tier-editor">
+      <legend className="px-1 text-sm font-semibold text-gray-700">Harga grosir</legend>
+      <p className="mb-2 text-xs text-gray-500">
+        Otomatis untuk semua pelanggan berdasarkan jumlah per produk; harga jenjang berlaku untuk semua unit di keranjang. Makin besar
+        jumlah minimal, harga harus makin murah. Maksimal {MAX_TIERS} jenjang.
+      </p>
+      {rows.length === 0 && <p className="mb-2 text-sm text-gray-500">Belum ada jenjang (hanya harga eceran).</p>}
+      <ul className="space-y-2">
+        {rows.map((r, i) => {
+          const errs = [...(analysis.rows[i]?.errors || []), ...((serverErrors && serverErrors[i]) || [])];
+          return (
+            <li key={r.key} data-testid="tier-row" className={`rounded-md border p-2 ${errs.length ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="w-28">
+                  <span className="block text-xs text-gray-600">Jumlah min. ({u})</span>
+                  <input
+                    className={inputClass}
+                    inputMode="numeric"
+                    aria-label={`Jumlah minimal jenjang ${i + 1}`}
+                    value={r.minQty}
+                    onChange={(e) => setRow(i, { minQty: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="10"
+                  />
+                </label>
+                <div role="group" aria-label={`Jenis potongan jenjang ${i + 1}`} className="flex">
+                  {[
+                    ['fixed', 'Rp'],
+                    ['percent', '%'],
+                  ].map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={r.type === k}
+                      className={`h-10 min-w-[44px] border px-3 text-sm font-semibold first:rounded-l-md last:rounded-r-md ${
+                        r.type === k ? 'border-purple-700 bg-purple-700 text-white' : 'border-gray-300 bg-white text-gray-700'
+                      }`}
+                      onClick={() => setRow(i, { type: k })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label className="min-w-[8rem] flex-1">
+                  <span className="block text-xs text-gray-600">{r.type === 'percent' ? 'Diskon (%)' : `Harga per ${u} (Rp)`}</span>
+                  <input
+                    className={inputClass}
+                    inputMode="decimal"
+                    aria-label={`Nilai jenjang ${i + 1}`}
+                    value={r.value}
+                    onChange={(e) => setRow(i, { value: e.target.value.replace(/[^0-9.,]/g, '') })}
+                    placeholder={r.type === 'percent' ? '5' : '42000'}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="h-10 rounded-md px-3 text-sm font-medium text-red-600 hover:bg-red-100"
+                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                  aria-label={`Hapus jenjang ${i + 1}`}
+                >
+                  Hapus
+                </button>
+              </div>
+              {errs.map((m, k) => (
+                <p key={k} role="alert" className="mt-1 text-xs text-red-700">
+                  {m}
+                </p>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button type="button" className={btnSecondary} onClick={() => onChange([...rows, newTierRow()])} disabled={full}>
+          + Tambah jenjang
+        </button>
+        <span className="text-xs text-gray-500">
+          {rows.length}/{MAX_TIERS} jenjang{full ? ' (batas maksimal tercapai)' : ''}
+        </span>
+      </div>
+      {preview.length > 0 && (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm" data-testid="tier-preview">
+            <caption className="mb-1 text-left text-xs font-semibold text-gray-600">Pratinjau harga per {u}</caption>
+            <thead className="text-left text-xs text-gray-500">
+              <tr>
+                <th className="py-1 pr-2">Jumlah</th>
+                <th className="py-1 pr-2 text-right">Harga efektif</th>
+                <th className="py-1 text-right">Hemat per {u}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t">
+                <td className="py-1 pr-2">1+ (eceran)</td>
+                <td className="py-1 pr-2 text-right">{rupiah(Number(basePrice) || 0)}</td>
+                <td className="py-1 text-right text-gray-400">-</td>
+              </tr>
+              {preview.map((r) => (
+                <tr key={r.index} className={`border-t ${r.errors.length ? 'text-red-700' : ''}`}>
+                  <td className="py-1 pr-2">{r.minQty}+</td>
+                  <td className="py-1 pr-2 text-right font-semibold">{rupiah(r.price)}</td>
+                  <td className="py-1 text-right">
+                    {rupiah(r.savePerUnit)} ({r.savePct.toLocaleString('id-ID')}%)
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </fieldset>
+  );
+};
 
 const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [tierServerErrors, setTierServerErrors] = useState(null);
+  const errRef = useRef(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+  const priceNum = String(form.price).trim() === '' ? NaN : Number(String(form.price).replace(/[^0-9]/g, ''));
+  const analysis = useMemo(() => analyzeTiers(priceNum, form.tiers), [priceNum, form.tiers]);
+  const unitNorm = normalizeUnit(form.unit);
+
+  const fail = (err) => {
+    setError(err);
+    setTimeout(() => errRef.current?.scrollIntoView?.({ block: 'nearest' }), 0);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
+    setTierServerErrors(null);
     const price = Number(String(form.price).replace(/[^0-9]/g, ''));
-    if (!form.name.trim()) return setError(new Error('Nama produk wajib diisi'));
-    if (!form.categoryId) return setError(new Error('Kategori wajib dipilih'));
+    if (!form.name.trim()) return fail(new Error('Nama produk wajib diisi'));
+    if (!form.categoryId) return fail(new Error('Kategori wajib dipilih'));
     if (String(form.price).trim() === '' || !Number.isInteger(price) || price > 1000000000)
-      return setError(new Error('Harga harus bilangan bulat 0 sampai 1.000.000.000'));
+      return fail(new Error('Harga harus bilangan bulat 0 sampai 1.000.000.000'));
+    if (!unitNorm) return fail(new Error('Satuan hanya boleh huruf, angka, spasi, titik, atau garis miring (maksimal 20 karakter)'));
+    if (form.tiers.length > MAX_TIERS) return fail(new Error(`Maksimal ${MAX_TIERS} jenjang harga grosir per produk`));
+    if (!analysis.valid && form.tiers.length > 0) return fail(new Error('Perbaiki jenjang harga grosir yang ditandai merah.'));
     const body = {
       name: form.name.trim(),
       categoryId: Number(form.categoryId),
       price,
+      unit: unitNorm,
       description: form.description,
       imagePath: form.imagePath.trim(),
       isActive: !!form.isActive,
+      tiers: tiersToBody(form.tiers),
     };
     setSaving(true);
     try {
@@ -33,7 +178,16 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
       else await adminFetch('/products', { method: 'POST', body });
       onSaved();
     } catch (err) {
-      setError(err);
+      const te = err?.data?.tierErrors;
+      if (Array.isArray(te) && te.length) {
+        const byIndex = {};
+        te.forEach((x) => {
+          const i = Number(x.index);
+          if (i >= 0 && i < form.tiers.length) (byIndex[i] = byIndex[i] || []).push(x.message);
+        });
+        setTierServerErrors(byIndex);
+      }
+      fail(err);
     } finally {
       setSaving(false);
     }
@@ -41,7 +195,9 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <ErrorBox error={error} />
+      <div ref={errRef}>
+        <ErrorBox error={error} />
+      </div>
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1">Nama produk</label>
         <input className={inputClass} maxLength={150} value={form.name} onChange={set('name')} required />
@@ -58,11 +214,46 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Harga (Rp)</label>
-          <input className={inputClass} inputMode="numeric" value={form.price} onChange={set('price')} placeholder="15000" required />
+        <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
+          <div>
+            <label htmlFor="pf-price" className="block text-sm font-semibold text-gray-700 mb-1">
+              Harga eceran (Rp)
+            </label>
+            <input id="pf-price" className={inputClass} inputMode="numeric" value={form.price} onChange={set('price')} placeholder="15000" required />
+          </div>
+          <div>
+            <label htmlFor="pf-unit" className="block text-sm font-semibold text-gray-700 mb-1">
+              Satuan
+            </label>
+            <input
+              id="pf-unit"
+              className={unitNorm ? inputClass : inputClass.replace('border-gray-300', 'border-red-500')}
+              list="pf-unit-list"
+              maxLength={20}
+              value={form.unit}
+              onChange={set('unit')}
+              placeholder="pcs"
+              aria-invalid={!unitNorm}
+            />
+            <datalist id="pf-unit-list">
+              {UNIT_SUGGESTIONS.map((u) => (
+                <option key={u} value={u} />
+              ))}
+            </datalist>
+          </div>
         </div>
       </div>
+      {!unitNorm && <p className="-mt-2 text-xs text-red-700">Satuan hanya boleh huruf, angka, spasi, titik, atau garis miring (maks. 20).</p>}
+      <TierEditor
+        rows={form.tiers}
+        onChange={(tiers) => {
+          setTierServerErrors(null);
+          setForm((f) => ({ ...f, tiers }));
+        }}
+        basePrice={priceNum}
+        unit={unitNorm || 'pcs'}
+        serverErrors={tierServerErrors}
+      />
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1">Deskripsi</label>
         <textarea className={inputClass} rows={3} maxLength={2000} value={form.description} onChange={set('description')} />
@@ -228,7 +419,19 @@ const Products = () => {
                     {p.categoryName}
                     {p.categoryDeleted && <span className="ml-1 text-xs text-red-600">(dihapus)</span>}
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">{rupiah(p.price)}</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {rupiah(p.price)} <span className="text-xs text-gray-500">/ {p.unit || 'pcs'}</span>
+                    {p.tiers?.length > 0 && (
+                      <div>
+                        <span
+                          className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                          title={p.tiers.map((t) => `${t.minQty}+ : ${rupiah(t.unitPrice)}`).join(' · ')}
+                        >
+                          Grosir ({p.tiers.length} jenjang)
+                        </span>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     <button
                       onClick={() => toggle(p)}
@@ -250,6 +453,8 @@ const Products = () => {
                           name: p.name,
                           categoryId: p.categoryDeleted ? '' : String(p.categoryId),
                           price: String(p.price),
+                          unit: p.unit || 'pcs',
+                          tiers: tiersToRows(p.tiers),
                           description: p.description || '',
                           imagePath: p.imagePath || '',
                           isActive: p.isActive,
@@ -271,7 +476,7 @@ const Products = () => {
       <Pagination page={page} perPage={data.perPage} total={data.total} onPage={setPage} />
 
       {editing && (
-        <Modal title={editing.id ? `Ubah produk #${editing.id}` : 'Tambah produk'} onClose={() => setEditing(null)}>
+        <Modal title={editing.id ? `Ubah produk #${editing.id}` : 'Tambah produk'} onClose={() => setEditing(null)} wide>
           <ProductForm
             initial={editing}
             categories={categories}

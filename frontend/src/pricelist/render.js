@@ -1,7 +1,21 @@
 // Penggambaran pricelist ke Canvas 2D (di browser, tanpa dependensi/font eksternal).
 // Lebar tetap 1080 px, tinggi menyesuaikan isi (maks MAX_HEIGHT per gambar), skala 1:1 (tanpa devicePixelRatio)
 // agar hasil sama di semua perangkat. Logika urutan/pemecahan halaman ada di ./layout.
-import { THEMES, DEFAULT_THEME, STORE_NAME, formatRupiah, normalizeOrderUrl, wrapText, ellipsize, toRows, paginate } from './layout';
+import {
+  THEMES,
+  DEFAULT_THEME,
+  DEFAULT_PRICE_MODE,
+  STORE_NAME,
+  formatRupiah,
+  normalizeOrderUrl,
+  wrapText,
+  wrapSegments,
+  tierSegments,
+  priceParts,
+  ellipsize,
+  toRows,
+  paginate,
+} from './layout';
 
 export const WIDTH = 1080;
 export const MAX_HEIGHT = 2400;
@@ -31,6 +45,8 @@ const G = {
   cellPadX: 20,
   colGap: 16,
   nameLH: 40,
+  tierGap: 6,
+  tierMaxLines: 20, // = maksimal jenjang per produk: satu jenjang per baris pun tidak pernah terpotong
   footerUrl: 150,
   footerPlain: 104,
 };
@@ -54,7 +70,7 @@ const measurer = (ctx, f) => (s) => {
 };
 
 // Hitung tata letak semua halaman. groups: hasil groupProducts().
-export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, orderUrl }, mctx) => {
+export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, orderUrl, priceMode = DEFAULT_PRICE_MODE }, mctx) => {
   const cols = columns === 2 ? 2 : 1;
   const textX = M + G.logo + 36;
   const textW = WIDTH - textX - M;
@@ -72,15 +88,27 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, or
   const cellW = cols === 2 ? (CW - G.colGap) / 2 : CW;
   const nameSize = cols === 2 ? 30 : 32;
   const priceSize = cols === 2 ? 30 : 32;
+  // Satuan di samping harga ("/ pak") dan baris jenjang grosir di bawah nama ("10+ : Rp 42.000 · 50+ : …").
+  const unitSize = cols === 2 ? 22 : 24;
+  const tierSize = priceMode === 'wholesale' ? (cols === 2 ? 25 : 27) : cols === 2 ? 22 : 24;
+  const tierLH = tierSize + 10;
   const mName = measurer(mctx, font(500, nameSize));
   const mPrice = measurer(mctx, font(800, priceSize));
+  const mUnit = measurer(mctx, font(500, unitSize));
+  const mTier = measurer(mctx, font(600, tierSize));
   const prepared = (groups || []).map((g) => {
     const items = g.items.map((it) => {
-      const price = formatRupiah(it.price);
-      const priceW = mPrice(price);
+      const unit = it.unit || 'pcs';
+      const { showBase, showTiers } = priceParts(it, priceMode);
+      const price = showBase ? formatRupiah(it.price) : '';
+      const unitText = showBase ? ` / ${unit}` : `per ${unit}`;
+      const unitW = mUnit(unitText);
+      const priceW = (price ? mPrice(price) : 0) + unitW;
       const nameW = Math.max(80, cellW - 2 * G.cellPadX - priceW - 24);
       const lines = wrapText(it.name, nameW, mName, 2);
-      return { ...it, priceText: price, lines, h: lines.length * G.nameLH + 2 * G.rowPadY };
+      const tierLines = showTiers ? wrapSegments(tierSegments(it.tiers), cellW - 2 * G.cellPadX, mTier, G.tierMaxLines) : [];
+      const contentH = lines.length * G.nameLH + (tierLines.length ? G.tierGap + tierLines.length * tierLH : 0);
+      return { ...it, priceText: price, unitText, unitW, lines, tierLines, contentH, h: contentH + 2 * G.rowPadY };
     });
     return { key: g.key, name: g.name, rows: toRows(items, cols, (c) => c.h) };
   });
@@ -89,7 +117,25 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, or
     ...p,
     canvasHeight: Math.ceil(headerH + G.contentTop + p.height + G.contentBottom + footerH),
   }));
-  return { cols, cellW, nameSize, priceSize, titleLines, dateLine, noteLines, bandH, headerH, footerH, url, pages, textX };
+  return {
+    cols,
+    cellW,
+    nameSize,
+    priceSize,
+    unitSize,
+    tierSize,
+    tierLH,
+    priceMode,
+    titleLines,
+    dateLine,
+    noteLines,
+    bandH,
+    headerH,
+    footerH,
+    url,
+    pages,
+    textX,
+  };
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -182,16 +228,31 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
         ctx.fillRect(x, y, L.cellW, row.h);
         ctx.fillStyle = '#e5e7eb';
         ctx.fillRect(x, y + row.h - 1, L.cellW, 1);
-        // Nama (kiri, maks 2 baris) dan harga (kanan, rata kanan), keduanya di tengah vertikal baris.
+        // Isi sel (nama maks 2 baris + baris jenjang) di tengah vertikal baris; harga + satuan rata kanan,
+        // sejajar tengah blok nama. Tanpa jenjang: sama seperti sebelumnya (nama & harga di tengah baris).
+        const top = y + (row.h - cell.contentH) / 2;
         ctx.fillStyle = '#111827';
         ctx.textAlign = 'left';
         ctx.font = font(500, L.nameSize);
-        const startY = y + (row.h - cell.lines.length * G.nameLH) / 2 + G.nameLH / 2;
-        cell.lines.forEach((line, li) => ctx.fillText(line, x + G.cellPadX, startY + li * G.nameLH));
-        ctx.fillStyle = T.primary;
+        cell.lines.forEach((line, li) => ctx.fillText(line, x + G.cellPadX, top + G.nameLH / 2 + li * G.nameLH));
+        const midY = top + (cell.lines.length * G.nameLH) / 2;
+        const right = x + L.cellW - G.cellPadX;
         ctx.textAlign = 'right';
-        ctx.font = font(800, L.priceSize);
-        ctx.fillText(cell.priceText, x + L.cellW - G.cellPadX, y + row.h / 2);
+        ctx.fillStyle = '#6b7280';
+        ctx.font = font(500, L.unitSize);
+        ctx.fillText(cell.unitText, right, midY);
+        if (cell.priceText) {
+          ctx.fillStyle = T.primary;
+          ctx.font = font(800, L.priceSize);
+          ctx.fillText(cell.priceText, right - cell.unitW, midY);
+        }
+        if (cell.tierLines.length) {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = L.priceMode === 'wholesale' ? T.primary : T.accent;
+          ctx.font = font(600, L.tierSize);
+          const ty0 = top + cell.lines.length * G.nameLH + G.tierGap + L.tierLH / 2;
+          cell.tierLines.forEach((line, ti) => ctx.fillText(line, x + G.cellPadX, ty0 + ti * L.tierLH));
+        }
       });
       y += row.h;
     });

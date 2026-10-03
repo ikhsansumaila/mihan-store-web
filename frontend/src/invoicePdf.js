@@ -28,7 +28,15 @@ export const orderToInvoice = (order, settings = {}) => {
       : DEFAULT_PAYMENT;
   return {
     customerName: order.recipient?.name || order.customer?.name || '-',
-    items: (order.items || []).map((it) => ({ name: it.name, qty: it.qty, price: it.unitPrice, total: it.lineTotal })),
+    // unit/tierMinQty: snapshot satuan & harga grosir (null untuk pesanan lama -> tampil seperti dulu, "PCS").
+    items: (order.items || []).map((it) => ({
+      name: it.name,
+      qty: it.qty,
+      price: it.unitPrice,
+      total: it.lineTotal,
+      unit: it.unit || null,
+      tierMinQty: it.tierMinQty || null,
+    })),
     isLunas: order.status === 'paid' || order.status === 'completed',
     orderNo: order.orderNo,
     date: order.createdAt ? new Date(order.createdAt) : new Date(),
@@ -139,10 +147,18 @@ export async function generateInvoicePdf(inv, opts = {}) {
     }
     const splitName = doc.splitTextToSize(item.name.toUpperCase(), 70);
     doc.text(splitName, 15, currentY);
-    doc.text(`${item.qty} PCS`, 100, currentY, { align: 'center' });
-    doc.text(formatCurrency(item.price), 140, currentY, { align: 'center' });
+    // Invoice manual (tanpa unit) tetap "PCS" dan harga tanpa satuan seperti sebelumnya.
+    const unit = isOrder && item.unit ? String(item.unit).toUpperCase() : 'PCS';
+    doc.text(`${item.qty} ${unit}`, 100, currentY, { align: 'center' });
+    doc.text(isOrder && item.unit ? `${formatCurrency(item.price)} / ${unit}` : formatCurrency(item.price), 140, currentY, { align: 'center' });
     doc.text(formatCurrency(item.total), 195, currentY, { align: 'right' });
     currentY += splitName.length * 5 + 3;
+    if (isOrder && item.tierMinQty) {
+      doc.setFontSize(8);
+      doc.text(`HARGA GROSIR (MIN ${item.tierMinQty})`, 15, currentY - 2);
+      doc.setFontSize(10);
+      currentY += 3;
+    }
   });
 
   currentY += 5;

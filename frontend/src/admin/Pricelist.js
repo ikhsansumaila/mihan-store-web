@@ -6,6 +6,8 @@ import {
   THEMES,
   DEFAULT_THEME,
   DEFAULT_TITLE,
+  PRICE_MODES,
+  DEFAULT_PRICE_MODE,
   NOTE_MAX,
   TITLE_MAX,
   DATE_MAX,
@@ -120,7 +122,14 @@ const CategoryChecklist = ({ group, selected, onToggle, onSetMany }) => {
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums text-gray-700">{formatRupiah(it.price)}</span>
+                <span className="shrink-0 text-right font-semibold tabular-nums text-gray-700">
+                  {formatRupiah(it.price)} <span className="text-xs font-normal text-gray-500">/ {it.unit}</span>
+                  {it.tiers.length > 0 && (
+                    <span className="block text-[11px] font-semibold text-amber-700" data-tiers="1">
+                      Grosir ({it.tiers.length} jenjang)
+                    </span>
+                  )}
+                </span>
               </label>
             </li>
           );
@@ -141,6 +150,7 @@ const Pricelist = () => {
   const [note, setNote] = useState('');
   const [theme, setTheme] = useState(DEFAULT_THEME);
   const [columns, setColumns] = useState(1);
+  const [priceMode, setPriceMode] = useState(DEFAULT_PRICE_MODE);
   const [selected, setSelected] = useState(() => new Set());
   const [customText, setCustomText] = useState(null);
   const [logo, setLogo] = useState(undefined); // undefined = sedang dimuat
@@ -179,6 +189,7 @@ const Pricelist = () => {
   const groups = useMemo(() => (catalog ? groupProducts(catalog.products, catalog.categories, selected) : []), [catalog, selected]);
   const selectedCount = groups.reduce((s, g) => s + g.items.length, 0);
   const inactiveSelected = groups.reduce((s, g) => s + g.items.filter((it) => !it.active).length, 0);
+  const tieredSelected = groups.reduce((s, g) => s + g.items.filter((it) => it.tiers.length > 0).length, 0);
   const url = normalizeOrderUrl(orderUrl);
   const urlInvalid = !url;
   // Alamat tidak valid: tombol unduh/bagikan dinonaktifkan sampai diperbaiki.
@@ -205,7 +216,7 @@ const Pricelist = () => {
     setPreview((p) => ({ ...p, busy: true }));
     const t = setTimeout(async () => {
       try {
-        const rendered = renderPricelist({ groups, columns, title, dateText, note, orderUrl: renderUrl, theme }, { logo });
+        const rendered = renderPricelist({ groups, columns, title, dateText, note, orderUrl: renderUrl, theme, priceMode }, { logo });
         const blobs = await Promise.all(rendered.map((r) => canvasToBlob(r.canvas)));
         if (cancelled) return;
         const pages = rendered.map((r, i) => ({
@@ -226,7 +237,7 @@ const Pricelist = () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [catalog, groups, columns, title, dateText, note, renderUrl, theme, logo, today]);
+  }, [catalog, groups, columns, title, dateText, note, renderUrl, theme, priceMode, logo, today]);
 
   const toggle = useCallback((id) => {
     setSelected((prev) => {
@@ -364,6 +375,27 @@ const Pricelist = () => {
               </div>
             </fieldset>
           </div>
+          <fieldset className="min-w-0">
+            <legend className="mb-1 block text-sm font-semibold text-gray-700">Tampilan harga</legend>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(PRICE_MODES).map(([k, label]) => (
+                <label
+                  key={k}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                    priceMode === k ? 'border-purple-600 bg-purple-50 font-semibold text-gray-900' : 'border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <input type="radio" name="pl-price-mode" value={k} checked={priceMode === k} onChange={() => setPriceMode(k)} className="accent-purple-700" />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500" data-testid="pl-mode-help">
+              {tieredSelected > 0
+                ? `${tieredSelected} produk terpilih punya harga grosir; jenjang tampil sebagai teks kecil di bawah nama produk (mis. "10+ : Rp 42.000"). Produk tanpa jenjang tampil seperti biasa.`
+                : 'Belum ada produk terpilih yang punya harga grosir; gambar hanya memuat harga eceran.'}
+            </p>
+          </fieldset>
           <div>
             <Label htmlFor="pl-url" hint="(untuk pelanggan memesan)">
               Alamat web pemesanan

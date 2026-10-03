@@ -12,6 +12,7 @@ import { addCartItem, isUnauthorized } from './shop/api';
 import Cart from './shop/Cart';
 import Checkout from './shop/Checkout';
 import { MyOrders, OrderDetail } from './shop/Orders';
+import { perUnit } from './shop/format';
 
 const API_BASE_URL = '/api';
 
@@ -73,6 +74,41 @@ const AddToCartButton = ({ product, user }) => {
   );
 };
 
+// Lencana "Grosir" di kartu produk: membuka daftar jenjang kecil (jumlah minimal -> harga per satuan).
+export const TierBadge = ({ product }) => {
+  const [open, setOpen] = useState(false);
+  const tiers = Array.isArray(product.tiers) ? product.tiers : [];
+  if (!tiers.length) return null;
+  const unit = product.unit || 'pcs';
+  const id = `tiers-${product.id}`;
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-200"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+      >
+        Grosir · mulai {perUnit(tiers[tiers.length - 1].unitPrice, unit)}
+        <span aria-hidden="true">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <ul id={id} className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-gray-800" data-testid="tier-list">
+          {tiers.map((t) => (
+            <li key={t.minQty} className="flex justify-between gap-3 py-0.5">
+              <span>
+                Beli {t.minQty}+ {unit}
+              </span>
+              <strong className="whitespace-nowrap">{perUnit(t.unitPrice, unit)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 const ProductCard = ({ product, user }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col">
@@ -85,7 +121,9 @@ const ProductCard = ({ product, user }) => {
       </span>
       <p className="text-2xl font-bold text-purple-700 mt-2">
         Rp {product.price?.toLocaleString('id-ID')}
+        <span className="ml-1 text-base font-medium text-gray-500">/ {product.unit || 'pcs'}</span>
       </p>
+      <TierBadge product={product} />
       <p className="text-sm text-gray-600 mt-2 flex-1">{product.description}</p>
       <AddToCartButton product={product} user={user} />
     </div>

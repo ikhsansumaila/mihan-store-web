@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { errorMessage } from '../auth';
-import { removeCartItem, setCartQty, isUnauthorized } from './api';
+import { ackCartPrices, removeCartItem, setCartQty, isUnauthorized } from './api';
 import { useCart } from './CartContext';
-import { rupiah } from './format';
+import { perUnit, rupiah, tierNote } from './format';
 
 export const Notice = ({ kind = 'info', children }) => {
   const cls = {
@@ -57,12 +57,79 @@ const QtyControl = ({ item, busy, onSet }) => {
   );
 };
 
+// Penanda harga per baris keranjang: harga efektif per satuan, info grosir (hemat), petunjuk jenjang berikutnya,
+// dan "Harga berubah" bila harga sekarang berbeda dari yang terakhir dilihat pelanggan.
+export const CartItemPricing = ({ item, onAck, acking }) => {
+  const unit = item.unit || 'pcs';
+  const unitPrice = item.unitPrice ?? item.price;
+  return (
+    <div className="text-sm text-gray-600 space-y-1">
+      <div>
+        <span className="font-medium text-gray-800">{perUnit(unitPrice, unit)}</span>
+        {item.tierMinQty && item.baseUnitPrice > unitPrice ? (
+          <>
+            {' '}
+            <span className="text-gray-400 line-through">{perUnit(item.baseUnitPrice, unit)}</span>
+          </>
+        ) : null}
+      </div>
+      {item.tierMinQty ? (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-block rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">{tierNote(item.tierMinQty)}</span>
+          {item.savings > 0 && <span className="inline-block rounded bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">hemat {rupiah(item.savings)}</span>}
+        </div>
+      ) : null}
+      {item.available && item.nextTier && (
+        <div className="text-xs text-purple-700" data-testid="next-tier">
+          Tambah {item.nextTier.moreQty} lagi untuk harga {perUnit(item.nextTier.unitPrice, unit)}
+        </div>
+      )}
+      {item.priceChanged && (
+        <div role="status" className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900" data-testid="price-changed">
+          <strong>Harga berubah:</strong> dari {rupiah(item.previousUnitPrice)} menjadi {perUnit(unitPrice, unit)}{' '}
+          {onAck && (
+            <button type="button" className="ml-1 font-semibold underline disabled:opacity-50" onClick={onAck} disabled={acking}>
+              Mengerti
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Banner di atas keranjang/checkout bila ada baris yang harganya berubah.
+export const PriceChangeBanner = ({ cart, onAck, acking }) => {
+  const n = (cart?.items || []).filter((i) => i.priceChanged).length;
+  if (!n) return null;
+  return (
+    <div className="mb-4" data-testid="price-change-banner">
+      <Notice kind="warn">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            <strong>Harga berubah</strong> untuk {n} produk sejak terakhir Anda lihat. Periksa harga terbaru di bawah.
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            onClick={onAck}
+            disabled={acking}
+          >
+            Mengerti
+          </button>
+        </div>
+      </Notice>
+    </div>
+  );
+};
+
 const Cart = () => {
   const navigate = useNavigate();
   const { cart, refresh, setCart, onUnauthorized } = useCart();
   const [loading, setLoading] = useState(!cart);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [acking, setAcking] = useState(false);
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
@@ -81,6 +148,21 @@ const Cart = () => {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const ack = async () => {
+    setAcking(true);
+    setError('');
+    try {
+      const c = await ackCartPrices();
+      if (c && Array.isArray(c.items)) setCart(c);
+    } catch (err) {
+      if (isUnauthorized(err)) return onUnauthorized?.();
+      setError(errorMessage(err, 'Gagal memperbarui keranjang'));
+    } finally {
+      setAcking(false);
+    }
+    return undefined;
   };
 
   if (loading && !cart) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-600">Memuat keranjang...</p>;
@@ -103,6 +185,7 @@ const Cart = () => {
         </div>
       ) : (
         <>
+          <PriceChangeBanner cart={cart} onAck={ack} acking={acking} />
           {cart.hasUnavailable && (
             <div className="mb-4">
               <Notice kind="warn">
@@ -115,7 +198,7 @@ const Cart = () => {
               <li key={it.productId} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${it.available ? '' : 'bg-gray-50'}`}>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-800 break-words">{it.name}</div>
-                  <div className="text-sm text-gray-500">{rupiah(it.price)} / pcs</div>
+                  <CartItemPricing item={it} onAck={ack} acking={acking} />
                   {!it.available && (
                     <span className="inline-block mt-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded px-2 py-0.5">
                       Tidak tersedia
@@ -148,8 +231,15 @@ const Cart = () => {
               <span className="text-gray-700">Subtotal ({cart.itemCount} item)</span>
               <span className="font-bold text-purple-700">{rupiah(cart.subtotal)}</span>
             </div>
+            {cart.savings > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Hemat harga grosir</span>
+                <span>{rupiah(cart.savings)}</span>
+              </div>
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              Harga mengikuti harga terkini. Ongkir dan diskon (bila ada) ditetapkan admin setelah pesanan dibuat.
+              Harga mengikuti harga terkini (harga grosir otomatis sesuai jumlah per produk). Ongkir dan diskon (bila ada)
+              ditetapkan admin setelah pesanan dibuat.
             </p>
             <button
               type="button"

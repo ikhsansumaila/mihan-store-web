@@ -12,6 +12,8 @@ export const addCartItem = (productId, qty = 1) =>
 export const setCartQty = (productId, qty) =>
   data(axios.put(`${API_BASE_URL}/cart/items`, { productId, qty }, cfg()));
 export const removeCartItem = (productId) => data(axios.delete(`${API_BASE_URL}/cart/items/${productId}`, cfg()));
+// "Mengerti": harga yang terlihat disetel ke harga terkini (penanda perubahan harga hilang).
+export const ackCartPrices = () => data(axios.post(`${API_BASE_URL}/cart/ack-prices`, {}, cfg()));
 
 export const createOrder = (body) => axios.post(`${API_BASE_URL}/orders`, body, cfg());
 export const listOrders = (page = 1) => data(axios.get(`${API_BASE_URL}/orders?page=${page}&per_page=10`, cfg()));

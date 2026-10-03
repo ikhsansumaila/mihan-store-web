@@ -15,6 +15,15 @@ export const THEMES = {
 };
 export const DEFAULT_THEME = 'ungu';
 
+// Mode tampilan harga di gambar. Bawaan: eceran + grosir (produk tanpa jenjang tetap tampil seperti biasa).
+export const PRICE_MODES = {
+  both: 'Eceran + grosir',
+  retail: 'Eceran saja',
+  wholesale: 'Grosir saja',
+};
+export const DEFAULT_PRICE_MODE = 'both';
+export const TIER_SEP = ' · ';
+
 // "Rp 45.000" (pemisah ribuan titik, id-ID) tanpa bergantung pada data ICU lingkungan.
 export const formatRupiah = (n) => {
   const v = Math.round(Number(n) || 0);
@@ -60,15 +69,61 @@ export const defaultOrderUrl = () => (typeof window !== 'undefined' && window.lo
 const collator = typeof Intl !== 'undefined' ? new Intl.Collator('id', { sensitivity: 'base', numeric: true }) : null;
 const cmpText = (a, b) => (collator ? collator.compare(a, b) : a < b ? -1 : a > b ? 1 : 0);
 
+// Jenjang dari API (unitPrice = harga efektif dari server) -> [{minQty, unitPrice}] urut minQty naik.
+export const toTiers = (tiers) =>
+  (Array.isArray(tiers) ? tiers : [])
+    .map((t) => ({ minQty: Number(t.minQty), unitPrice: Number(t.unitPrice) }))
+    .filter((t) => Number.isInteger(t.minQty) && t.minQty >= 2 && Number.isFinite(t.unitPrice) && t.unitPrice > 0)
+    .sort((a, b) => a.minQty - b.minQty);
+
 // Produk admin (GET /api/admin/products) -> bentuk ringkas.
 export const toItem = (p) => ({
   id: p.id,
   name: String(p.name || '').trim(),
   price: Number(p.price) || 0,
+  unit: String(p.unit || 'pcs').trim() || 'pcs',
+  tiers: toTiers(p.tiers),
   categoryId: p.categoryId ?? null,
   categoryName: p.categoryName || '',
   active: p.isActive !== false,
 });
+
+// Teks per jenjang: "10+ : Rp 42.000".
+export const tierSegments = (tiers) => (tiers || []).map((t) => `${t.minQty}+ : ${formatRupiah(t.unitPrice)}`);
+
+// Apa yang tampil untuk satu produk pada mode tertentu.
+// showBase: harga eceran di kanan; showTiers: baris jenjang di bawah nama.
+export const priceParts = (item, mode = DEFAULT_PRICE_MODE) => {
+  const hasTiers = !!(item.tiers && item.tiers.length);
+  const showTiers = hasTiers && mode !== 'retail';
+  const showBase = !hasTiers || mode !== 'wholesale';
+  return { showBase, showTiers };
+};
+
+// Bungkus potongan teks ATOMIK (mis. "10+ : Rp 42.000") dengan pemisah, maksimal maxLines baris.
+// Potongan tidak pernah dipatah di tengah; potongan yang lebih lebar dari satu baris dipotong elipsis.
+// Bila masih tersisa setelah maxLines, baris terakhir diakhiri "…".
+export const wrapSegments = (segments, maxWidth, measure, maxLines = 8, sep = TIER_SEP) => {
+  const segs = (segments || []).filter(Boolean);
+  if (!segs.length) return [];
+  const lines = [];
+  let cur = '';
+  for (const seg of segs) {
+    const piece = measure(seg) > maxWidth ? ellipsize(seg, maxWidth, measure) : seg;
+    const candidate = cur ? `${cur}${sep}${piece}` : piece;
+    if (!cur || measure(candidate) <= maxWidth) cur = candidate;
+    else {
+      lines.push(cur);
+      cur = piece;
+    }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  // Potongan berikutnya memang tidak muat di baris ini, jadi hasilnya pasti berakhir "…".
+  kept[maxLines - 1] = ellipsize(`${kept[maxLines - 1]}${sep}${lines[maxLines]}`, maxWidth, measure);
+  return kept;
+};
 
 // Kelompokkan produk per kategori. Urutan kategori: sortOrder, lalu nama, lalu id; kategori yang tidak
 // dikenal (mis. sudah dihapus) di akhir. Urutan produk: nama (id-ID, tanpa beda huruf besar/kecil), lalu id.

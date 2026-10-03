@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { adminFetch, qs, rupiah, fmtTime } from './api';
+import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
 import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { STATUS, buildAdminSummaryText, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
@@ -391,9 +391,22 @@ export const AdminOrderDetail = () => {
                 <tbody>
                   {order.items.map((it, i) => (
                     <tr key={i} className="border-t">
-                      <td className="py-2">{it.name}</td>
-                      <td className="py-2 text-right">{it.qty}</td>
-                      <td className="py-2 text-right whitespace-nowrap">{rupiah(it.unitPrice)}</td>
+                      <td className="py-2">
+                        {it.name}
+                        {it.tierMinQty ? (
+                          <span className="ml-1 inline-block rounded bg-green-100 px-1.5 text-xs font-semibold text-green-800">
+                            harga grosir (min. {it.tierMinQty})
+                          </span>
+                        ) : null}
+                        {it.tierMinQty && it.baseUnitPrice ? (
+                          <div className="text-xs text-gray-500">Harga dasar saat pesan: {perUnit(it.baseUnitPrice, it.unit)}</div>
+                        ) : null}
+                      </td>
+                      <td className="py-2 text-right whitespace-nowrap">
+                        {it.qty}
+                        {it.unit ? ` ${it.unit}` : ''}
+                      </td>
+                      <td className="py-2 text-right whitespace-nowrap">{perUnit(it.unitPrice, it.unit)}</td>
                       <td className="py-2 text-right whitespace-nowrap">{rupiah(it.lineTotal)}</td>
                     </tr>
                   ))}

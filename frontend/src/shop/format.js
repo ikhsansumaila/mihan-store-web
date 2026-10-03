@@ -1,6 +1,13 @@
-// Utilitas tampilan pesanan: format rupiah, status, tautan & teks WhatsApp.
+// Utilitas tampilan bersama (toko & admin): format rupiah, harga per satuan, status, tautan & teks WhatsApp.
+// Satu-satunya tempat format rupiah untuk UI (admin/api.js mengekspor ulang dari sini).
 
 export const rupiah = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+
+// "Rp 42.000 / pak" (tanpa satuan: "Rp 42.000").
+export const perUnit = (price, unit) => (unit ? `${rupiah(price)} / ${unit}` : rupiah(price));
+
+// Catatan harga grosir untuk item pesanan/keranjang yang memakai jenjang.
+export const tierNote = (minQty) => (minQty ? `harga grosir (min. ${minQty})` : '');
 
 export const STATUS = {
   pending_payment: { label: 'Menunggu pembayaran', cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
@@ -58,7 +65,8 @@ export const buildCustomerConfirmText = (order, accountName) => {
     'Item:',
   ];
   (order.items || []).forEach((it) => {
-    lines.push(`- ${it.name} x${it.qty} = ${rupiah(it.lineTotal)}`);
+    const qty = it.unit ? `${it.qty} ${it.unit}` : `${it.qty}`;
+    lines.push(`- ${it.name} x${qty} = ${rupiah(it.lineTotal)}${it.tierMinQty ? ' (harga grosir)' : ''}`);
   });
   lines.push('');
   if (order.discount > 0) lines.push(`Diskon: -${rupiah(order.discount)}`);
@@ -85,7 +93,7 @@ export const buildAdminSummaryText = (order, store = {}) => {
   ];
   (order.items || []).forEach((it, i) => {
     lines.push(`${i + 1}. ${it.name}`);
-    lines.push(`   ${it.qty} x ${rupiah(it.unitPrice)} = ${rupiah(it.lineTotal)}`);
+    lines.push(`   ${it.qty} x ${perUnit(it.unitPrice, it.unit)} = ${rupiah(it.lineTotal)}${it.tierMinQty ? ` (harga grosir min. ${it.tierMinQty})` : ''}`);
   });
   lines.push('');
   lines.push(`Subtotal: ${rupiah(order.subtotal)}`);
