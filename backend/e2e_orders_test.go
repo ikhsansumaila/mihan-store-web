@@ -78,21 +78,27 @@ const (
 
 func e2eCheckout(t *testing.T, tok string, productID, qty int) e2eResp {
 	t.Helper()
+	ensureE2ERegions(t)
 	if r := e2e(t, "POST", e2eBackend+"/api/cart/items", bearer(tok), map[string]any{"productId": productID, "qty": qty, "price": 1}); r.Code != 200 {
 		t.Fatalf("tambah keranjang: %d %s", r.Code, r.Raw)
 	}
 	key, _ := newPublicID()
-	return e2e(t, "POST", e2eBackend+"/api/orders", bearer(tok), map[string]any{
+	b := map[string]any{
 		"recipientName": "Penerima E2E", "recipientPhone": "0813-5555-4444", "address": e2eAddress, "city": "Tangerang",
 		"postalCode": "15111", "note": e2eNote, "idempotencyKey": key,
 		// Harga/total dari browser harus diabaikan server.
 		"total": 1, "subtotal": 1, "items": []map[string]any{{"productId": productID, "qty": 1, "price": 1}},
-	})
+	}
+	for k, v := range e2eRegionCodes() {
+		b[k] = v
+	}
+	return e2e(t, "POST", e2eBackend+"/api/orders", bearer(tok), b)
 }
 
 func assertMinimalPayload(t *testing.T, body string) {
 	t.Helper()
-	for _, bad := range []string{e2eAddress, "Rahasia", "135555", "8135555", "@uji.test", e2eNote, "Tangerang", "15111", "@everyone"} {
+	for _, bad := range []string{e2eAddress, "Rahasia", "135555", "8135555", "@uji.test", e2eNote, "Tangerang", "15111", "@everyone",
+		"Sukarasa", "Banten", "36.71"} {
 		if strings.Contains(body, bad) {
 			t.Errorf("payload Discord memuat data terlarang %q: %s", bad, body)
 		}

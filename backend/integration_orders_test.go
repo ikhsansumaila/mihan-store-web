@@ -47,6 +47,7 @@ func setupOrders(t *testing.T) (*App, http.Handler, *gorm.DB, *recNotifier) {
 	app.cartLimiter = NewRateLimiter(100000, time.Minute)
 	app.checkoutLimiter = NewRateLimiter(100000, time.Minute)
 	app.cancelLimiter = NewRateLimiter(100000, time.Minute)
+	seedRegionsInteg(t, db)
 	return app, newRouter(app), db, rec
 }
 
@@ -63,9 +64,11 @@ func newCustomer(t *testing.T, h http.Handler, name string) string {
 	return r.Body["token"].(string)
 }
 
+// checkoutBody: wilayah Kota Tangerang dari pohon tiruan (seedRegionsInteg). "city" dari klien diabaikan server.
 func checkoutBody(key string) map[string]any {
 	return map[string]any{"recipientName": "Budi Penerima", "recipientPhone": "0813-1111-2222", "address": "Jl. Melati No. 9, RT 3",
-		"city": "Tangerang", "postalCode": "15111", "note": "Titip di pos satpam", "idempotencyKey": key}
+		"city": "Tangerang", "postalCode": "15111", "note": "Titip di pos satpam", "idempotencyKey": key,
+		"provinceCode": "36", "regencyCode": "36.71", "districtCode": "36.71.01", "villageCode": "36.71.01.1001"}
 }
 
 func uuid(t *testing.T) string {
@@ -196,8 +199,8 @@ func TestIntegrationCartCheckoutFlow(t *testing.T) {
 	// Validasi input checkout.
 	bad := checkoutBody(uuid(t))
 	bad["recipientPhone"] = "123"
-	if r := call(t, h, "POST", "/api/orders", tokA, bad); r.Code != 400 {
-		t.Fatalf("telepon salah harus 400: %d", r.Code)
+	if r := call(t, h, "POST", "/api/orders", tokA, bad); r.Code != 422 || r.Body["field"] != "recipientPhone" {
+		t.Fatalf("telepon salah harus 422 (field recipientPhone): %d %v", r.Code, r.Body)
 	}
 
 	// Checkout sukses: harga/total dari browser diabaikan.

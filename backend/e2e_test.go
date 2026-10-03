@@ -58,6 +58,7 @@ func TestMain(m *testing.M) {
 		w.Write(jwksJSON("gk1", &e2eGoogleKey.PublicKey))
 	})
 	mux.HandleFunc("/discord/", discordMockHandler) // server tiruan webhook Discord (e2e_orders_test.go)
+	mux.Handle("/wilayah/api/", e2eWilayah)         // server tiruan wilayah.id (e2e_regions_test.go)
 	go http.ListenAndServe(":9000", mux)
 	e2eBackend = strings.TrimSuffix(os.Getenv("E2E_BACKEND_URL"), "/")
 	e2eFrontend = strings.TrimSuffix(os.Getenv("E2E_FRONTEND_URL"), "/")

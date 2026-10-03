@@ -24,7 +24,10 @@ func e2eCartLine(t *testing.T, body map[string]any, pid float64) map[string]any 
 func e2eOrderBody(expected any) map[string]any {
 	key, _ := newPublicID()
 	b := map[string]any{"recipientName": "Penerima Grosir", "recipientPhone": "0813-5555-4444", "address": "Jl. Grosir No. 1",
-		"city": "Tangerang", "idempotencyKey": key}
+		"city": "Tangerang", "postalCode": "15111", "idempotencyKey": key}
+	for k, v := range e2eRegionCodes() {
+		b[k] = v
+	}
 	if expected != nil {
 		b["expectedTotal"] = expected
 	}
@@ -36,6 +39,7 @@ func e2eOrderBody(expected any) map[string]any {
 // admin mengubah harga, pelanggan melihat penanda, checkout dengan total lama -> 409, setelah
 // konfirmasi pesanan terbentuk dengan harga baru, dan pesanan lama tidak berubah.
 func TestE2ETierFlow(t *testing.T) {
+	ensureE2ERegions(t)
 	discordMode.Store("ok")
 	admin := os.Getenv("E2E_ADMIN_EMAIL")
 	B := e2eBackend
