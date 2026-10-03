@@ -133,16 +133,9 @@ func TestIntegrationSchemaSeedAndGrants(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var a, b any
-		json.Unmarshal(want, &a)
-		json.Unmarshal(w.Body.Bytes(), &b)
-		ja, _ := json.Marshal(a)
-		jb, _ := json.Marshal(b)
-		if string(ja) != string(jb) {
-			t.Fatalf("/api/products berbeda dari snapshot:\nmau %s\ndapat %s", ja, jb)
-		}
-		if strings.TrimSpace(string(want)) != strings.TrimSpace(w.Body.String()) {
-			t.Fatalf("/api/products tidak identik byte-per-byte dengan snapshot")
+		// Field lama identik byte-per-byte; field baru (unit, tiers) hanya ditambahkan di belakang.
+		if err := compareProductsSnapshot(want, w.Body.Bytes()); err != nil {
+			t.Fatalf("/api/products berbeda dari snapshot: %v", err)
 		}
 	}
 	// search: q + category, tanpa hasil -> []

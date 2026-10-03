@@ -143,8 +143,8 @@ func TestE2EPublicAndFrontend(t *testing.T) {
 	r := e2e(t, "GET", e2eBackend+"/api/products", nil, nil)
 	if p := os.Getenv("PRODUCTS_SNAPSHOT"); p != "" {
 		want, _ := os.ReadFile(p)
-		if strings.TrimSpace(string(want)) != strings.TrimSpace(string(r.Raw)) {
-			t.Fatalf("/api/products tidak identik dengan snapshot produksi")
+		if err := compareProductsSnapshot(want, r.Raw); err != nil {
+			t.Fatalf("/api/products tidak cocok dengan snapshot produksi: %v", err)
 		}
 	}
 	r = e2e(t, "GET", e2eBackend+"/api/categories", nil, nil)
