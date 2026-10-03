@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { normalizePhone, phoneError } from '../phone';
 import { API_BASE_URL, saveSession, errorMessage, takeReturnTo } from '../auth';
 
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
@@ -41,19 +42,16 @@ const CompleteProfile = ({ onLoginSuccess }) => {
       setError('Username harus 3–30 karakter, hanya huruf kecil, angka, atau garis bawah (_)');
       return;
     }
-    if (phone.trim()) {
-      const p = phone.replace(/[\s\-.()]/g, '');
-      if (!/^(\+62|62|0)8\d{5,12}$/.test(p)) {
-        setError('Nomor telepon tidak valid. Gunakan format 08xx, 628xx, atau +628xx');
-        return;
-      }
+    if (phoneError(phone)) {
+      setError(phoneError(phone));
+      return;
     }
     setLoading(true);
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/google/complete`, {
         profileToken,
         username: u,
-        phone: phone.trim(),
+        phone: normalizePhone(phone).phone,
       });
       if (res.data?.success && res.data.token) {
         saveSession(res.data.token, res.data.user);
@@ -121,7 +119,7 @@ const CompleteProfile = ({ onLoginSuccess }) => {
             <input
               type="tel"
               inputMode="tel"
-              maxLength={20}
+              maxLength={32}
               placeholder="08123456789"
               className={inputClass}
               value={phone}

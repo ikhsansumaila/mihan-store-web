@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { normalizePhone, phoneError } from '../phone';
 import { API_BASE_URL, TURNSTILE_SITE_KEY, saveSession, errorMessage, takeReturnTo } from '../auth';
 import GoogleSignIn from './GoogleSignIn';
 
@@ -15,11 +16,7 @@ const validate = ({ name, username, email, phone, password }) => {
   if (!USERNAME_RE.test(username.trim().toLowerCase()))
     return 'Username harus 3–30 karakter, hanya huruf kecil, angka, atau garis bawah (_)';
   if (!EMAIL_RE.test(email.trim()) || email.trim().length > 254) return 'Format email tidak valid';
-  if (phone.trim()) {
-    const p = phone.replace(/[\s\-.()]/g, '');
-    if (!/^(\+62|62|0)8\d{5,12}$/.test(p))
-      return 'Nomor telepon tidak valid. Gunakan format 08xx, 628xx, atau +628xx';
-  }
+  if (phoneError(phone)) return phoneError(phone);
   if (password.length < 8 || password.length > 128) return 'Password harus 8–128 karakter';
   return '';
 };
@@ -60,7 +57,7 @@ const Register = ({ onRegisterSuccess }) => {
       const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         username: username.trim().toLowerCase(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: normalizePhone(phone).phone,
         name: name.trim(),
         password,
         turnstileToken,
@@ -151,7 +148,7 @@ const Register = ({ onRegisterSuccess }) => {
               type="tel"
               autoComplete="tel"
               inputMode="tel"
-              maxLength={20}
+              maxLength={32}
               placeholder="08123456789"
               className={inputClass}
               value={phone}

@@ -13,7 +13,6 @@ var (
 	errEmail    = errors.New("Format email tidak valid")
 	errUsername = errors.New("Username harus 3–30 karakter, hanya huruf kecil, angka, atau garis bawah (_)")
 	errReserved = errors.New("Username tersebut tidak boleh dipakai, silakan pilih yang lain")
-	errPhone    = errors.New("Nomor telepon tidak valid. Gunakan format 08xx, 628xx, atau +628xx")
 	errName     = errors.New("Nama wajib diisi (maksimal 100 karakter)")
 )
 
@@ -74,15 +73,66 @@ func NormalizeUsername(s string) (string, error) {
 	return u, nil
 }
 
+// Pesan galat telepon (sama dengan frontend/src/phone.js).
+var (
+	errPhoneChars  = errors.New("Nomor telepon ada karakter yang tidak valid. Gunakan angka saja (boleh diawali +62)")
+	errPhonePrefix = errors.New("Nomor telepon harus diawali 08, 62, atau +62 (nomor HP, mis. 0812...)")
+	errPhoneShort  = errors.New("Nomor telepon terlalu pendek, minimal 8 digit")
+	errPhoneLong   = errors.New("Nomor telepon terlalu panjang, maksimal 15 digit")
+)
+
+// foldPhoneRune menyeragamkan karakter dari keyboard/kontak HP ke ASCII sebelum validasi:
+// tanda hubung Unicode -> '-', spasi Unicode (NBSP, U+202F, dll.) -> ' ', angka lebar dan
+// angka Arab-Indic -> 0-9, plus/kurung/titik lebar -> ASCII. Karakter format tak terlihat
+// (zero-width, BOM, penanda arah/bidi) dibuang (-1). Harus sama dengan frontend/src/phone.js.
+func foldPhoneRune(r rune) rune {
+	switch {
+	case r >= 0x2010 && r <= 0x2015, r == 0x2212, r == 0xFE58, r == 0xFE63, r == 0xFF0D:
+		return '-'
+	case unicode.IsSpace(r):
+		return ' '
+	case r >= 0xFF10 && r <= 0xFF19:
+		return '0' + (r - 0xFF10)
+	case r >= 0x0660 && r <= 0x0669:
+		return '0' + (r - 0x0660)
+	case r >= 0x06F0 && r <= 0x06F9:
+		return '0' + (r - 0x06F0)
+	case r == 0xFF0B:
+		return '+'
+	case r == 0xFF08:
+		return '('
+	case r == 0xFF09:
+		return ')'
+	case r == 0xFF0E:
+		return '.'
+	case (r >= 0x200B && r <= 0x200F) || (r >= 0x2060 && r <= 0x2064) || r == 0xFEFF || isBidiControl(r):
+		return -1
+	}
+	return r
+}
+
 // NormalizePhone: opsional. Menerima 08xx, 628xx, +628xx (spasi, titik, tanda hubung,
-// dan kurung diabaikan) lalu menormalkan ke +628xx. Jumlah digit (tanpa '+') 8–15.
+// dan kurung diabaikan; varian Unicode diseragamkan dulu, lihat foldPhoneRune; "+62 0812"
+// dirapikan menjadi "+62812") lalu menormalkan ke +628xx. Jumlah digit (tanpa '+') 8-15.
 // String kosong menghasilkan "" tanpa error (artinya tidak diisi).
 func NormalizePhone(s string) (string, error) {
-	p := strings.TrimSpace(s)
+	var b strings.Builder
+	for _, r := range strings.ToValidUTF8(s, "") {
+		switch r = foldPhoneRune(r); r {
+		case -1, ' ', '-', '.', '(', ')':
+		default:
+			b.WriteRune(r)
+		}
+	}
+	p := b.String()
 	if p == "" {
 		return "", nil
 	}
-	p = strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(p)
+	for i, c := range p {
+		if (c < '0' || c > '9') && !(c == '+' && i == 0) {
+			return "", errPhoneChars
+		}
+	}
 	switch {
 	case strings.HasPrefix(p, "+62"):
 		p = p[1:]
@@ -90,18 +140,19 @@ func NormalizePhone(s string) (string, error) {
 	case strings.HasPrefix(p, "0"):
 		p = "62" + p[1:]
 	default:
-		return "", errPhone
+		return "", errPhonePrefix
+	}
+	if strings.HasPrefix(p, "620") { // "+62 0812..." -> "62812..."
+		p = "62" + p[3:]
 	}
 	if !strings.HasPrefix(p, "628") {
-		return "", errPhone
+		return "", errPhonePrefix
 	}
-	for _, c := range p {
-		if c < '0' || c > '9' {
-			return "", errPhone
-		}
+	if len(p) < 8 {
+		return "", errPhoneShort
 	}
-	if len(p) < 8 || len(p) > 15 {
-		return "", errPhone
+	if len(p) > 15 {
+		return "", errPhoneLong
 	}
 	return "+" + p, nil
 }

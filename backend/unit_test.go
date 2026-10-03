@@ -130,6 +130,54 @@ func TestNormalizePhone(t *testing.T) {
 	}
 }
 
+// Varian Unicode dari keyboard/kontak HP diseragamkan; galat spesifik per jenis kesalahan.
+// Kasus yang sama dipakai frontend (src/__tests__/phone.test.js).
+func TestNormalizePhoneUnicodeAndMessages(t *testing.T) {
+	ok := map[string]string{
+		"0812\u00a03456\u00a07890":         "+6281234567890", // NBSP
+		"+62\u202f812\u20113456\u20117890": "+6281234567890", // narrow NBSP + non-breaking hyphen
+		"0812\u20103456\u20127890":         "+6281234567890", // hyphen, figure dash
+		"0812\u20133456\u20147890":         "+6281234567890", // en/em dash
+		"0812\u22123456\u22127890":         "+6281234567890", // minus
+		"\u202a+62 812-3456-7890\u202c":    "+6281234567890", // pembungkus bidi (WhatsApp)
+		"\u200b081234567890\ufeff":         "+6281234567890", // zero-width, BOM
+		"\uff10\uff18\uff11\uff12\uff13\uff14\uff15\uff16\uff17\uff18\uff19\uff10": "+6281234567890",
+		"\u0660\u0668\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669\u0660": "+6281234567890",
+		"\u06f0\u06f8\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9\u06f0": "+6281234567890",
+		"\uff0b62 812 3456 7890": "+6281234567890",
+		"+62 0812 3456 7890":     "+6281234567890",
+		"+620812-3456-7890":      "+6281234567890",
+		"620812 3456 7890":       "+6281234567890",
+		"\u00a0\u2003":           "",
+	}
+	for in, want := range ok {
+		got, err := NormalizePhone(in)
+		if err != nil || got != want {
+			t.Errorf("NormalizePhone(%q) = %q,%v mau %q", in, got, err, want)
+		}
+	}
+	bad := map[string]error{
+		"08123":                errPhoneShort,
+		"+62812":               errPhoneShort,
+		"+6281111111111081234": errPhoneLong,
+		"+62812345678901234":   errPhoneLong,
+		"0812abc4567":          errPhoneChars,
+		"++6281234567":         errPhoneChars,
+		"0812/3456/7890":       errPhoneChars,
+		"62+81234567890":       errPhoneChars,
+		"021555123":            errPhonePrefix,
+		"+1555123456":          errPhonePrefix,
+		"12345678":             errPhonePrefix,
+		"62":                   errPhonePrefix,
+		"+":                    errPhonePrefix,
+	}
+	for in, want := range bad {
+		if _, err := NormalizePhone(in); err != want {
+			t.Errorf("NormalizePhone(%q) galat %v, mau %v", in, err, want)
+		}
+	}
+}
+
 func TestNormalizeName(t *testing.T) {
 	ok := map[string]string{
 		"  Budi   Santoso ":        "Budi Santoso",

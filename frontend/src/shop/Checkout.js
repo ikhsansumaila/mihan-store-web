@@ -6,6 +6,7 @@ import { useCart } from './CartContext';
 import { Notice, PriceChangeBanner } from './Cart';
 import { newIdempotencyKey, perUnit, rupiah, tierNote } from './format';
 import RegionCombobox from './RegionCombobox';
+import { normalizePhone } from '../phone';
 import { REGION_LEVELS, loadRegions, regionErrorMessage } from './regionsApi';
 
 const inputBase = 'w-full min-h-[44px] px-3 py-2 border-2 rounded-lg text-base focus:outline-none transition';
@@ -26,13 +27,8 @@ const Field = ({ id, label, hint, required, error, children }) => (
   </div>
 );
 
-// Telepon: sama dengan aturan server (08xx / 628xx / +628xx, 8–15 digit).
-export const validPhone = (s) => {
-  let p = String(s || '').trim().replace(/[\s.\-()]/g, '');
-  if (p.startsWith('+62')) p = p.slice(1);
-  else if (p.startsWith('0')) p = `62${p.slice(1)}`;
-  return /^628[0-9]{5,12}$/.test(p);
-};
+// Telepon: aturan yang sama dengan server (lihat ../phone.js dan NormalizePhone di backend).
+export const validPhone = (s) => !!normalizePhone(s).phone;
 
 // Validasi klien (server tetap memvalidasi ulang). Semua wajib kecuali catatan.
 export const validateCheckoutForm = (form, region) => {
@@ -40,8 +36,9 @@ export const validateCheckoutForm = (form, region) => {
   const name = form.recipientName.trim();
   if (!name) e.recipientName = 'Nama penerima wajib diisi.';
   else if (name.length > 100) e.recipientName = 'Nama penerima maksimal 100 karakter.';
-  if (!form.recipientPhone.trim()) e.recipientPhone = 'Nomor telepon wajib diisi.';
-  else if (!validPhone(form.recipientPhone)) e.recipientPhone = 'Nomor telepon tidak valid. Gunakan format 08xx, 628xx, atau +628xx.';
+  const phone = normalizePhone(form.recipientPhone);
+  if (phone.error) e.recipientPhone = phone.error;
+  else if (!phone.phone) e.recipientPhone = 'Nomor telepon wajib diisi.';
   REGION_LEVELS.forEach((lv) => {
     if (!region[lv.key]) e[lv.field] = `Pilih ${lv.lower}.`;
   });
@@ -175,7 +172,8 @@ const Checkout = ({ user }) => {
       // DITAMPILKAN; item & harga dihitung server dari keranjang.
       const res = await createOrder({
         recipientName: form.recipientName.trim(),
-        recipientPhone: form.recipientPhone.trim(),
+        // Dikirim dalam bentuk baku +628xx (server tetap menormalkan & memvalidasi ulang).
+        recipientPhone: normalizePhone(form.recipientPhone).phone,
         provinceCode: region.province.code,
         regencyCode: region.regency.code,
         districtCode: region.district.code,
@@ -290,7 +288,7 @@ const Checkout = ({ user }) => {
               ref={refFor('recipientPhone')}
               className={inputCls(errors.recipientPhone)}
               inputMode="tel"
-              maxLength={20}
+              maxLength={32}
               value={form.recipientPhone}
               onChange={set('recipientPhone')}
               autoComplete="tel"
