@@ -1,0 +1,4 @@
+# Foto produk yang diunggah tidak pernah masuk konteks build image.
+uploads/
+.env
+.env.*

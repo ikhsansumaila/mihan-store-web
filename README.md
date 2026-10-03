@@ -267,6 +267,8 @@ docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e
 # Webhook Discord uji diarahkan ke server tiruan di proses tes (http://<runner>:9000/discord/api/webhooks/...);
 # URL http/host selain discord.com hanya diterima bila DB_NAME *_test.
 go test -tags e2e -run E2E ./...   # env: E2E_BACKEND_URL, E2E_AUD, E2E_GOOGLE_CLIENT, E2E_ADMIN_EMAIL
+# Tes foto produk butuh fixture backend/testdata/*.webp (sintetis). E2E foto: folder uploads uji 10001:101 2750
+# di-mount ke backend uji (rw) dan frontend uji (ro), env E2E_FRONTEND_URL wajib.
 # Frontend (jest/jsdom): cd frontend && CI=true npx react-scripts test --watchAll=false
 ```
 
@@ -579,6 +581,70 @@ Perilaku:
   docker compose up -d --no-build --no-deps backend frontend
   git revert --no-edit pre-regions..HEAD   # agar build berikutnya tidak membawa fitur ini lagi
   ```
+
+## Foto produk (disk VPS)
+
+Satu foto utama per produk, disimpan sebagai berkas di disk VPS (bukan database, bukan layanan cloud).
+
+**Arsitektur**
+- Backend Go punya lapisan penyimpanan `ImageStore` (`backend/imagestore.go`: `Save` atomik, `Delete`, `URL`).
+  Implementasi saat ini `LocalStore` (`IMAGE_STORE=local`) menulis ke `UPLOADS_DIR` (default `/data/uploads`).
+- Tabel hanya menyimpan KUNCI di `products.image_path`: `products/<id>/<uuid v4>.jpg`; thumbnail diturunkan
+  dengan akhiran `_t` (`products/<id>/<uuid>_t.jpg`). Nama berkas dari klien tidak pernah dipakai. Tidak ada migrasi baru.
+- Nilai lama yang bukan pola itu (mis. `kerupuk1.jpg`, tanpa berkas fisik) dianggap TANPA foto.
+- API publik `/api/products`, `/api/products/search`, keranjang `/api/cart`: `image` = URL foto utama
+  (`/uploads/products/<id>/<uuid>.jpg`) atau `""`; field baru `thumb` = URL thumbnail atau `""`. Pesanan tidak menyimpan foto.
+- Admin (Cloudflare Access + `requireAdmin` + CSRF; batas 20 unggah/hapus per menit per admin):
+  - `POST /api/admin/products/{id}/image` (multipart/form-data, field `file`) -> `{image, thumb}`
+  - `DELETE /api/admin/products/{id}/image` -> `{image:"", thumb:""}`
+  - Ini satu-satunya rute admin yang menerima `multipart/form-data`; header `X-Requested-With` dan Origin/Sec-Fetch-Site tetap wajib.
+  - `PUT /api/admin/products/{id}` tidak lagi mengubah foto unggahan (field `imagePath` diabaikan bila produk sudah
+    punya foto; kunci foto tidak bisa disetel manual -> 400).
+  - Log aktivitas: `product.image_update` (kunci baru/lama, ukuran byte) dan `product.image_delete`, dalam
+    transaksi yang sama dengan perubahan `image_path` + `updated_by`.
+- nginx frontend menyajikan `/uploads/` dari folder yang sama (mount READ-ONLY) hanya untuk pola kunci sah,
+  dengan `Cache-Control: public, max-age=31536000, immutable` dan `X-Content-Type-Options: nosniff`; lainnya 404,
+  tanpa daftar direktori, path mentah berisi `..`/`%2e`/`%2f`/`\` ditolak. NPM tidak diubah (`/` -> frontend).
+
+**Batas dan pemrosesan**
+- Browser (form admin) memperkecil foto dulu: canvas, sisi terpanjang <= 1600 px, JPEG ±0,85, orientasi EXIF
+  diterapkan (`createImageBitmap(..., {imageOrientation: 'from-image'})`), kualitas diturunkan bertahap bila > 2 MB.
+- Server: maks. 2 MB; hanya JPG/PNG/WebP (dicek dari ISI berkas); `DecodeConfig` dulu menolak dekompresi-bom
+  (> 12.000 px per sisi atau > 40 MP); orientasi EXIF 1–8 diterapkan; PNG/WebP transparan diratakan ke putih;
+  diperkecil Catmull-Rom ke foto utama 1200 px (JPEG q82) + thumbnail 400 px (JPEG q80); metadata dibuang.
+  Pemrosesan paralel dibatasi 2. Galat: 413 (terlalu besar), 415 (tipe), 422 (rusak/resolusi), 507 (penuh), 503 (penyimpanan tidak tersedia).
+- Pagar disk: `MAX_UPLOADS_MB` (default 2048). Ukuran folder dihitung ulang tiap 5 menit (cache), unggahan baru
+  ditolak 507 bila melewati batas. Saat start backend memeriksa folder dapat ditulis (log
+  "direktori unggahan /data/uploads dapat ditulis"); bila tidak, hanya unggah foto yang menjawab 503.
+- Dependensi baru: `golang.org/x/image` (paket `draw` dan `webp`).
+
+**Lokasi berkas**: host `~/mihanstore/uploads` (di `.gitignore`/`.dockerignore`), pemilik `10001:101`
+(user `app` backend : grup `nginx` frontend), mode `2750` (setgid: subfolder/berkas baru ikut grup 101), berkas `0640`.
+Di-mount ke backend `/data/uploads` (baca-tulis) dan frontend `/usr/share/nginx/uploads` (hanya baca).
+```bash
+sudo install -d -o 10001 -g 101 -m 2750 ~/mihanstore/uploads   # sekali, sebelum docker compose up
+```
+
+**Backup & pemulihan**: `mihanstore/uploads` ikut arsip harian terenkripsi `~/backup/backup.sh` (lihat
+`~/backup/RESTORE.md` bagian 5a). Pulihkan folder lalu set ulang pemilik/izin:
+`sudo chown -R 10001:101 ~/mihanstore/uploads && sudo find ~/mihanstore/uploads -type d -exec chmod 2750 {} + && sudo find ~/mihanstore/uploads -type f -exec chmod 0640 {} +`.
+Foto yang dihapus dari admin langsung hilang dari disk (hanya ada di arsip backup sebelumnya); salinan di cache
+Cloudflare bisa bertahan sampai kedaluwarsa, tetapi URL-nya acak (UUID) dan tidak lagi dirujuk.
+
+**Mengganti ke Cloudflare R2 / Google Cloud Storage nanti**: tambah implementasi `ImageStore` baru
+(`Save` = upload objek dengan kunci yang sama, `Delete` = hapus objek, `URL` = URL publik bucket/CDN), pilih lewat
+`IMAGE_STORE` di `config.go`/`NewApp`, salin isi folder `uploads/` ke bucket dengan kunci yang sama. Tabel, API, dan
+tampilan tidak berubah (frontend memakai `image`/`thumb` apa adanya).
+
+**Langkah pemilik**: buka Admin -> Produk -> Ubah satu produk -> bagian "Foto produk" -> "Pilih foto" (dari HP
+bisa kamera atau galeri) -> cek pratinjau -> Simpan. Lalu cek kartu produk di toko (HP dan komputer) dan keranjang;
+buka Pricelist, centang "Tampilkan foto produk", unduh PNG; coba "Ganti foto" dan "Hapus foto". Untuk produk baru,
+foto dipilih dulu lalu otomatis diunggah setelah produk tersimpan; bila unggah gagal, produk tetap ada dan ada
+tombol "Coba unggah lagi".
+
+**Rollback**: `docker tag mihanstore-backend:pre-uploads mihanstore-backend:latest && docker tag mihanstore-frontend:pre-uploads mihanstore-frontend:latest`
+lalu `git checkout pre-uploads -- docker-compose.yml` (atau biarkan volume) dan `docker compose up -d --no-deps --no-build backend frontend`.
+Folder `uploads/` dan kolom `image_path` boleh dibiarkan: kode lama mengabaikan foto (kunci `products/...` dianggap nama berkas biasa dan tampil placeholder).
 
 ## Tugas pemilik (sekali saja, berurutan)
 

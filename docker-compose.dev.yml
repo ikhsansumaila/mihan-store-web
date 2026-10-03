@@ -27,8 +27,12 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - AUTH_HMAC_SECRET=${AUTH_HMAC_SECRET:-}
       - ALLOW_NO_TURNSTILE=${ALLOW_NO_TURNSTILE:-false}
+      - IMAGE_STORE=${IMAGE_STORE:-local}
+      - UPLOADS_DIR=/data/uploads
+      - MAX_UPLOADS_MB=${MAX_UPLOADS_MB:-2048}
     volumes:
       - ./backend:/app
+      - ./uploads:/data/uploads
     networks:
       mihanstore-net: {}
       nginx-proxy-manager-network:

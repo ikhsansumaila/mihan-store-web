@@ -28,6 +28,13 @@ services:
       # Notifikasi pesanan ke Discord (rahasia; kosong = nonaktif, backend tetap jalan)
       - DISCORD_ORDER_WEBHOOK_URL=${DISCORD_ORDER_WEBHOOK_URL:-}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://store.mihan.web.id}
+      # Foto produk: disk VPS (lapisan ImageStore; nanti bisa diganti R2/GCS). Batas total folder unggahan (MB).
+      - IMAGE_STORE=${IMAGE_STORE:-local}
+      - UPLOADS_DIR=/data/uploads
+      - MAX_UPLOADS_MB=${MAX_UPLOADS_MB:-2048}
+    volumes:
+      # Folder host (pemilik uid 10001 = user "app" backend, grup 101 = nginx frontend, mode 2750).
+      - ./uploads:/data/uploads
     networks:
       mihanstore-net: {}
       nginx-proxy-manager-network:
@@ -50,6 +57,9 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    volumes:
+      # Foto produk disajikan nginx dari folder yang sama, HANYA BACA.
+      - ./uploads:/usr/share/nginx/uploads:ro
     networks:
       - mihanstore-net
       - nginx-proxy-manager-network
