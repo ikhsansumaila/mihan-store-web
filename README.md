@@ -226,6 +226,15 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
   tombol min. 40×40px, tautan bergaya tombol min. 40px; bilah ikon admin tetap 64px dan tiap tombol menu 44px. Aturan
   kelas diberi awalan `:root` karena Tailwind CDN menyisipkan stylenya setelah CSS aplikasi. Layar ≥640px tidak
   berubah; kanvas PNG Pricelist tidak terpengaruh. Diuji di `src/__tests__/mobileStyles.test.js`.
+- **Daftar produk toko di HP (2 kolom)** — `src/App.js` (`Home`, `ProductCard`, `ProductImage`, `TierBadge`,
+  `AddToCartButton`). Di bawah 640px saja (kelas `max-sm:`; kelas tanpa awalan = tampilan ≥640px yang tidak berubah,
+  terverifikasi identik per piksel di 640/768/1280px): grid `grid-cols-2` jarak `gap-2`; kartu `p-2` setinggi baris
+  (tombol di dasar); area gambar rasio 4/3 (placeholder 🖼️ bila tidak ada/gagal dimuat — kolom `image` saat ini hanya
+  nama berkas tanpa berkas yang disajikan, jadi `<img>` hanya dipakai untuk URL http(s) atau path berawalan `/`);
+  nama 13px maks. 2 baris, kategori 11px 1 baris, harga 15px tebal + satuan 11px, deskripsi 11px maks. 2 baris;
+  lencana Grosir 11px selebar kartu ("Grosir · mulai Rp …", daftar jenjang tetap bisa dibuka); tombol: ikon keranjang
+  (SVG) di kiri + "Tambah" di kanan, min. 40px, `aria-label` "Tambah <nama> ke keranjang" (teks lama hanya
+  disembunyikan visual). Diuji di `src/__tests__/productListing.test.js`.
 - **Tidak perlu promosi manual**: cukup masukkan email ke `ADMIN_EMAILS`. Untuk mencabut akses,
   hapus email dari `ADMIN_EMAILS` (dan dari policy Access) lalu `docker compose up -d backend`;
   untuk memblokir segera: `UPDATE users SET status="suspended" WHERE email="..."`.
