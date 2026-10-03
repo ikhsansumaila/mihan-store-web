@@ -16,7 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/main .
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates \
-    && adduser -D -H -u 10001 app
+    && adduser -D -H -u 10001 app \
+    && mkdir -p /data/uploads && chown app:app /data/uploads && chmod 750 /data/uploads
 
 WORKDIR /app
 COPY --from=builder /out/main /app/main

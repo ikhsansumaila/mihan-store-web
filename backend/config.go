@@ -56,6 +56,12 @@ type Config struct {
 	// KHUSUS UJI (DB *_test): batas minimal jumlah provinsi (server tiruan kecil) dan jeda antar fetch.
 	TestRegionMinProvinces int
 	TestRegionCooldown     *time.Duration
+
+	// Foto produk: lapisan penyimpanan (saat ini hanya "local" = disk VPS), direktori unggahan,
+	// dan batas total ukuran direktori unggahan (MB) sebelum unggahan baru ditolak.
+	ImageStore   string
+	UploadsDir   string
+	MaxUploadsMB int64
 }
 
 // IsTestDB: true bila memakai database uji (*_test).
@@ -134,6 +140,20 @@ func LoadConfig() Config {
 			cfg.TestCFAccessJWKSURL, cfg.TestGoogleJWKSURL = tAccess, tGoogle
 		} else {
 			log.Println("PERINGATAN: TEST_ONLY_*_JWKS_URL diabaikan karena DB_NAME bukan database uji (*_test)")
+		}
+	}
+	cfg.ImageStore = strings.ToLower(getenv("IMAGE_STORE", "local"))
+	if cfg.ImageStore != "local" {
+		log.Printf("PERINGATAN: IMAGE_STORE=%q belum didukung, memakai \"local\"", cfg.ImageStore)
+		cfg.ImageStore = "local"
+	}
+	cfg.UploadsDir = getenv("UPLOADS_DIR", "/data/uploads")
+	cfg.MaxUploadsMB = 2048
+	if v := strings.TrimSpace(os.Getenv("MAX_UPLOADS_MB")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 && n <= 1<<20 {
+			cfg.MaxUploadsMB = n
+		} else {
+			log.Println("PERINGATAN: MAX_UPLOADS_MB tidak valid, memakai default 2048")
 		}
 	}
 	cfg.RegionAPIBase = regionAPIBaseFromEnv(os.Getenv("REGION_API_BASE"), cfg.IsTestDB())

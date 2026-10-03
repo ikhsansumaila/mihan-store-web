@@ -52,8 +52,21 @@ func isMutation(method string) bool {
 //   - Origin (bila ada) wajib salah satu origin yang diizinkan; bila Origin dan
 //     Sec-Fetch-Site sama-sama tidak ada -> ditolak.
 func checkCSRF(r *http.Request, allowedOrigins []string) error {
+	return checkCSRFOpts(r, allowedOrigins, false)
+}
+
+// imageUploadPathRe: satu-satunya rute admin yang menerima multipart/form-data (unggah foto produk).
+var imageUploadPathRe = regexp.MustCompile(`^/api/admin/products/[0-9]+/image$`)
+
+// checkCSRFOpts seperti checkCSRF; allowMultipart juga menerima multipart/form-data (unggah berkas).
+// Pemeriksaan header kustom X-Requested-With dan Origin/Sec-Fetch-Site tetap berlaku sama persis:
+// formulir lintas situs tidak bisa menambah header kustom tanpa preflight CORS (yang tidak diizinkan).
+func checkCSRFOpts(r *http.Request, allowedOrigins []string, allowMultipart bool) error {
 	mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || mt != "application/json" {
+	if err != nil || (mt != "application/json" && !(allowMultipart && mt == "multipart/form-data")) {
+		if allowMultipart {
+			return errors.New("content-type bukan multipart/form-data atau application/json")
+		}
 		return errors.New("content-type bukan application/json")
 	}
 	if r.Header.Get("X-Requested-With") != adminRequestedWith {
@@ -124,7 +137,8 @@ func (a *App) requireAdmin(next http.Handler) http.Handler {
 			return
 		}
 		if isMutation(r.Method) {
-			if err := checkCSRF(r, a.cfg.CORSAllowedOrigins); err != nil {
+			multipartOK := r.Method == http.MethodPost && imageUploadPathRe.MatchString(r.URL.Path)
+			if err := checkCSRFOpts(r, a.cfg.CORSAllowedOrigins, multipartOK); err != nil {
 				a.logDenied(r, email, "CSRF: "+err.Error(), nil)
 				writeError(w, http.StatusForbidden, msgAdminCSRF)
 				return

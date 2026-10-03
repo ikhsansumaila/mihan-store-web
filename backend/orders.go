@@ -512,6 +512,7 @@ func (a *App) respondPriceChanged(w http.ResponseWriter, r *http.Request, db *go
 		return
 	}
 	fillUnseenPrices(db, c)
+	a.attachCartImages(c)
 	writeJSON(w, http.StatusConflict, map[string]any{"error": "price_changed", "message": msgPriceChanged, "cart": c})
 }
 

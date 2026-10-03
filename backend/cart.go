@@ -87,6 +87,8 @@ type CartItemDTO struct {
 	Savings           int64        `json:"savings" gorm:"-"` // hemat dibanding harga dasar (baris ini)
 	PriceChanged      bool         `json:"priceChanged" gorm:"-"`
 	PreviousUnitPrice *int64       `json:"previousUnitPrice" gorm:"-"`
+	// Foto produk (URL thumbnail, "" bila tidak ada). `image` = URL foto utama.
+	Thumb string `json:"thumb" gorm:"-"`
 
 	itemID uint64
 	seen   *int64
@@ -148,6 +150,13 @@ func buildCartItem(r cartItemRow, tiers []PriceTier) CartItemDTO {
 		}
 	}
 	return it
+}
+
+// attachCartImages mengubah image_path tiap baris menjadi URL publik {image, thumb} ("" bila tidak ada foto).
+func (a *App) attachCartImages(c *CartDTO) {
+	for i := range c.Items {
+		c.Items[i].Image, c.Items[i].Thumb = publicImageURLs(a.images, c.Items[i].Image)
+	}
 }
 
 func loadCart(db *gorm.DB, userID uint64) (*CartDTO, error) {
@@ -264,6 +273,7 @@ func (a *App) respondCart(w http.ResponseWriter, r *http.Request, status int) {
 		return
 	}
 	fillUnseenPrices(db, c)
+	a.attachCartImages(c)
 	writeJSON(w, status, c)
 }
 

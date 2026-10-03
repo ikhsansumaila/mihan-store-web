@@ -29,6 +29,7 @@ const (
 	defaultPerPage    = 20
 	msgProductMissing = "Produk tidak ditemukan"
 	msgCatMissing     = "Kategori tidak ditemukan"
+	msgImageViaUpload = "Foto produk diatur lewat tombol \"Pilih foto\" (unggah), bukan lewat path gambar."
 )
 
 var (
@@ -194,6 +195,9 @@ type AdminProductDTO struct {
 	UpdatedAt       time.Time `json:"updatedAt" gorm:"column:updated_at"`
 	CreatedBy       *string   `json:"createdBy" gorm:"column:created_by_name"`
 	UpdatedBy       *string   `json:"updatedBy" gorm:"column:updated_by_name"`
+	// Foto produk: URL publik foto utama dan thumbnail ("" bila tidak ada foto).
+	Image string `json:"image" gorm:"-"`
+	Thumb string `json:"thumb" gorm:"-"`
 }
 
 const adminProductSelect = `SELECT p.id, p.name, COALESCE(p.description, '') AS description, p.price, p.unit,
@@ -240,7 +244,15 @@ func (a *App) loadAdminProduct(db *gorm.DB, id uint64) (*AdminProductDTO, error)
 	if err := attachAdminTiers(db, out); err != nil {
 		return nil, err
 	}
+	a.attachAdminImages(out)
 	return &out[0], nil
+}
+
+// attachAdminImages mengisi URL foto (image/thumb) dari image_path.
+func (a *App) attachAdminImages(items []AdminProductDTO) {
+	for i := range items {
+		items[i].Image, items[i].Thumb = publicImageURLs(a.images, items[i].ImagePath)
+	}
 }
 
 // attachAdminTiers mengisi Tiers (selalu non-nil) untuk daftar produk admin.
@@ -302,6 +314,7 @@ func (a *App) AdminListProducts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
+	a.attachAdminImages(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total, "page": page, "perPage": perPage})
 }
 
@@ -382,6 +395,10 @@ func (a *App) AdminCreateProduct(w http.ResponseWriter, r *http.Request) {
 	f, err := validateProduct(in, true)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if f.ImagePath != nil && isProductImageKey(*f.ImagePath) {
+		writeError(w, http.StatusBadRequest, msgImageViaUpload)
 		return
 	}
 	var tiers []PriceTier
@@ -500,6 +517,14 @@ func (a *App) AdminUpdateProduct(w http.ResponseWriter, r *http.Request) {
 				tve.Lead = fmt.Sprintf("Harga dasar baru %s membuat jenjang grosir tidak valid; ubah atau hapus jenjang yang bermasalah.", formatRupiah(int64(f.Price)))
 			}
 			return terr
+		}
+		// Foto produk hanya diatur lewat /image (unggah/hapus). image_path tidak berubah bila field
+		// imagePath tidak dikirim atau produk sudah punya foto unggahan; kunci foto tidak bisa disetel manual.
+		switch {
+		case in.ImagePath == nil || (cur.ImagePath != nil && isProductImageKey(*cur.ImagePath)):
+			f.ImagePath = cur.ImagePath
+		case f.ImagePath != nil && isProductImageKey(*f.ImagePath):
+			return &httpError{http.StatusBadRequest, msgImageViaUpload}
 		}
 		unit := cur.Unit
 		if f.Unit != nil {

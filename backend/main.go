@@ -68,6 +68,8 @@ func newRouter(app *App) http.Handler {
 	admin.HandleFunc("/products/{id:[0-9]+}", app.AdminUpdateProduct).Methods("PUT")
 	admin.HandleFunc("/products/{id:[0-9]+}", app.AdminDeleteProduct).Methods("DELETE")
 	admin.HandleFunc("/products/{id:[0-9]+}/active", app.AdminSetProductActive).Methods("PATCH")
+	admin.HandleFunc("/products/{id:[0-9]+}/image", app.AdminUploadProductImage).Methods("POST")
+	admin.HandleFunc("/products/{id:[0-9]+}/image", app.AdminDeleteProductImage).Methods("DELETE")
 	admin.HandleFunc("/categories", app.AdminListCategories).Methods("GET")
 	admin.HandleFunc("/categories", app.AdminCreateCategory).Methods("POST")
 	admin.HandleFunc("/categories/{id:[0-9]+}", app.AdminUpdateCategory).Methods("PUT")
@@ -113,6 +115,7 @@ func main() {
 	initDummyHash()
 
 	app := NewApp(cfg)
+	app.imageGuard.startupCheck(cfg.UploadsDir)
 	bgCtx, bgCancel := context.WithCancel(context.Background())
 	app.bgCtx = bgCtx
 	// Run wilayah yang tertinggal 'running' dari proses sebelumnya -> failed.

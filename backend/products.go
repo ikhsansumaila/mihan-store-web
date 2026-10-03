@@ -3,7 +3,9 @@ package main
 // API publik katalog: produk dibaca dari database (tabel products + categories).
 // Bentuk respons /api/products dan /api/products/search SAMA seperti versi hardcoded
 // lama: [{id, name, category (slug), price, description, image}] dengan field TAMBAHAN di
-// belakangnya: unit (satuan jual) dan tiers (jenjang grosir, [] bila tidak ada).
+// belakangnya: unit (satuan jual), tiers (jenjang grosir, [] bila tidak ada), dan thumb (foto kecil).
+// Sejak fitur foto produk, `image` berisi URL publik foto utama ("/uploads/products/<id>/<uuid>.jpg")
+// atau "" bila tidak ada foto.
 
 import (
 	"log"
@@ -23,6 +25,9 @@ type PublicProduct struct {
 	// Tambahan (harga grosir): satuan jual dan jenjang [{minQty, type, value, unitPrice}] urut minQty naik.
 	Unit  string    `json:"unit" gorm:"column:unit"`
 	Tiers []TierDTO `json:"tiers" gorm:"-"`
+	// Tambahan (foto produk): URL thumbnail (sisi terpanjang 400 px). `image` = URL foto utama
+	// (1200 px). Keduanya "" bila produk belum punya foto (termasuk nilai lama seperti "kerupuk1.jpg").
+	Thumb string `json:"thumb" gorm:"-"`
 }
 
 type PublicCategory struct {
@@ -78,6 +83,7 @@ func (a *App) publicProducts(w http.ResponseWriter, r *http.Request, q, category
 	}
 	for i := range out {
 		out[i].Tiers = tierDTOs(int64(out[i].Price), tiers[out[i].ID])
+		out[i].Image, out[i].Thumb = publicImageURLs(a.images, out[i].Image)
 	}
 	writeJSON(w, http.StatusOK, out)
 }

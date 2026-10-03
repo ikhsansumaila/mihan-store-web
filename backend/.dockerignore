@@ -4,3 +4,4 @@ migrations/
 .air.toml
 Dockerfile*
 notify/*_test.go
+uploads/

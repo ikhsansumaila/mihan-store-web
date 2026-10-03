@@ -60,6 +60,14 @@ type App struct {
 	regionCooldown time.Duration   // jeda minimal antar fetch (sopan ke wilayah.id)
 	bgCtx          context.Context // induk goroutine latar (dibatalkan saat server berhenti)
 	afterConnect   func(db *gorm.DB)
+
+	// Foto produk (admin_images.go).
+	images       ImageStore
+	imageGuard   *diskGuard
+	imageLimiter *RateLimiter  // per admin: unggah/hapus foto
+	imageSem     chan struct{} // batas pemrosesan gambar paralel (memori)
+	// imageTxHook KHUSUS TES: dipanggil di dalam transaksi foto sebelum commit (nil di produksi).
+	imageTxHook func(tx *gorm.DB) error
 }
 
 func NewApp(cfg Config) *App {
@@ -87,7 +95,11 @@ func NewApp(cfg Config) *App {
 		regionFetchCfg: defaultRegionFetchConfig(cfg.RegionAPIBase),
 		regionCooldown: 5 * time.Minute,
 		bgCtx:          context.Background(),
+
+		imageLimiter: NewRateLimiter(20, time.Minute),
+		imageSem:     make(chan struct{}, 2),
 	}
+	a.setImageStore(NewLocalStore(cfg.UploadsDir, "/uploads/"), cfg.MaxUploadsMB)
 	if cfg.TestRegionMinProvinces > 0 {
 		a.regionFetchCfg.MinProvinces = cfg.TestRegionMinProvinces
 	}
