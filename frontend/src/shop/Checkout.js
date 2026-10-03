@@ -1,35 +1,99 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { errorMessage } from '../auth';
 import { ackCartPrices, createOrder, isUnauthorized } from './api';
 import { useCart } from './CartContext';
 import { Notice, PriceChangeBanner } from './Cart';
 import { newIdempotencyKey, perUnit, rupiah, tierNote } from './format';
+import RegionCombobox from './RegionCombobox';
+import { REGION_LEVELS, loadRegions, regionErrorMessage } from './regionsApi';
 
-const input =
-  'w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-purple-600 transition';
+const inputBase = 'w-full min-h-[44px] px-3 py-2 border-2 rounded-lg text-base focus:outline-none transition';
+const inputCls = (bad) => `${inputBase} ${bad ? 'border-red-500 focus:border-red-600' : 'border-gray-300 focus:border-purple-600'}`;
 
-const Field = ({ label, hint, children }) => (
-  <label className="block">
-    <span className="block text-sm font-semibold text-gray-700 mb-1">
-      {label} {hint && <span className="font-normal text-gray-500">{hint}</span>}
-    </span>
+const Field = ({ id, label, hint, required, error, children }) => (
+  <div>
+    <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1">
+      {label} {required && <span className="text-red-600" aria-hidden="true">*</span>}{' '}
+      {hint && <span className="font-normal text-gray-500">{hint}</span>}
+    </label>
     {children}
-  </label>
+    {error && (
+      <p id={`${id}-err`} className="mt-1 text-sm text-red-700">
+        {error}
+      </p>
+    )}
+  </div>
 );
+
+// Telepon: sama dengan aturan server (08xx / 628xx / +628xx, 8–15 digit).
+export const validPhone = (s) => {
+  let p = String(s || '').trim().replace(/[\s.\-()]/g, '');
+  if (p.startsWith('+62')) p = p.slice(1);
+  else if (p.startsWith('0')) p = `62${p.slice(1)}`;
+  return /^628[0-9]{5,12}$/.test(p);
+};
+
+// Validasi klien (server tetap memvalidasi ulang). Semua wajib kecuali catatan.
+export const validateCheckoutForm = (form, region) => {
+  const e = {};
+  const name = form.recipientName.trim();
+  if (!name) e.recipientName = 'Nama penerima wajib diisi.';
+  else if (name.length > 100) e.recipientName = 'Nama penerima maksimal 100 karakter.';
+  if (!form.recipientPhone.trim()) e.recipientPhone = 'Nomor telepon wajib diisi.';
+  else if (!validPhone(form.recipientPhone)) e.recipientPhone = 'Nomor telepon tidak valid. Gunakan format 08xx, 628xx, atau +628xx.';
+  REGION_LEVELS.forEach((lv) => {
+    if (!region[lv.key]) e[lv.field] = `Pilih ${lv.lower}.`;
+  });
+  if (form.address.trim().length < 5) e.address = 'Alamat lengkap wajib diisi (min. 5 karakter): jalan, RT/RW, nomor rumah.';
+  const pc = form.postalCode.trim();
+  if (!pc) e.postalCode = 'Kode pos wajib diisi.';
+  else if (!/^[0-9]{5}$/.test(pc)) e.postalCode = 'Kode pos harus 5 digit angka.';
+  if (form.note.trim().length > 500) e.note = 'Catatan maksimal 500 karakter.';
+  return e;
+};
+
+const FIELD_ORDER = ['recipientName', 'recipientPhone', 'provinceCode', 'regencyCode', 'districtCode', 'villageCode', 'address', 'postalCode', 'note'];
+
+// Daftar wilayah satu tingkat, dimuat per induk (null = belum bisa dimuat).
+const useRegionList = (level, parent) => {
+  const [state, setState] = useState({ items: [], loading: false, error: '' });
+  const [nonce, setNonce] = useState(0);
+  const enabled = level === 0 || !!parent;
+  useEffect(() => {
+    if (!enabled) {
+      setState({ items: [], loading: false, error: '' });
+      return undefined;
+    }
+    let alive = true;
+    setState({ items: [], loading: true, error: '' });
+    loadRegions(level, parent)
+      .then((items) => alive && setState({ items, loading: false, error: '' }))
+      .catch((err) => alive && setState({ items: [], loading: false, error: regionErrorMessage(err, REGION_LEVELS[level].lower) }));
+    return () => {
+      alive = false;
+    };
+  }, [level, parent, enabled, nonce]);
+  const retry = useCallback(() => setNonce((n) => n + 1), []);
+  return { ...state, retry };
+};
+
+const EMPTY_REGION = { province: null, regency: null, district: null, village: null };
 
 const Checkout = ({ user }) => {
   const navigate = useNavigate();
   const { cart, refresh, setCart, onUnauthorized } = useCart();
   const [loading, setLoading] = useState(!cart);
+  // Nama penerima SENGAJA kosong (penerima bisa berbeda dari pemilik akun); telepon boleh diisi dari akun.
   const [form, setForm] = useState({
-    recipientName: user?.name || '',
+    recipientName: '',
     recipientPhone: user?.phone || '',
     address: '',
-    city: '',
     postalCode: '',
     note: '',
   });
+  const [region, setRegion] = useState(EMPTY_REGION);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   // Server menjawab 409 price_changed: keranjang terkini ditampilkan, pelanggan harus konfirmasi ulang.
@@ -38,25 +102,63 @@ const Checkout = ({ user }) => {
   // Satu kunci per percobaan checkout: klik ganda / kirim ulang -> pesanan yang sama.
   const idemKey = useRef(newIdempotencyKey());
   const inFlight = useRef(false); // cegah klik ganda sebelum state sempat diperbarui
+  const refs = useRef({});
+  const refFor = (k) => {
+    if (!refs.current[k]) refs.current[k] = React.createRef();
+    return refs.current[k];
+  };
+
+  const lists = [
+    useRegionList(0, null),
+    useRegionList(1, region.province?.code),
+    useRegionList(2, region.regency?.code),
+    useRegionList(3, region.district?.code),
+  ];
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const clearErr = (k) => setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
+  const set = (k) => (e) => {
+    let v = e.target.value;
+    if (k === 'postalCode') v = v.replace(/[^0-9]/g, '').slice(0, 5);
+    setForm({ ...form, [k]: v });
+    clearErr(k);
+  };
+
+  // Memilih tingkat atas mengosongkan semua tingkat di bawahnya.
+  const pickRegion = (level) => (item) => {
+    const key = REGION_LEVELS[level].key;
+    setRegion((r) => {
+      if (r[key]?.code === item.code) return r;
+      const next = { ...r, [key]: item };
+      REGION_LEVELS.slice(level + 1).forEach((lv) => {
+        next[lv.key] = null;
+      });
+      return next;
+    });
+    clearErr(REGION_LEVELS[level].field);
+  };
+
+  const focusFirst = (errs) => {
+    const k = FIELD_ORDER.find((f) => errs[f]);
+    const el = k && refs.current[k]?.current;
+    if (el && typeof el.focus === 'function') el.focus();
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     if (inFlight.current) return;
     setError('');
-    if (!form.recipientName.trim() || !form.recipientPhone.trim() || form.address.trim().length < 5 || form.city.trim().length < 2) {
-      setError('Lengkapi nama penerima, nomor telepon, alamat (min. 5 karakter), dan kota.');
+    const errs = validateCheckoutForm(form, region);
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      setError('Lengkapi data yang ditandai merah.');
+      focusFirst(errs);
       return;
     }
-    if (form.postalCode.trim() && !/^[0-9]{5}$/.test(form.postalCode.trim())) {
-      setError('Kode pos harus 5 digit angka.');
-      return;
-    }
+    setErrors({});
     inFlight.current = true;
     setSubmitting(true);
     try {
@@ -69,13 +171,16 @@ const Checkout = ({ user }) => {
           shown = c;
         }
       }
-      // Hanya data penerima + kunci idempotensi + total yang DITAMPILKAN; item & harga dihitung server dari
-      // keranjang. Total berbeda -> server menolak (409 price_changed) tanpa membuat pesanan.
+      // Hanya data penerima (wilayah berupa KODE; nama diambil server dari DB) + kunci idempotensi + total yang
+      // DITAMPILKAN; item & harga dihitung server dari keranjang.
       const res = await createOrder({
         recipientName: form.recipientName.trim(),
         recipientPhone: form.recipientPhone.trim(),
+        provinceCode: region.province.code,
+        regencyCode: region.regency.code,
+        districtCode: region.district.code,
+        villageCode: region.village.code,
         address: form.address.trim(),
-        city: form.city.trim(),
         postalCode: form.postalCode.trim(),
         note: form.note.trim(),
         idempotencyKey: idemKey.current,
@@ -91,15 +196,23 @@ const Checkout = ({ user }) => {
       inFlight.current = false;
       setSubmitting(false);
       const data = err.response?.data;
-      if (err.response?.status === 409 && data?.error === 'price_changed') {
+      const st = err.response?.status;
+      if (st === 409 && data?.error === 'price_changed') {
         if (data.cart && Array.isArray(data.cart.items)) setCart(data.cart);
         else refresh();
         setPriceChanged(true);
         setError('');
         return;
       }
+      if (st === 422 && data?.field && FIELD_ORDER.includes(data.field)) {
+        const errs = { [data.field]: data.error };
+        setErrors(errs);
+        setError('Periksa kembali data yang ditandai merah.');
+        focusFirst(errs);
+        return;
+      }
       setError(errorMessage(err, 'Gagal membuat pesanan, coba lagi.'));
-      if (err.response?.status === 409 || err.response?.status === 400) refresh();
+      if (st === 409 || st === 400) refresh();
     }
   };
 
@@ -153,27 +266,99 @@ const Checkout = ({ user }) => {
         <form onSubmit={submit} className="lg:col-span-3 bg-white rounded-xl shadow p-4 sm:p-6 space-y-4" noValidate>
           <h2 className="text-lg font-semibold text-gray-800">Data penerima</h2>
           {error && <Notice kind="error">{error}</Notice>}
-          <Field label="Nama penerima">
-            <input className={input} maxLength={100} value={form.recipientName} onChange={set('recipientName')} autoComplete="name" required />
+          <p className="text-xs text-gray-500">
+            Semua kolom bertanda <span className="text-red-600">*</span> wajib diisi.
+          </p>
+          <Field id="co-name" label="Nama penerima" required error={errors.recipientName}>
+            <input
+              id="co-name"
+              ref={refFor('recipientName')}
+              className={inputCls(errors.recipientName)}
+              maxLength={100}
+              value={form.recipientName}
+              onChange={set('recipientName')}
+              autoComplete="name"
+              placeholder="Nama lengkap penerima paket"
+              aria-invalid={errors.recipientName ? 'true' : undefined}
+              aria-describedby={errors.recipientName ? 'co-name-err' : undefined}
+              required
+            />
           </Field>
-          <Field label="Nomor telepon/WhatsApp" hint="(08xx / +628xx)">
-            <input className={input} inputMode="tel" maxLength={20} value={form.recipientPhone} onChange={set('recipientPhone')} autoComplete="tel" required />
+          <Field id="co-phone" label="Nomor telepon/WhatsApp" hint="(08xx / +628xx)" required error={errors.recipientPhone}>
+            <input
+              id="co-phone"
+              ref={refFor('recipientPhone')}
+              className={inputCls(errors.recipientPhone)}
+              inputMode="tel"
+              maxLength={20}
+              value={form.recipientPhone}
+              onChange={set('recipientPhone')}
+              autoComplete="tel"
+              aria-invalid={errors.recipientPhone ? 'true' : undefined}
+              aria-describedby={errors.recipientPhone ? 'co-phone-err' : undefined}
+              required
+            />
           </Field>
-          <Field label="Alamat lengkap">
-            <textarea className={input} rows={3} maxLength={500} value={form.address} onChange={set('address')} autoComplete="street-address" required />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {REGION_LEVELS.map((lv, i) => {
+              const parent = i > 0 ? REGION_LEVELS[i - 1] : null;
+              return (
+                <RegionCombobox
+                  key={lv.key}
+                  id={`co-${lv.key}`}
+                  inputRef={refFor(lv.field)}
+                  label={lv.label}
+                  lower={lv.lower}
+                  value={region[lv.key]}
+                  items={lists[i].items}
+                  loading={lists[i].loading}
+                  error={lists[i].error}
+                  onRetry={lists[i].retry}
+                  onChange={pickRegion(i)}
+                  disabled={!!parent && !region[parent.key]}
+                  disabledHint={parent ? `Pilih ${parent.lower} dulu` : ''}
+                  invalid={!!errors[lv.field]}
+                  errorText={errors[lv.field]}
+                />
+              );
+            })}
+          </div>
+          <Field id="co-address" label="Alamat lengkap" hint="(jalan, RT/RW, nomor rumah)" required error={errors.address}>
+            <textarea
+              id="co-address"
+              ref={refFor('address')}
+              className={inputCls(errors.address)}
+              rows={3}
+              maxLength={500}
+              value={form.address}
+              onChange={set('address')}
+              autoComplete="street-address"
+              placeholder="Contoh: Jl. Melati No. 9, RT 03/RW 05"
+              aria-invalid={errors.address ? 'true' : undefined}
+              aria-describedby={errors.address ? 'co-address-err' : undefined}
+              required
+            />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
-              <Field label="Kota/Kabupaten">
-                <input className={input} maxLength={100} value={form.city} onChange={set('city')} autoComplete="address-level2" required />
-              </Field>
-            </div>
-            <Field label="Kode pos" hint="(opsional)">
-              <input className={input} inputMode="numeric" maxLength={5} value={form.postalCode} onChange={set('postalCode')} autoComplete="postal-code" />
+            <Field id="co-postal" label="Kode pos" hint="(5 digit)" required error={errors.postalCode}>
+              <input
+                id="co-postal"
+                ref={refFor('postalCode')}
+                className={inputCls(errors.postalCode)}
+                inputMode="numeric"
+                pattern="[0-9]{5}"
+                maxLength={5}
+                value={form.postalCode}
+                onChange={set('postalCode')}
+                autoComplete="postal-code"
+                aria-invalid={errors.postalCode ? 'true' : undefined}
+                aria-describedby={errors.postalCode ? 'co-postal-err' : undefined}
+                required
+              />
             </Field>
           </div>
-          <Field label="Catatan" hint="(opsional)">
-            <textarea className={input} rows={2} maxLength={500} value={form.note} onChange={set('note')} />
+          <Field id="co-note" label="Catatan" hint="(opsional)" error={errors.note}>
+            <textarea id="co-note" ref={refFor('note')} className={inputCls(errors.note)} rows={2} maxLength={500} value={form.note} onChange={set('note')} />
           </Field>
           <p className="text-xs text-gray-500">
             Pembayaran dengan transfer bank manual. Ongkir ditetapkan admin setelah pesanan dibuat; total akhir terlihat di

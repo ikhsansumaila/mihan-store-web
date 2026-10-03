@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { formatFullAddress } from './shop/format';
 
 // Generator PDF invoice (jsPDF, di browser). Dipakai oleh:
 //  - Buat Invoice manual (/admin/invoice): { customerName, items, isLunas } -> tata letak sama seperti sebelumnya.
@@ -112,11 +113,11 @@ export async function generateInvoicePdf(inv, opts = {}) {
       const lines = [
         r.name,
         r.phone,
-        ...doc.splitTextToSize(String(r.address || '').replace(/\s*\n\s*/g, ', '), 75),
-        `${r.city || ''}${r.postalCode ? ` ${r.postalCode}` : ''}`,
+        // Alamat tersusun (wilayah dari data pesanan; pesanan lama: alamat + kota).
+        ...doc.splitTextToSize(formatFullAddress(r), 75),
       ].filter(Boolean);
-      lines.slice(0, 7).forEach((l, i) => doc.text(String(l), 120, 55 + adjustHeight + i * 4.5));
-      extra = Math.max(extra, Math.min(lines.length, 7) * 4.5 - 2);
+      lines.slice(0, 8).forEach((l, i) => doc.text(String(l), 120, 55 + adjustHeight + i * 4.5));
+      extra = Math.max(extra, Math.min(lines.length, 8) * 4.5 - 2);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
     }

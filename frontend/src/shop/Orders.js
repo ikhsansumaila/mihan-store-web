@@ -4,7 +4,7 @@ import { errorMessage } from '../auth';
 import { cancelOrder, getOrder, getStoreInfo, isUnauthorized, listOrders } from './api';
 import { useCart } from './CartContext';
 import { Notice } from './Cart';
-import { STATUS, buildCustomerConfirmText, fmtDateTime, perUnit, rupiah, statusLabel, tierNote, waLink } from './format';
+import { STATUS, buildCustomerConfirmText, fmtDateTime, formatFullAddress, perUnit, rupiah, statusLabel, tierNote, waLink } from './format';
 
 export const StatusBadge = ({ status }) => (
   <span className={`inline-block text-xs font-semibold border rounded-full px-2.5 py-0.5 ${STATUS[status]?.cls || 'bg-gray-100'}`}>
@@ -228,10 +228,8 @@ export const OrderDetail = ({ user }) => {
         <h2 className="font-semibold text-gray-800 mb-2">Dikirim ke</h2>
         <div className="font-medium">{order.recipient.name}</div>
         <div>{order.recipient.phone}</div>
-        <div className="whitespace-pre-line">{order.recipient.address}</div>
-        <div>
-          {order.recipient.city}
-          {order.recipient.postalCode ? ` ${order.recipient.postalCode}` : ''}
+        <div className="break-words" data-testid="order-full-address">
+          {formatFullAddress(order.recipient)}
         </div>
         {order.note && <div className="mt-2 text-gray-600">Catatan: {order.note}</div>}
       </div>

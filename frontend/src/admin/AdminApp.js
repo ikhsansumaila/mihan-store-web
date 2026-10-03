@@ -11,6 +11,7 @@ import InvoiceCreate from '../components/InvoiceCreate';
 import { OrdersList, AdminOrderRoute } from './Orders';
 import Settings from './Settings';
 import Pricelist from './Pricelist';
+import Regions from './Regions';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
@@ -58,6 +59,7 @@ const AdminApp = () => {
         <Route path="orders" element={<OrdersListRoute />} />
         <Route path="orders/:id" element={<AdminOrderRoute />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="regions" element={<Regions />} />
         <Route path="products" element={<Products />} />
         <Route path="categories" element={<Categories />} />
         <Route path="invoice" element={<InvoiceCreate />} />

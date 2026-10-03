@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
 import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
-import { STATUS, buildAdminSummaryText, statusLabel, waLink } from '../shop/format';
+import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 
 export const OrderStatusBadge = ({ status }) => (
@@ -465,10 +465,8 @@ export const AdminOrderDetail = () => {
             <div className="text-sm space-y-0.5">
               <div className="font-medium">{r.name}</div>
               <div>{r.phone}</div>
-              <div className="whitespace-pre-line">{r.address}</div>
-              <div>
-                {r.city}
-                {r.postalCode ? ` ${r.postalCode}` : ''}
+              <div className="break-words" data-testid="admin-full-address">
+                {formatFullAddress(r)}
               </div>
               {order.customerNote && <div className="mt-2 text-gray-600">Catatan pelanggan: {order.customerNote}</div>}
             </div>

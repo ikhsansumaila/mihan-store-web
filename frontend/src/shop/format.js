@@ -27,6 +27,36 @@ export const fmtDateTime = (iso) => {
   }
 };
 
+// Alamat multi-baris menjadi satu baris ("a\nb" -> "a, b"), spasi dirapikan.
+export const flattenAddress = (s) =>
+  String(s || '')
+    .split(/\r\n|\r|\n/)
+    .map((p) => p.split(/\s+/).join(' ').trim().replace(/^[,\s]+|[,\s]+$/g, ''))
+    .filter(Boolean)
+    .join(', ');
+
+// Alamat tersusun penerima (sama dengan backend composeAddress):
+//   "<alamat lengkap>, <kelurahan/desa>, Kec. <kecamatan>, <kab/kota>, <provinsi> <kode pos>"
+// Pesanan lama tanpa wilayah: "<alamat>, <kota> <kode pos>".
+export const formatFullAddress = (recipient) => {
+  const r = recipient || {};
+  const parts = [];
+  const a = flattenAddress(r.address);
+  if (a) parts.push(a);
+  const reg = r.region;
+  let last;
+  if (reg && reg.village?.name) {
+    parts.push(reg.village.name, `Kec. ${reg.district?.name || ''}`, reg.regency?.name || '');
+    last = reg.province?.name || '';
+  } else {
+    last = String(r.city || '').trim();
+  }
+  const pc = String(r.postalCode || '').trim();
+  if (pc) last = `${last} ${pc}`.trim();
+  if (last) parts.push(last);
+  return parts.filter(Boolean).join(', ');
+};
+
 // Nomor untuk wa.me: hanya digit, format internasional 62xxxx. Mengembalikan '' bila tidak valid.
 export const waNumber = (phone) => {
   if (!phone) return '';
@@ -103,6 +133,12 @@ export const buildAdminSummaryText = (order, store = {}) => {
   lines.push(`Ongkir: ${order.shippingFee > 0 ? rupiah(order.shippingFee) : 'Rp 0'}`);
   lines.push(`*Total: ${rupiah(order.total)}*`);
   lines.push(`Status: ${statusLabel(order.status)}`);
+  const addr = formatFullAddress(order.recipient);
+  if (addr) {
+    lines.push('');
+    lines.push('Alamat pengiriman:');
+    lines.push(addr);
+  }
   if (order.status === 'pending_payment' && store.bank_name && store.bank_account_number) {
     lines.push('');
     lines.push('Pembayaran ke rekening:');
