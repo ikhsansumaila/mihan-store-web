@@ -62,12 +62,22 @@ type orderRow struct {
 	CancelReason   *string    `gorm:"column:cancel_reason"`
 	CreatedAt      time.Time  `gorm:"column:created_at"`
 	UpdatedAt      time.Time  `gorm:"column:updated_at"`
+	// Wilayah (migrations/014). NULL untuk pesanan sebelum fitur data wilayah.
+	ProvinceCode *string `gorm:"column:province_code"`
+	ProvinceName *string `gorm:"column:province_name"`
+	RegencyCode  *string `gorm:"column:regency_code"`
+	RegencyName  *string `gorm:"column:regency_name"`
+	DistrictCode *string `gorm:"column:district_code"`
+	DistrictName *string `gorm:"column:district_name"`
+	VillageCode  *string `gorm:"column:village_code"`
+	VillageName  *string `gorm:"column:village_name"`
 }
 
 const orderCols = `o.id, o.order_no, o.user_id, o.status, o.subtotal, o.discount, o.discount_note, o.shipping_fee,
   o.total, o.payment_method, o.recipient_name, o.recipient_phone, o.address, o.city, o.postal_code,
   o.customer_note, o.admin_note, o.paid_at, o.paid_by, o.payment_note, o.completed_at, o.cancelled_at,
-  o.cancelled_by, o.cancel_reason, o.created_at, o.updated_at`
+  o.cancelled_by, o.cancel_reason, o.created_at, o.updated_at, o.province_code, o.province_name, o.regency_code,
+  o.regency_name, o.district_code, o.district_name, o.village_code, o.village_name`
 
 type OrderItemDTO struct {
 	ProductID *uint64 `json:"productId" gorm:"column:product_id"`
@@ -102,9 +112,13 @@ type HistoryDTO struct {
 type RecipientDTO struct {
 	Name       string  `json:"name"`
 	Phone      string  `json:"phone"`
-	Address    string  `json:"address"`
-	City       string  `json:"city"`
+	Address    string  `json:"address"` // pesanan baru: alamat lengkap (jalan, RT/RW, nomor)
+	City       string  `json:"city"`    // pesanan baru: nama kab/kota (kompatibel)
 	PostalCode *string `json:"postalCode"`
+	// Wilayah (kode + nama dari data DB saat checkout); null untuk pesanan lama.
+	Region *RegionDTO `json:"region"`
+	// Alamat tersusun: "<alamat>, <kel/desa>, Kec. <kecamatan>, <kab/kota>, <provinsi> <kode pos>".
+	FullAddress string `json:"fullAddress"`
 }
 
 // CustomerOrderDTO: tampilan pesanan untuk pemiliknya (tanpa catatan admin/pembayaran internal).
@@ -153,8 +167,30 @@ func sumQty(items []OrderItemDTO) int64 {
 	return n
 }
 
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// regionOf: wilayah pesanan, nil bila pesanan lama (tanpa kode kelurahan/desa).
+func regionOf(o *orderRow) *RegionDTO {
+	if o.VillageCode == nil || o.ProvinceCode == nil {
+		return nil
+	}
+	return &RegionDTO{
+		Province: RegionRef{Code: deref(o.ProvinceCode), Name: deref(o.ProvinceName)},
+		Regency:  RegionRef{Code: deref(o.RegencyCode), Name: deref(o.RegencyName)},
+		District: RegionRef{Code: deref(o.DistrictCode), Name: deref(o.DistrictName)},
+		Village:  RegionRef{Code: deref(o.VillageCode), Name: deref(o.VillageName)},
+	}
+}
+
 func recipientOf(o *orderRow) RecipientDTO {
-	return RecipientDTO{Name: o.RecipientName, Phone: o.RecipientPhone, Address: o.Address, City: o.City, PostalCode: o.PostalCode}
+	reg := regionOf(o)
+	return RecipientDTO{Name: o.RecipientName, Phone: o.RecipientPhone, Address: o.Address, City: o.City, PostalCode: o.PostalCode,
+		Region: reg, FullAddress: composeAddress(o.Address, reg, o.City, o.PostalCode)}
 }
 
 // findCustomerOrder: hanya pesanan milik userID. Tidak ada / milik orang lain -> ErrRecordNotFound.
@@ -274,7 +310,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := validateCheckout(in)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		respondFieldError(w, err)
 		return
 	}
 	db := a.db.Load().WithContext(r.Context())
@@ -292,6 +328,23 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	if !limitUser(w, a.checkoutLimiter, u, msgTooManyCheckout) {
 		return
 	}
+	// Wilayah: kode dari klien, NAMA selalu dari data wilayah di database (bukan dari klien).
+	region, err := a.resolveRegionChain(r.Context(), db, f.Region)
+	if err != nil {
+		if errors.Is(err, errRegionUnavailable) {
+			writeError(w, http.StatusServiceUnavailable, msgRegionUnavailable+". Silakan coba lagi nanti atau hubungi toko.")
+			return
+		}
+		var fe *fieldError
+		if errors.As(err, &fe) {
+			respondFieldError(w, fe)
+			return
+		}
+		log.Printf("checkout wilayah: %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
+	city := truncateUTF8(region.Regency.Name, 100)
 
 	var orderID uint64
 	var replay *orderRow
@@ -364,9 +417,14 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		now := a.now()
 		if err := tx.Exec(`INSERT INTO orders (user_id, status, subtotal, discount, shipping_fee, total, payment_method,
-			recipient_name, recipient_phone, address, city, postal_code, customer_note, idempotency_key, created_at, updated_at)
-			VALUES (?, ?, ?, 0, 0, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			u.ID, StatusPending, subtotal, total, f.Name, f.Phone, f.Address, f.City, f.PostalCode, f.Note, f.IdemKey, now, now).Error; err != nil {
+			recipient_name, recipient_phone, address, city, postal_code, customer_note, idempotency_key,
+			province_code, province_name, regency_code, regency_name, district_code, district_name, village_code, village_name,
+			created_at, updated_at)
+			VALUES (?, ?, ?, 0, 0, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			u.ID, StatusPending, subtotal, total, f.Name, f.Phone, f.Address, city, f.PostalCode, f.Note, f.IdemKey,
+			region.Province.Code, truncateUTF8(region.Province.Name, 100), region.Regency.Code, truncateUTF8(region.Regency.Name, 100),
+			region.District.Code, truncateUTF8(region.District.Name, 100), region.Village.Code, truncateUTF8(region.Village.Name, 100),
+			now, now).Error; err != nil {
 			return err
 		}
 		if err := tx.Raw(`SELECT LAST_INSERT_ID()`).Scan(&orderID).Error; err != nil || orderID == 0 {
@@ -430,6 +488,16 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.respondCustomerOrder(w, db, o, http.StatusCreated)
+}
+
+// respondFieldError: *fieldError -> 422 {error, field}; galat lain -> 422 {error}.
+func respondFieldError(w http.ResponseWriter, err error) {
+	var fe *fieldError
+	if errors.As(err, &fe) {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": fe.Msg, "field": fe.Field})
+		return
+	}
+	writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error()})
 }
 
 // respondPriceChanged: 409 {error:"price_changed", message, cart} — pesanan TIDAK dibuat dan

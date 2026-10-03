@@ -49,6 +49,13 @@ type Config struct {
 	DiscordOrderWebhookURL string
 	// URL publik toko untuk tautan di notifikasi (default https://store.mihan.web.id).
 	PublicBaseURL string
+
+	// Sumber data wilayah (default https://wilayah.id/api). Di produksi hanya https://wilayah.id/...;
+	// URL lain (server tiruan) hanya berlaku bila DB_NAME berakhiran _test.
+	RegionAPIBase string
+	// KHUSUS UJI (DB *_test): batas minimal jumlah provinsi (server tiruan kecil) dan jeda antar fetch.
+	TestRegionMinProvinces int
+	TestRegionCooldown     *time.Duration
 }
 
 // IsTestDB: true bila memakai database uji (*_test).
@@ -129,7 +136,45 @@ func LoadConfig() Config {
 			log.Println("PERINGATAN: TEST_ONLY_*_JWKS_URL diabaikan karena DB_NAME bukan database uji (*_test)")
 		}
 	}
+	cfg.RegionAPIBase = regionAPIBaseFromEnv(os.Getenv("REGION_API_BASE"), cfg.IsTestDB())
+	if v := strings.TrimSpace(os.Getenv("TEST_ONLY_REGION_MIN_PROVINCES")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && cfg.IsTestDB() {
+			cfg.TestRegionMinProvinces = n
+		} else {
+			log.Println("PERINGATAN: TEST_ONLY_REGION_MIN_PROVINCES diabaikan (hanya untuk database uji *_test)")
+		}
+	}
+	if v := strings.TrimSpace(os.Getenv("TEST_ONLY_REGION_COOLDOWN_SECONDS")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 && cfg.IsTestDB() {
+			d := time.Duration(n) * time.Second
+			cfg.TestRegionCooldown = &d
+		} else {
+			log.Println("PERINGATAN: TEST_ONLY_REGION_COOLDOWN_SECONDS diabaikan (hanya untuk database uji *_test)")
+		}
+	}
 	return cfg
+}
+
+// regionAPIBaseFromEnv: https://wilayah.id/... selalu diterima; URL lain (http, host lain) hanya untuk DB uji.
+func regionAPIBaseFromEnv(v string, testDB bool) string {
+	v = strings.TrimRight(strings.TrimSpace(v), "/")
+	if v == "" {
+		return defaultRegionAPIBase
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && u.Scheme != "http") {
+		log.Println("PERINGATAN: REGION_API_BASE tidak valid, memakai default " + defaultRegionAPIBase)
+		return defaultRegionAPIBase
+	}
+	if u.Scheme == "https" && strings.EqualFold(u.Hostname(), "wilayah.id") && u.Port() == "" {
+		return v
+	}
+	if testDB {
+		log.Println("PERINGATAN: REGION_API_BASE uji aktif (server tiruan) — hanya untuk container uji")
+		return v
+	}
+	log.Println("PERINGATAN: REGION_API_BASE diabaikan karena DB_NAME bukan database uji (*_test); memakai " + defaultRegionAPIBase)
+	return defaultRegionAPIBase
 }
 
 // normalizeTeamDomain menerima "nama.cloudflareaccess.com" atau "https://nama.cloudflareaccess.com/".

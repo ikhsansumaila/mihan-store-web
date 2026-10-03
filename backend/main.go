@@ -31,6 +31,11 @@ func newRouter(app *App) http.Handler {
 	api.HandleFunc("/products", app.GetProducts).Methods("GET")
 	api.HandleFunc("/products/search", app.SearchProducts).Methods("GET")
 	api.HandleFunc("/categories", app.GetCategories).Methods("GET")
+	// Data wilayah (publik, hanya baca dari DB).
+	api.HandleFunc("/regions/provinces", app.PublicRegions(regionLevelProvince)).Methods("GET")
+	api.HandleFunc("/regions/regencies/{code}", app.PublicRegions(regionLevelRegency)).Methods("GET")
+	api.HandleFunc("/regions/districts/{code}", app.PublicRegions(regionLevelDistrict)).Methods("GET")
+	api.HandleFunc("/regions/villages/{code}", app.PublicRegions(regionLevelVillage)).Methods("GET")
 	api.HandleFunc("/auth/register", app.Register).Methods("POST")
 	api.HandleFunc("/auth/login", app.Login).Methods("POST")
 	api.HandleFunc("/auth/verify", app.Verify).Methods("POST")
@@ -76,6 +81,11 @@ func newRouter(app *App) http.Handler {
 	admin.HandleFunc("/orders/{id:[0-9]+}/note", app.AdminUpdateNote).Methods("PATCH")
 	admin.HandleFunc("/settings", app.AdminGetSettings).Methods("GET")
 	admin.HandleFunc("/settings", app.AdminUpdateSettings).Methods("PUT")
+	admin.HandleFunc("/regions/status", app.AdminRegionStatus).Methods("GET")
+	admin.HandleFunc("/regions/fetch", app.AdminRegionFetch).Methods("POST")
+	admin.HandleFunc("/regions/runs/{id:[0-9]+}", app.AdminRegionRun).Methods("GET")
+	admin.HandleFunc("/regions/runs/{id:[0-9]+}/save", app.AdminRegionSave).Methods("POST")
+	admin.HandleFunc("/regions/runs/{id:[0-9]+}/discard", app.AdminRegionDiscard).Methods("POST")
 
 	// Liveness: selalu 200 selama proses hidup.
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +98,10 @@ func newRouter(app *App) http.Handler {
 }
 
 func main() {
+	// Subperintah sekali jalan: impor data wilayah memakai kode yang sama dengan fitur admin.
+	if len(os.Args) > 1 && os.Args[1] == "import-regions" {
+		os.Exit(runImportRegionsCLI(os.Args[2:]))
+	}
 	log.SetFlags(log.LstdFlags | log.LUTC)
 	cfg := LoadConfig()
 	if cfg.DBPassword == "" {
@@ -96,6 +110,11 @@ func main() {
 	initDummyHash()
 
 	app := NewApp(cfg)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	app.bgCtx = bgCtx
+	// Run wilayah yang tertinggal 'running' dari proses sebelumnya -> failed.
+	app.afterConnect = app.sweepRegionRuns
+	log.Printf("sumber data wilayah: %s", app.regionFetchCfg.Base)
 	go app.connectWithRetry(cfg)
 
 	srv := &http.Server{
@@ -118,6 +137,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+	bgCancel() // hentikan fetch wilayah yang berjalan (ditandai gagal saat start berikutnya)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)

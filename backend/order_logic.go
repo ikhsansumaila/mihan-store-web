@@ -144,9 +144,15 @@ var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 type CheckoutInput struct {
 	RecipientName  string `json:"recipientName"`
 	RecipientPhone string `json:"recipientPhone"`
-	Address        string `json:"address"`
-	City           string `json:"city"`
-	PostalCode     string `json:"postalCode"`
+	Address        string `json:"address"` // alamat lengkap: jalan, RT/RW, nomor
+	// City dari klien DIABAIKAN (kolom city diisi nama kab/kota dari data wilayah).
+	City       string `json:"city"`
+	PostalCode string `json:"postalCode"`
+	// Kode wilayah (wajib). Nama diambil server dari data wilayah di database.
+	ProvinceCode   string `json:"provinceCode"`
+	RegencyCode    string `json:"regencyCode"`
+	DistrictCode   string `json:"districtCode"`
+	VillageCode    string `json:"villageCode"`
 	Note           string `json:"note"`
 	IdempotencyKey string `json:"idempotencyKey"`
 	// ExpectedTotal: total yang DITAMPILKAN ke pelanggan. Bila berbeda dari hitungan server ->
@@ -155,50 +161,64 @@ type CheckoutInput struct {
 }
 
 type checkoutFields struct {
-	Name, Phone, Address, City string
-	PostalCode, Note           *string
-	IdemKey                    string
+	Name, Phone, Address string
+	PostalCode, Note     *string
+	IdemKey              string
+	Region               regionCodesInput
 }
 
 var postalRe = regexp.MustCompile(`^[0-9]{5}$`)
 
+// validateCheckout: semua field wajib kecuali catatan. Galat berupa *fieldError (422 {error, field}).
+// Klien lama (tanpa kode wilayah sama sekali) -> pesan "Perbarui halaman lalu coba lagi".
 func validateCheckout(in CheckoutInput) (checkoutFields, error) {
 	var f checkoutFields
+	f.Region = regionCodesInput{Province: in.ProvinceCode, Regency: in.RegencyCode, District: in.DistrictCode, Village: in.VillageCode}
+	if strings.TrimSpace(in.ProvinceCode+in.RegencyCode+in.DistrictCode+in.VillageCode) == "" {
+		return f, &fieldError{"region", msgRegionRefresh}
+	}
 	f.Name = cleanText(in.RecipientName, false)
 	if f.Name == "" || utf8.RuneCountInString(f.Name) > 100 {
-		return f, errors.New("Nama penerima wajib diisi (maksimal 100 karakter)")
+		return f, &fieldError{"recipientName", "Nama penerima wajib diisi (maksimal 100 karakter)"}
 	}
 	phone, err := NormalizePhone(in.RecipientPhone)
 	if err != nil {
-		return f, err
+		return f, &fieldError{"recipientPhone", err.Error()}
 	}
 	if phone == "" {
-		return f, errors.New("Nomor telepon penerima wajib diisi")
+		return f, &fieldError{"recipientPhone", "Nomor telepon penerima wajib diisi"}
 	}
 	f.Phone = phone
+	codes := []struct{ v, field, label string }{
+		{in.ProvinceCode, "provinceCode", "provinsi"}, {in.RegencyCode, "regencyCode", "kabupaten/kota"},
+		{in.DistrictCode, "districtCode", "kecamatan"}, {in.VillageCode, "villageCode", "kelurahan/desa"},
+	}
+	for _, c := range codes {
+		if strings.TrimSpace(c.v) == "" {
+			return f, &fieldError{c.field, "Pilih " + c.label}
+		}
+	}
 	f.Address = cleanText(in.Address, true)
 	if n := utf8.RuneCountInString(f.Address); n < 5 || n > 500 {
-		return f, errors.New("Alamat wajib diisi (5–500 karakter)")
+		return f, &fieldError{"address", "Alamat lengkap (jalan, RT/RW, nomor) wajib diisi (5–500 karakter)"}
 	}
-	f.City = cleanText(in.City, false)
-	if n := utf8.RuneCountInString(f.City); n < 2 || n > 100 {
-		return f, errors.New("Kota/kabupaten wajib diisi (2–100 karakter)")
+	pc := strings.TrimSpace(in.PostalCode)
+	if pc == "" {
+		return f, &fieldError{"postalCode", "Kode pos wajib diisi"}
 	}
-	if pc := strings.TrimSpace(in.PostalCode); pc != "" {
-		if !postalRe.MatchString(pc) {
-			return f, errors.New("Kode pos harus 5 digit angka")
-		}
-		f.PostalCode = &pc
+	if !postalRe.MatchString(pc) {
+		return f, &fieldError{"postalCode", "Kode pos harus 5 digit angka"}
 	}
+	f.PostalCode = &pc
 	if note := cleanText(in.Note, true); note != "" {
 		if utf8.RuneCountInString(note) > maxNote500 {
-			return f, errors.New("Catatan maksimal 500 karakter")
+			return f, &fieldError{"note", "Catatan maksimal 500 karakter"}
 		}
 		f.Note = &note
 	}
 	key := strings.ToLower(strings.TrimSpace(in.IdempotencyKey))
 	if !uuidRe.MatchString(key) {
-		return f, errors.New("idempotencyKey wajib berupa UUID")
+		return f, &fieldError{"idempotencyKey", "idempotencyKey wajib berupa UUID"}
 	}
 	f.IdemKey = key
 	return f, nil

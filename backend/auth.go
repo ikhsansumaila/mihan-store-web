@@ -50,6 +50,15 @@ type App struct {
 	cancelLimiter    *RateLimiter // per pengguna: batalkan pesanan
 	notifier         notify.Notifier
 	now              func() time.Time
+
+	// Data wilayah (regions*.go).
+	regions        *regionCache
+	regionLimiter  *RateLimiter // per IP: API publik wilayah
+	regionRuns     *regionRunRegistry
+	regionFetchCfg regionFetchConfig
+	regionCooldown time.Duration   // jeda minimal antar fetch (sopan ke wilayah.id)
+	bgCtx          context.Context // induk goroutine latar (dibatalkan saat server berhenti)
+	afterConnect   func(db *gorm.DB)
 }
 
 func NewApp(cfg Config) *App {
@@ -69,6 +78,19 @@ func NewApp(cfg Config) *App {
 		// Server tiruan (http, host bebas) hanya diizinkan untuk database uji.
 		notifier: notify.New(cfg.DiscordOrderWebhookURL, cfg.IsTestDB()),
 		now:      func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
+
+		regions:        newRegionCache(),
+		regionLimiter:  NewRateLimiter(240, time.Minute),
+		regionRuns:     newRegionRunRegistry(),
+		regionFetchCfg: defaultRegionFetchConfig(cfg.RegionAPIBase),
+		regionCooldown: 5 * time.Minute,
+		bgCtx:          context.Background(),
+	}
+	if cfg.TestRegionMinProvinces > 0 {
+		a.regionFetchCfg.MinProvinces = cfg.TestRegionMinProvinces
+	}
+	if cfg.TestRegionCooldown != nil {
+		a.regionCooldown = *cfg.TestRegionCooldown
 	}
 	if av, err := NewAccessVerifier(cfg); err == nil {
 		a.access = av

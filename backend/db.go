@@ -74,6 +74,9 @@ func (a *App) connectWithRetry(cfg Config) {
 		if err == nil {
 			a.db.Store(db)
 			log.Printf("database terhubung (percobaan ke-%d)", attempt)
+			if a.afterConnect != nil {
+				a.afterConnect(db)
+			}
 			return
 		}
 		log.Printf("database belum bisa dihubungi (percobaan ke-%d): %v", attempt, sanitizeDBErr(err))
