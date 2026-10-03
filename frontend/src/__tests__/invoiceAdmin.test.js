@@ -97,6 +97,7 @@ test('/admin/invoice merender form invoice di dalam layout admin dengan menu Inv
     'Produk',
     'Kategori',
     'Pesanan',
+    'Pelanggan',
     'Invoice',
     'Pricelist',
     'Pengaturan Toko',

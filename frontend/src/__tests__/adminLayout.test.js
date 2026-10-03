@@ -27,9 +27,13 @@ jest.mock('../admin/api', () => {
           products: { total: 20, active: 18, inactive: 2 },
           categories: 6,
           orders: { pendingPayment: 4, paid: 2, last7Days: 9 },
+          customers: 12,
           recentActivity: [{ id: 1, action: 'product.update', summary: 'Ubah harga', userEmail: 'pemilik@example.com', createdAt: '2026-10-02T03:00:00Z' }],
         });
       if (path === '/categories') return Promise.resolve({ items: [{ id: 1, name: 'Kerupuk', slug: 'kerupuk' }] });
+      if (path.startsWith('/customers/7'))
+        return Promise.resolve({ customer: { id: 7, name: 'Siti', username: 'siti', alias: null, status: 'active' }, recentOrders: [] });
+      if (path.startsWith('/customers')) return Promise.resolve({ items: [], total: 0, perPage: 20 });
       if (path.startsWith('/products')) return Promise.resolve({ items: [], total: 0, perPage: 20 });
       if (path === '/orders/5')
         return Promise.resolve({
@@ -119,6 +123,7 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
     ['Produk', '/admin/products'],
     ['Kategori', '/admin/categories'],
     ['Pesanan, 4 menunggu pembayaran', '/admin/orders'],
+    ['Pelanggan', '/admin/customers'],
     ['Invoice', '/admin/invoice'],
     ['Pricelist', '/admin/pricelist'],
     ['Pengaturan Toko', '/admin/settings'],
@@ -144,6 +149,8 @@ test.each([
   ['/admin/categories', 'Kategori', ['Admin', 'Katalog', 'Kategori']],
   ['/admin/orders', 'Pesanan', ['Admin', 'Penjualan', 'Pesanan']],
   ['/admin/orders/5', 'Pesanan', ['Admin', 'Penjualan', 'Pesanan', 'Detail']],
+  ['/admin/customers', 'Pelanggan', ['Admin', 'Penjualan', 'Pelanggan']],
+  ['/admin/customers/7', 'Pelanggan', ['Admin', 'Penjualan', 'Pelanggan', 'Detail']],
   ['/admin/pricelist', 'Pricelist', ['Admin', 'Penjualan', 'Pricelist']],
   ['/admin/settings', 'Pengaturan Toko', ['Admin', 'Sistem', 'Pengaturan Toko']],
   ['/admin/regions', 'Data Wilayah', ['Admin', 'Sistem', 'Data Wilayah']],
@@ -171,7 +178,7 @@ test('pencarian menu memfilter item; Enter membuka hasil pertama', async () => {
   await flush();
   expect(window.location.pathname).toBe('/admin/invoice');
   expect(searchInput().value).toBe('');
-  expect(menuLinks()).toHaveLength(9);
+  expect(menuLinks()).toHaveLength(10);
   await typeInto(searchInput(), 'daftar harga');
   expect(menuLinks().map((a) => a.textContent.trim())).toEqual(['Pricelist']);
   await typeInto(searchInput(), 'pricelist');
@@ -277,12 +284,13 @@ test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () 
   expect(container.querySelector('h1').textContent).toBe('Dashboard');
   const stats = container.querySelector('section[aria-label="Statistik"]');
   const text = stats.textContent;
-  ['Produk aktif18', 'Kategori6', 'Menunggu pembayaran4', 'Dibayar2', 'Pesanan 7 hari terakhir9'].forEach((t) => expect(text).toContain(t));
-  expect(stats.querySelectorAll('a svg')).toHaveLength(5);
+  ['Produk aktif18', 'Kategori6', 'Menunggu pembayaran4', 'Dibayar2', 'Pesanan 7 hari terakhir9', 'Pelanggan12'].forEach((t) => expect(text).toContain(t));
+  expect(stats.querySelectorAll('a svg')).toHaveLength(6);
   const shortcutLinks = [...container.querySelectorAll('section[aria-labelledby="pintasan-cepat"] a')];
   expect(shortcutLinks.map((a) => a.querySelector('.font-semibold').textContent)).toEqual([
     'Tambah Produk',
     'Pesanan baru',
+    'Pelanggan',
     'Buat Pricelist',
     'Pengaturan Toko',
     'Log Aktivitas',
@@ -290,6 +298,7 @@ test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () 
   expect(shortcutLinks.map((a) => a.getAttribute('href'))).toEqual([
     '/admin/products?tambah=1',
     '/admin/orders?status=pending_payment',
+    '/admin/customers',
     '/admin/pricelist',
     '/admin/settings',
     '/admin/activity',
