@@ -63,6 +63,8 @@ sebagai user `mihanstore_app` (hanya dari subnet `mysql-net`) dengan hak **per t
 | `cart_items` | SELECT, INSERT, UPDATE, DELETE (baris keranjang boleh dihapus) |
 | `order_items`, `order_status_history` | **SELECT, INSERT saja** (snapshot/append-only) |
 | `product_price_tiers` | SELECT, INSERT, UPDATE (hapus jenjang = soft delete) |
+| `region_datasets`, `region_import_runs` | SELECT, INSERT, UPDATE (wilayah hilang = soft delete) |
+| `region_import_staging` | SELECT, INSERT, DELETE (staging dihapus setelah Simpan/Batal) |
 | procedure `purge_activity_logs` | EXECUTE (satu-satunya cara menghapus log, hanya > 180 hari) |
 
 Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrate).
@@ -82,6 +84,9 @@ Skema dibuat oleh root lewat file migrasi, bukan oleh aplikasi (tanpa AutoMigrat
 | `010_products_unit_price_tiers.sql` | `products.unit` (default `pcs`) + tabel `product_price_tiers` | komentar di file (aman dibiarkan) |
 | `011_cart_order_price_snapshot.sql` | `cart_items.seen_unit_price`; `order_items.base_unit_price`, `tier_min_qty`, `unit` | komentar di file (aman dibiarkan) |
 | `012_grants_price_tiers.sql` | `product_price_tiers`: SELECT, INSERT, UPDATE | komentar di file |
+| `013_regions.sql` | `region_datasets`, `region_import_runs`, `region_import_staging` (data wilayah JSON) | komentar di file (aman dibiarkan) |
+| `014_orders_region.sql` | `orders.province_code/name`, `regency_code/name`, `district_code/name`, `village_code/name` (NULL) | komentar di file (aman dibiarkan) |
+| `015_grants_regions.sql` | `region_datasets`, `region_import_runs`: SELECT, INSERT, UPDATE; `region_import_staging`: SELECT, INSERT, DELETE | komentar di file |
 
 ```bash
 cd ~/mihanstore
@@ -127,6 +132,7 @@ Lanjutkan dengan migrasi 002–005 (bagian "Migrasi" di atas); 005 mengganti hak
 | POST | `/api/auth/google/complete` | `{profileToken, username, phone?}` → 201 sesi (akun baru tanpa password) |
 | GET  | `/api/products`, `/api/products/search?q=&category=` | publik, dari DB (hanya produk aktif), field lama sama seperti dulu + `unit`, `tiers` (lihat Harga grosir) |
 | GET  | `/api/categories` | publik: `[{id, slug, name, sortOrder}]` |
+| GET  | `/api/regions/provinces`, `/regencies/{kode}`, `/districts/{kode}`, `/villages/{kode}` | publik, data wilayah dari DB (lihat Data wilayah) |
 | *    | `/api/admin/*` | admin (Cloudflare Access), lihat bagian Admin |
 | GET  | `/health` | liveness; `/health/ready` memeriksa database |
 
@@ -239,7 +245,7 @@ Turnstile wajib untuk login dan registrasi, CORS hanya untuk `CORS_ALLOWED_ORIGI
 ```bash
 # Unit test
 docker run --rm -v "$PWD/backend":/src -w /src golang:1.27-alpine go test ./...
-# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–012 (+ hak 005, 009 & 012 untuk user uji)
+# Tes integrasi: butuh database *_test BARU yang dibuat dari migrasi 001–015 (+ hak 005, 009, 012 & 015 untuk user uji)
 # (user uji tidak punya hak DELETE pada users/activity_logs, jadi DB dibuat ulang tiap putaran)
 docker run --rm --network mysql-net -e DB_NAME=mihanstore_test -e DB_USER=... -e DB_PASSWORD=... \
   -v "$PWD/backend":/src -w /src golang:1.27-alpine go test -tags integration ./...
@@ -397,6 +403,71 @@ d. **Log & rollback**: periksa `/admin/activity` (aksi `order.*`, `settings.upda
   docker tag mihanstore-frontend:pre-tiers mihanstore-frontend:latest
   docker compose up -d --no-build backend frontend
   git revert --no-edit pre-tiers..HEAD   # agar build berikutnya tidak membawa fitur ini lagi
+  ```
+
+## Data wilayah & alamat checkout
+
+- **Sumber**: https://wilayah.id/api (JSON statis, Kepmendagri). Disimpan di `region_datasets` dalam format JSON,
+  satu baris per dataset induk: `provinces`, `regencies:<kodeProv>`, `districts:<kodeKabKota>`,
+  `villages:<kodeKec>`; kolom `data` = array `[{code,name}]` seperti dari API. Kode bertitik (`31`, `31.74`,
+  `31.74.06`, `31.74.06.1004`). API ini tidak menyediakan kode pos (diisi pelanggan).
+- **Admin → Data Wilayah** (`/admin/regions`, grup Sistem): status data tersimpan (tanggal data sumber, jumlah
+  dataset/item per tingkat, ukuran, terakhir disimpan oleh siapa), tombol **Fetch ulang dari wilayah.id**, kemajuan
+  (polling tiap 3 detik hanya selama berjalan, tombol Batalkan), ringkasan (jumlah per tingkat tersimpan vs baru,
+  dataset baru/berubah/hilang, peringatan bila turun >10% / tingkat kosong / ada permintaan gagal), popup
+  **"Simpan data wilayah ke database?"** (Simpan / Batal), riwayat 10 run.
+  - Simpan: upsert dari staging dalam SATU transaksi (hanya dataset yang `content_hash`-nya berubah di-UPDATE, yang
+    baru di-INSERT, kunci yang hilang di sumber di-soft-delete, kunci yang muncul lagi dipulihkan), staging dihapus,
+    cache memori dibersihkan. Data lama tetap dipakai sampai commit.
+  - Batal: staging dihapus, status `discarded`, data lama tidak berubah. Run berjalan bisa dibatalkan (`cancelled`).
+  - Hanya satu run `running`/`staged` (kolom `active_lock` UNIQUE). Hasil `staged` > 24 jam dibuang otomatis saat
+    fetch berikutnya. Run `running` saat backend restart ditandai `failed` saat start. Jeda minimal antar fetch 5 menit.
+  - Fetcher: konkurensi 4, jeda minimal 100 ms antar permintaan, timeout 15 dtk, retry 3x (429/5xx/jaringan) dengan
+    backoff eksponensial + jitter dan menghormati `Retry-After`, respons maks. 5 MB, validasi JSON/kode/induk/duplikat,
+    User-Agent `MihanStore/1.0 (+https://store.mihan.web.id; admin region sync)`. Gagal bila provinsi < 30 atau
+    > 20 permintaan gagal setelah retry; permintaan gagal (≤ 20) → data lama wilayah itu dipertahankan.
+  - Log aktivitas: `regions.fetch_start`, `regions.fetch_done`, `regions.fetch_failed`, `regions.save`, `regions.discard`.
+  - Endpoint admin: `GET /api/admin/regions/status`, `POST /api/admin/regions/fetch` (202),
+    `GET /api/admin/regions/runs/{id}`, `POST .../runs/{id}/save`, `POST .../runs/{id}/discard`.
+- **API publik** `/api/regions/*`: `{"data":[{code,name}],"meta":{"updatedAt":"YYYY-MM-DD"}}`, `Cache-Control: public,
+  max-age=3600` + `ETag` (304), kode divalidasi (400), induk tidak ada 404, belum ada data 503 "Data wilayah belum
+  tersedia", 240 permintaan/menit per IP, cache memori 10 menit (dibersihkan saat Simpan dari admin).
+  `meta.updatedAt` = tanggal data sumber saat dataset itu terakhir berubah.
+- **Checkout**: nama penerima kosong di awal (telepon diisi dari akun bila ada); Provinsi → Kabupaten/Kota → Kecamatan →
+  Kelurahan/Desa berupa kolom pilihan yang bisa diketik (dimuat per induk, memilih tingkat atas mengosongkan tingkat
+  bawah), Alamat lengkap (jalan, RT/RW, nomor), Kode pos 5 digit. Semua wajib kecuali Catatan.
+  `POST /api/orders` kini wajib `provinceCode, regencyCode, districtCode, villageCode` (kode saja); server memeriksa
+  rantai di data tersimpan dan mengambil NAMA dari DB; `city` diisi nama kab/kota. Galat 422 `{error, field}`; klien
+  lama tanpa kode → 422 "…Perbarui halaman lalu coba lagi."; data wilayah belum ada → 503. Respons pesanan
+  (pelanggan & admin) memuat `recipient.region` (null untuk pesanan lama) dan `recipient.fullAddress`.
+- **Alamat tersusun** (detail pesanan pelanggan/admin, invoice PDF, teks WhatsApp admin → pelanggan):
+  `<alamat lengkap>, <kelurahan/desa>, Kec. <kecamatan>, <kab/kota>, <provinsi> <kode pos>`; pesanan lama:
+  `<alamat>, <kota> <kode pos>`. Notifikasi Discord dan teks konfirmasi pelanggan → toko tidak memuat alamat.
+- **Impor awal / manual (CLI, kode impor yang sama)**: `docker exec mihanstore_backend /app/main import-regions`
+  (label run "CLI (impor awal)", log `regions.save` aktor sistem; `--no-save` = biarkan staged untuk diputuskan di admin).
+  Impor awal produksi (3 Okt 2026): 38 provinsi, 514 kab/kota, 7.285 kecamatan, 83.762 kelurahan/desa (7.838 dataset,
+  data sumber 2025-07-04), 7.838 permintaan, 0 retry, 0 gagal, 13 menit 15 detik; ±4,7 MB JSON (tabel ±7,4 MB).
+- **Konfigurasi**: `REGION_API_BASE` (default `https://wilayah.id/api`; selain `https://wilayah.id/...` hanya berlaku
+  bila `DB_NAME` berakhiran `_test`). Khusus uji: `TEST_ONLY_REGION_MIN_PROVINCES`, `TEST_ONLY_REGION_COOLDOWN_SECONDS`.
+- **Migrasi** (root, setelah `~/mysql-stack/dump.sh`):
+  ```bash
+  cd ~/mihanstore
+  for f in 013_regions 014_orders_region; do
+    docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot mihanstore' < backend/migrations/$f.sql
+  done
+  docker exec -i mysql_db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot' < backend/migrations/015_grants_regions.sql
+  ```
+- **Langkah pemilik**: buka Admin → Data Wilayah untuk melihat status; Fetch ulang nanti bila perlu (paling sering
+  sebulan sekali, API gratis) lalu periksa ringkasan sebelum Simpan. Uji checkout sebagai pelanggan (nama kosong,
+  wilayah bertingkat, semua wajib), lalu cek detail pesanan, Cetak invoice, dan teks "Kirim ringkasan ke WhatsApp".
+- **Rollback aplikasi** (DB boleh dibiarkan: tabel/kolom baru terpisah/nullable, hak tambahan tidak dipakai kode lama;
+  checkout kode lama tidak mengirim wilayah dan tetap berfungsi dengan kolom `city`):
+  ```bash
+  cd ~/mihanstore
+  docker tag mihanstore-backend:pre-regions mihanstore-backend:latest
+  docker tag mihanstore-frontend:pre-regions mihanstore-frontend:latest
+  docker compose up -d --no-build --no-deps backend frontend
+  git revert --no-edit pre-regions..HEAD   # agar build berikutnya tidak membawa fitur ini lagi
   ```
 
 ## Tugas pemilik (sekali saja, berurutan)
