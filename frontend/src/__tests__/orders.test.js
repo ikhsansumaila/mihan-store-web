@@ -2,6 +2,8 @@
 // Catatan: CRA memakai resetMocks, jadi mock modul memakai fungsi biasa + log panggilan sendiri.
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fillCheckout } from '../testUtils/regionFixtures';
+import { clearRegionCache } from '../shop/regionsApi';
 
 const mockState = {
   calls: [],
@@ -12,6 +14,9 @@ const mockState = {
   products: [],
   admin: {},
   postDelay: 0,
+  regionCalls: [],
+  regionOverride: {},
+  orderReply: null,
 };
 
 const mockCart = (items) => {
@@ -35,16 +40,23 @@ jest.mock('axios', () => {
     if (url.endsWith('/api/categories')) return { data: [] };
     if (url.endsWith('/api/cart') || url.includes('/api/cart/items')) return { data: mockState.cart };
     if (url.endsWith('/api/store-info')) return { data: mockState.storeInfo };
-    if (method === 'post' && url.endsWith('/api/orders')) return { data: { orderNo: 'MS-261002-0001' } };
+    if (method === 'post' && url.endsWith('/api/orders')) {
+      if (mockState.orderReply) {
+        const err = new Error('gagal');
+        err.response = mockState.orderReply;
+        return Promise.reject(err);
+      }
+      return { data: { orderNo: 'MS-261002-0001' } };
+    }
     if (url.includes('/api/orders?')) return { data: mockState.orders };
     if (url.includes('/api/orders/')) return { data: mockState.order };
     return { data: {} };
   };
-  const later = (v) => new Promise((r) => setTimeout(() => r(v), mockState.postDelay));
+  const later = (v) => new Promise((r, j) => setTimeout(() => (v instanceof Promise ? v.then(r, j) : r(v)), mockState.postDelay));
   return {
     __esModule: true,
     default: {
-      get: (url) => Promise.resolve(respond('get', url)),
+      get: (url) => require('../testUtils/regionFixtures').mockRegionGet(url, mockState.regionCalls, mockState.regionOverride) || Promise.resolve(respond('get', url)),
       post: (url, body) => later(respond('post', url, body)),
       put: (url, body) => Promise.resolve(respond('put', url, body)),
       delete: (url) => Promise.resolve(respond('delete', url)),
@@ -104,6 +116,10 @@ beforeEach(() => {
   mockState.calls = [];
   mockState.cart = mockCart([]);
   mockState.postDelay = 0;
+  mockState.regionCalls = [];
+  mockState.regionOverride = {};
+  mockState.orderReply = null;
+  clearRegionCache();
 });
 
 afterEach(() => {
@@ -113,11 +129,6 @@ afterEach(() => {
 
 const USER = { name: 'Budi', role: 'customer', phone: '+6281234567890' };
 const btn = (text) => [...container.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
-const setInput = (el, value) => {
-  const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-};
 
 const sampleOrder = {
   orderNo: 'MS-261002-0001',
@@ -198,12 +209,10 @@ test('/checkout: hanya data penerima + idempotencyKey + expectedTotal, klik gand
   mockState.storeInfo = { storeWhatsapp: '+6281299998888', bankName: 'BCA', bankAccountNumber: '123', bankAccountHolder: 'Toko', paymentConfigured: true };
   await renderAt('/checkout', USER);
   expect(container.querySelector('h1').textContent).toBe('Checkout');
-  const [addr] = container.querySelectorAll('textarea');
-  const inputs = [...container.querySelectorAll('form input')];
-  await act(async () => {
-    setInput(addr, 'Jl. Melati No. 9');
-    setInput(inputs[2], 'Tangerang');
-  });
+  // Nama penerima kosong pada awal (tidak diisi dari nama akun); telepon boleh dari akun.
+  expect(container.querySelector('#co-name').value).toBe('');
+  expect(container.querySelector('#co-phone').value).toBe('+6281234567890');
+  await fillCheckout(container, { name: 'Budi' });
   mockState.postDelay = 20;
   const submit = btn('Buat pesanan');
   await act(async () => {
@@ -217,7 +226,21 @@ test('/checkout: hanya data penerima + idempotencyKey + expectedTotal, klik gand
   const posts = mockState.calls.filter((c) => c.method === 'post' && c.url.endsWith('/api/orders'));
   expect(posts).toHaveLength(1);
   const body = posts[0].body;
-  expect(Object.keys(body).sort()).toEqual(['address', 'city', 'expectedTotal', 'idempotencyKey', 'note', 'postalCode', 'recipientName', 'recipientPhone']);
+  expect(Object.keys(body).sort()).toEqual([
+    'address',
+    'districtCode',
+    'expectedTotal',
+    'idempotencyKey',
+    'note',
+    'postalCode',
+    'provinceCode',
+    'recipientName',
+    'recipientPhone',
+    'regencyCode',
+    'villageCode',
+  ]);
+  expect([body.provinceCode, body.regencyCode, body.districtCode, body.villageCode]).toEqual(['36', '36.71', '36.71.01', '36.71.01.1001']);
+  expect(body.postalCode).toBe('15111');
   expect(body.expectedTotal).toBe(90000); // total yang ditampilkan (harga grosir), diperiksa server
   expect(body.recipientName).toBe('Budi');
   expect(body.idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -292,7 +315,7 @@ test('admin Pesanan: menu baru, daftar dengan lencana status', async () => {
   };
   await renderAt('/admin/orders');
   const tabs = [...container.querySelectorAll('#admin-sidebar nav a')].map((a) => a.textContent.trim());
-  expect(tabs).toEqual(['Dashboard', 'Produk', 'Kategori', 'Pesanan', 'Invoice', 'Pricelist', 'Pengaturan Toko', 'Log Aktivitas']);
+  expect(tabs).toEqual(['Dashboard', 'Produk', 'Kategori', 'Pesanan', 'Invoice', 'Pricelist', 'Pengaturan Toko', 'Data Wilayah', 'Log Aktivitas']);
   expect(container.querySelector('h1').textContent).toBe('Pesanan');
   expect(container.textContent).toContain('MS-261002-0005');
   expect(container.textContent).toContain('Menunggu pembayaran');
@@ -388,4 +411,41 @@ test('admin Ringkasan menampilkan hitungan pesanan', async () => {
   expect(container.textContent).toContain('Menunggu pembayaran');
   expect(container.textContent).toContain('Pesanan 7 hari terakhir');
   expect(container.textContent).toContain('9');
+});
+
+const REGION_RECIPIENT = {
+  name: 'Siti Penerima',
+  phone: '+6281311112222',
+  address: 'Jl. Mawar No. 5\nRT 01/RW 02',
+  city: 'Kota Administrasi Jakarta Selatan',
+  postalCode: '12440',
+  region: {
+    province: { code: '31', name: 'DKI Jakarta' },
+    regency: { code: '31.74', name: 'Kota Administrasi Jakarta Selatan' },
+    district: { code: '31.74.06', name: 'Cilandak' },
+    village: { code: '31.74.06.1004', name: 'Lebak Bulus' },
+  },
+};
+const REGION_FULL = 'Jl. Mawar No. 5, RT 01/RW 02, Lebak Bulus, Kec. Cilandak, Kota Administrasi Jakarta Selatan, DKI Jakarta 12440';
+
+test('detail pesanan pelanggan & admin: alamat tersusun (baru) dan alamat + kota (lama)', async () => {
+  mockState.order = { ...sampleOrder, recipient: REGION_RECIPIENT };
+  mockState.storeInfo = { storeWhatsapp: null, paymentConfigured: false };
+  await renderAt('/pesanan/MS-261002-0001', USER);
+  expect(container.querySelector('[data-testid="order-full-address"]').textContent).toBe(REGION_FULL);
+  act(() => root.unmount());
+  container.remove();
+
+  mockState.order = sampleOrder; // pesanan lama
+  await renderAt('/pesanan/MS-261002-0001', USER);
+  expect(container.querySelector('[data-testid="order-full-address"]').textContent).toBe('Jl. Melati 9, Tangerang 15111');
+  act(() => root.unmount());
+  container.remove();
+
+  mockState.admin = { '/orders/5': { ...adminOrder, recipient: REGION_RECIPIENT }, '/settings': { settings: {} } };
+  await renderAt('/admin/orders/5');
+  expect(container.querySelector('[data-testid="admin-full-address"]').textContent).toBe(REGION_FULL);
+  const wa = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Kirim ringkasan ke WhatsApp'));
+  const text = decodeURIComponent(wa.getAttribute('href').split('text=')[1]);
+  expect(text).toContain(`Alamat pengiriman:\n${REGION_FULL}`);
 });

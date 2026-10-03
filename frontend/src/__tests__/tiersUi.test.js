@@ -4,6 +4,7 @@
 // Catatan: CRA memakai resetMocks, jadi mock modul memakai fungsi biasa + log panggilan sendiri.
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fillCheckout } from '../testUtils/regionFixtures';
 
 const mockState = { calls: [], cart: null, products: [], admin: {}, adminError: null, orderReplies: [], ackCart: null };
 
@@ -38,7 +39,7 @@ jest.mock('axios', () => {
   return {
     __esModule: true,
     default: {
-      get: wrap((url) => respond('get', url)),
+      get: (url) => require('../testUtils/regionFixtures').mockRegionGet(url) || wrap((u) => respond('get', u))(url),
       post: wrap((url, body) => respond('post', url, body)),
       put: wrap((url, body) => respond('put', url, body)),
       delete: wrap((url) => respond('delete', url)),
@@ -298,12 +299,7 @@ test('checkout: kirim expectedTotal; 409 price_changed -> keranjang terkini + ko
   await renderAt('/checkout', USER);
   expect(container.textContent).toContain('Rp 42.000 / pak');
   expect(container.textContent).toContain('harga grosir (min. 10)');
-  const [addr] = container.querySelectorAll('textarea');
-  const inputs = [...container.querySelectorAll('form input')];
-  await act(async () => {
-    setInput(addr, 'Jl. Melati No. 9');
-    setInput(inputs[2], 'Tangerang');
-  });
+  await fillCheckout(container);
   await click(btn('Buat pesanan'));
   const posts = () => mockState.calls.filter((c) => c.method === 'post' && c.url.endsWith('/api/orders'));
   expect(posts()).toHaveLength(1);

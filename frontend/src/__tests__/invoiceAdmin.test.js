@@ -100,6 +100,7 @@ test('/admin/invoice merender form invoice di dalam layout admin dengan menu Inv
     'Invoice',
     'Pricelist',
     'Pengaturan Toko',
+    'Data Wilayah',
     'Log Aktivitas',
   ]);
   const inv = tabs.find((a) => a.textContent.trim() === 'Invoice');

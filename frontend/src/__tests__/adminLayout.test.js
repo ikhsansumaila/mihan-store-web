@@ -122,6 +122,7 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
     ['Invoice', '/admin/invoice'],
     ['Pricelist', '/admin/pricelist'],
     ['Pengaturan Toko', '/admin/settings'],
+    ['Data Wilayah', '/admin/regions'],
     ['Log Aktivitas', '/admin/activity'],
   ]);
   const orders = linkByLabel('Pesanan');
@@ -145,6 +146,7 @@ test.each([
   ['/admin/orders/5', 'Pesanan', ['Admin', 'Penjualan', 'Pesanan', 'Detail']],
   ['/admin/pricelist', 'Pricelist', ['Admin', 'Penjualan', 'Pricelist']],
   ['/admin/settings', 'Pengaturan Toko', ['Admin', 'Sistem', 'Pengaturan Toko']],
+  ['/admin/regions', 'Data Wilayah', ['Admin', 'Sistem', 'Data Wilayah']],
   ['/admin/activity', 'Log Aktivitas', ['Admin', 'Sistem', 'Log Aktivitas']],
 ])('rute %s: menu aktif %s dan breadcrumb sesuai', async (path, label, crumbs) => {
   await renderAt(path);
@@ -169,7 +171,7 @@ test('pencarian menu memfilter item; Enter membuka hasil pertama', async () => {
   await flush();
   expect(window.location.pathname).toBe('/admin/invoice');
   expect(searchInput().value).toBe('');
-  expect(menuLinks()).toHaveLength(8);
+  expect(menuLinks()).toHaveLength(9);
   await typeInto(searchInput(), 'daftar harga');
   expect(menuLinks().map((a) => a.textContent.trim())).toEqual(['Pricelist']);
   await typeInto(searchInput(), 'pricelist');
