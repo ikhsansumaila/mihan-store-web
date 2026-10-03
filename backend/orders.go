@@ -254,13 +254,14 @@ func (a *App) notifyOrder(db *gorm.DB, kind string, orderID uint64) {
 		return
 	}
 	var row struct {
-		OrderNo   string `gorm:"column:order_no"`
-		Status    string `gorm:"column:status"`
-		Total     int64  `gorm:"column:total"`
-		Name      string `gorm:"column:name"`
-		ItemCount int64  `gorm:"column:item_count"`
+		OrderNo   string  `gorm:"column:order_no"`
+		Status    string  `gorm:"column:status"`
+		Total     int64   `gorm:"column:total"`
+		Name      string  `gorm:"column:name"`
+		Alias     *string `gorm:"column:alias"`
+		ItemCount int64   `gorm:"column:item_count"`
 	}
-	err := db.Raw(`SELECT o.order_no, o.status, o.total, u.name,
+	err := db.Raw(`SELECT o.order_no, o.status, o.total, u.name, u.alias,
 		(SELECT COALESCE(SUM(qty), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
 		FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = ?`, orderID).Scan(&row).Error
 	if err != nil || row.OrderNo == "" {
@@ -268,7 +269,8 @@ func (a *App) notifyOrder(db *gorm.DB, kind string, orderID uint64) {
 		return
 	}
 	a.notifier.OrderEvent(notify.OrderEvent{
-		Kind: kind, OrderNo: row.OrderNo, CustomerName: row.Name, ItemCount: int(row.ItemCount),
+		// Pemesan: alias internal bila ada (kanal Discord hanya untuk pengelola), selain itu nama akun.
+		Kind: kind, OrderNo: row.OrderNo, CustomerName: displayCustomerName(row.Name, row.Alias), ItemCount: int(row.ItemCount),
 		Total: uint64(row.Total), Status: row.Status, AdminURL: a.adminOrderURL(orderID),
 	})
 }

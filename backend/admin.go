@@ -310,8 +310,15 @@ func (a *App) AdminSummary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
+	customers, err := loadCustomerCount(db)
+	if err != nil {
+		log.Printf("admin summary customers: %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"products":       counts,
+		"customers":      customers,
 		"categories":     cats,
 		"orders":         orders,
 		"recentActivity": logs,

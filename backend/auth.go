@@ -48,6 +48,7 @@ type App struct {
 	cartLimiter      *RateLimiter // per pengguna: tambah/ubah keranjang
 	checkoutLimiter  *RateLimiter // per pengguna: buat pesanan
 	cancelLimiter    *RateLimiter // per pengguna: batalkan pesanan
+	aliasLimiter     *RateLimiter // per admin: ubah alias pelanggan
 	notifier         notify.Notifier
 	now              func() time.Time
 
@@ -75,6 +76,7 @@ func NewApp(cfg Config) *App {
 		cartLimiter:      NewRateLimiter(120, time.Minute),
 		checkoutLimiter:  NewRateLimiter(10, 10*time.Minute),
 		cancelLimiter:    NewRateLimiter(10, 10*time.Minute),
+		aliasLimiter:     NewRateLimiter(60, time.Minute),
 		// Server tiruan (http, host bebas) hanya diizinkan untuk database uji.
 		notifier: notify.New(cfg.DiscordOrderWebhookURL, cfg.IsTestDB()),
 		now:      func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },

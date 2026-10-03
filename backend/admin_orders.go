@@ -29,6 +29,16 @@ type AdminOrderSummary struct {
 	CustomerName  string    `json:"customerName" gorm:"column:customer_name"`
 	Username      string    `json:"username" gorm:"column:username"`
 	CreatedAt     time.Time `json:"createdAt" gorm:"column:created_at"`
+	// Akun pemesan (khusus admin): id users dan alias internal.
+	CustomerID    uint64             `json:"-" gorm:"column:customer_id"`
+	CustomerAlias *string            `json:"-" gorm:"column:customer_alias"`
+	Customer      AdminOrderCustomer `json:"customer" gorm:"-"`
+}
+
+// AdminOrderCustomer: ringkasan akun pemesan di daftar pesanan admin.
+type AdminOrderCustomer struct {
+	ID    uint64  `json:"id"`
+	Alias *string `json:"alias"`
 }
 
 func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
@@ -59,8 +69,8 @@ func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	if s := strings.TrimSpace(truncateUTF8(q.Get("q"), 100)); s != "" {
 		like := "%" + escapeLike(s) + "%"
-		cond := `o.order_no LIKE ? OR o.recipient_name LIKE ? OR u.name LIKE ? OR u.username LIKE ? OR o.recipient_phone LIKE ?`
-		args = append(args, like, like, like, like, like)
+		cond := `o.order_no LIKE ? OR o.recipient_name LIKE ? OR u.name LIKE ? OR u.username LIKE ? OR o.recipient_phone LIKE ? OR u.alias LIKE ?`
+		args = append(args, like, like, like, like, like, like)
 		if p, err := NormalizePhone(s); err == nil && p != "" {
 			cond += ` OR o.recipient_phone = ?`
 			args = append(args, p)
@@ -79,7 +89,7 @@ func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
 	items := []AdminOrderSummary{}
 	qargs := append(append([]any{}, args...), perPage, (page-1)*perPage)
 	if err := db.Raw(`SELECT o.id, o.order_no, o.status, o.total, o.recipient_name, o.city, o.created_at,
-		u.name AS customer_name, u.username,
+		u.name AS customer_name, u.username, u.id AS customer_id, u.alias AS customer_alias,
 		(SELECT COALESCE(SUM(qty), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count`+from_+where+
 		` ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?`, qargs...).Scan(&items).Error; err != nil {
 		log.Printf("admin pesanan: %v", err)
@@ -88,6 +98,7 @@ func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range items {
 		items[i].StatusLabel = statusLabel(items[i].Status)
+		items[i].Customer = AdminOrderCustomer{ID: items[i].CustomerID, Alias: items[i].CustomerAlias}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total, "page": page, "perPage": perPage})
 }
@@ -168,13 +179,15 @@ func (a *App) adminOrderDTO(db *gorm.DB, o *orderRow) (*AdminOrderDTO, error) {
 		Name     string  `gorm:"column:name"`
 		Email    string  `gorm:"column:email"`
 		Phone    *string `gorm:"column:phone"`
+		Alias    *string `gorm:"column:alias"`
 	}
-	if err := db.Raw(`SELECT username, name, email, phone FROM users WHERE id = ?`, o.UserID).Scan(&cust).Error; err != nil {
+	if err := db.Raw(`SELECT username, name, email, phone, alias FROM users WHERE id = ?`, o.UserID).Scan(&cust).Error; err != nil {
 		return nil, err
 	}
 	customer := map[string]any{}
 	if len(cust) > 0 {
-		customer = map[string]any{"username": cust[0].Username, "name": cust[0].Name, "email": cust[0].Email, "phone": cust[0].Phone}
+		customer = map[string]any{"id": o.UserID, "username": cust[0].Username, "name": cust[0].Name, "email": cust[0].Email,
+			"phone": cust[0].Phone, "alias": cust[0].Alias}
 	}
 	return &AdminOrderDTO{
 		ID: o.ID, OrderNo: o.OrderNo, Status: o.Status, StatusLabel: statusLabel(o.Status),
