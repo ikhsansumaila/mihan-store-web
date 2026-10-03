@@ -192,7 +192,7 @@ test('/keranjang: item, subtotal, produk nonaktif ditandai, checkout dinonaktifk
   expect(put.body).toEqual({ productId: 1, qty: 3 });
 });
 
-test('/checkout: hanya data penerima + idempotencyKey, klik ganda hanya satu permintaan, lalu halaman sukses', async () => {
+test('/checkout: hanya data penerima + idempotencyKey + expectedTotal, klik ganda hanya satu permintaan, lalu halaman sukses', async () => {
   mockState.cart = mockCart([{ productId: 1, name: 'Kerupuk Udang', price: 45000, qty: 2, lineTotal: 90000, available: true }]);
   mockState.order = sampleOrder;
   mockState.storeInfo = { storeWhatsapp: '+6281299998888', bankName: 'BCA', bankAccountNumber: '123', bankAccountHolder: 'Toko', paymentConfigured: true };
@@ -217,7 +217,8 @@ test('/checkout: hanya data penerima + idempotencyKey, klik ganda hanya satu per
   const posts = mockState.calls.filter((c) => c.method === 'post' && c.url.endsWith('/api/orders'));
   expect(posts).toHaveLength(1);
   const body = posts[0].body;
-  expect(Object.keys(body).sort()).toEqual(['address', 'city', 'idempotencyKey', 'note', 'postalCode', 'recipientName', 'recipientPhone']);
+  expect(Object.keys(body).sort()).toEqual(['address', 'city', 'expectedTotal', 'idempotencyKey', 'note', 'postalCode', 'recipientName', 'recipientPhone']);
+  expect(body.expectedTotal).toBe(90000); // total yang ditampilkan (harga grosir), diperiksa server
   expect(body.recipientName).toBe('Budi');
   expect(body.idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   expect(window.location.pathname).toBe('/pesanan/MS-261002-0001');

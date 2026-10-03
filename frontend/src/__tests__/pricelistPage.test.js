@@ -378,3 +378,48 @@ test('produk dibaca dari semua halaman API (per_page 100) dan dipecah jadi beber
   expect(drawn.some((t) => t.endsWith('(lanjutan)'))).toBe(true);
   expect(button('Unduh PNG').textContent).toContain(`${imgs.length} file`);
 });
+
+test('tampilan harga: Eceran + grosir (default), Eceran saja, Grosir saja; satuan di samping harga', async () => {
+  mockState.products = [
+    {
+      id: 1,
+      name: 'Kerupuk Finna Udang',
+      categoryId: 1,
+      categoryName: 'Kerupuk',
+      price: 45000,
+      unit: 'pak',
+      isActive: true,
+      tiers: [
+        { minQty: 10, type: 'fixed', value: 42000, unitPrice: 42000 },
+        { minQty: 50, type: 'percent', value: 10, unitPrice: 40500 },
+      ],
+    },
+    { id: 3, name: 'Tepung Beras', categoryId: 2, categoryName: 'Tepung', price: 32000, unit: 'kg', isActive: true, tiers: [] },
+  ];
+  await renderAt('/admin/pricelist');
+  await waitPreview();
+  const modes = [...container.querySelectorAll('input[name="pl-price-mode"]')];
+  expect(modes.map((m) => m.value)).toEqual(['both', 'retail', 'wholesale']);
+  expect(container.querySelector('input[name="pl-price-mode"]:checked').value).toBe('both');
+  expect(container.querySelector('[data-testid="pl-mode-help"]').textContent).toContain('1 produk terpilih punya harga grosir');
+  expect(container.textContent).toContain('Grosir (2 jenjang)');
+  const tierText = '10+ : Rp 42.000 · 50+ : Rp 40.500';
+  expect(drawn).toContain(tierText);
+  expect(drawn).toContain('Rp 45.000');
+  expect(drawn).toContain(' / pak');
+  expect(drawn).toContain(' / kg');
+
+  drawn = [];
+  await click(modes[1]);
+  await waitPreview();
+  expect(drawn).not.toContain(tierText);
+  expect(drawn).toContain('Rp 45.000');
+
+  drawn = [];
+  await click(modes[2]);
+  await waitPreview();
+  expect(drawn).toContain(tierText);
+  expect(drawn).toContain('per pak');
+  expect(drawn).not.toContain('Rp 45.000'); // eceran produk berjenjang disembunyikan
+  expect(drawn).toContain('Rp 32.000'); // produk tanpa jenjang tetap seperti biasa
+});
