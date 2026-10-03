@@ -4,12 +4,15 @@ import { adminFetch, qs, rupiah } from './api';
 import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { MAX_TIERS, UNIT_SUGGESTIONS, analyzeTiers, normalizeUnit, tiersToBody, tiersToRows } from '../pricing';
 import MoneyInput from '../components/MoneyInput';
+import ProductPhotoField, { uploadProductPhoto } from './ProductPhoto';
+import { SmallThumb } from '../shop/productImage';
 
 // Batas digit kolom uang: harga eceran/jenjang maksimal Rp 1.000.000.000 (10 digit) seperti batas server.
 const PRICE_MAX = 1000000000;
 const PRICE_DIGITS = 10;
 
-const emptyForm = { name: '', categoryId: '', price: '', unit: 'pcs', description: '', imagePath: '', isActive: true, tiers: [] };
+// Foto produk tidak lagi lewat "path gambar": diunggah lewat bagian "Foto produk" (image/thumb = URL foto tersimpan).
+const emptyForm = { name: '', categoryId: '', price: '', unit: 'pcs', description: '', image: '', thumb: '', isActive: true, tiers: [] };
 
 let tierKeySeq = 0;
 const newTierRow = () => {
@@ -156,10 +159,19 @@ export const TierEditor = ({ rows, onChange, basePrice, unit, serverErrors }) =>
   );
 };
 
-const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
+const ProductForm = ({ initial, categories, onCancel, onSaved, onChanged }) => {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Foto: tersimpan (current) dan foto baru terpilih (pending, sudah diperkecil di browser).
+  const [photo, setPhoto] = useState({ image: initial.image || '', thumb: initial.thumb || '' });
+  const [pending, setPending] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  // Produk baru yang sudah tersimpan (id) bila unggah fotonya gagal: simpan ulang memakai PUT, bukan POST.
+  const [createdId, setCreatedId] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const productId = initial.id || createdId;
   const [tierServerErrors, setTierServerErrors] = useState(null);
   const errRef = useRef(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -190,15 +202,20 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
       price,
       unit: unitNorm,
       description: form.description,
-      imagePath: form.imagePath.trim(),
       isActive: !!form.isActive,
       tiers: tiersToBody(form.tiers),
     };
     setSaving(true);
+    setUploadError(null);
+    let id = productId;
     try {
-      if (initial.id) await adminFetch(`/products/${initial.id}`, { method: 'PUT', body });
-      else await adminFetch('/products', { method: 'POST', body });
-      onSaved();
+      if (id) await adminFetch(`/products/${id}`, { method: 'PUT', body });
+      else {
+        const created = await adminFetch('/products', { method: 'POST', body });
+        id = created?.id;
+        if (id) setCreatedId(id);
+        onChanged?.();
+      }
     } catch (err) {
       const te = err?.data?.tierErrors;
       if (Array.isArray(te) && te.length) {
@@ -210,15 +227,64 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
         setTierServerErrors(byIndex);
       }
       fail(err);
-    } finally {
       setSaving(false);
+      return undefined;
     }
+    setSaving(false);
+    if (pending && id) {
+      const ok = await doUpload(id);
+      if (!ok) return undefined;
+    }
+    onSaved();
+    return undefined;
+  };
+
+  // Unggah foto baru ke produk id. false bila gagal (produk tetap tersimpan; pesan + tombol coba lagi).
+  const doUpload = async (id) => {
+    setUploading(true);
+    setProgress(0);
+    setUploadError(null);
+    try {
+      const res = await uploadProductPhoto(id, pending.blob, setProgress);
+      setPhoto({ image: res?.image || '', thumb: res?.thumb || '' });
+      setPending(null);
+      return true;
+    } catch (err) {
+      setUploadError(err);
+      setTimeout(() => errRef.current?.scrollIntoView?.({ block: 'nearest' }), 0);
+      return false;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const retryUpload = async () => {
+    if (!productId || !pending) return;
+    if (await doUpload(productId)) onSaved();
   };
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div ref={errRef}>
         <ErrorBox error={error} />
+        {uploadError && (
+          <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="photo-upload-failed">
+            <p className="font-semibold">Produk sudah tersimpan, tetapi foto gagal diunggah.</p>
+            <p className="mt-1">
+              {uploadError.sessionExpired ? 'Sesi admin berakhir, muat ulang halaman lalu unggah lagi lewat Ubah.' : uploadError.message}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {!uploadError.sessionExpired && pending && (
+                <button type="button" className={btnPrimary} onClick={retryUpload} disabled={uploading}>
+                  Coba unggah lagi
+                </button>
+              )}
+              <button type="button" className={btnSecondary} onClick={onSaved} disabled={uploading}>
+                Tutup (foto bisa ditambahkan nanti)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1">Nama produk</label>
@@ -290,12 +356,23 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
         <label className="block text-sm font-semibold text-gray-700 mb-1">Deskripsi</label>
         <textarea className={inputClass} rows={3} maxLength={2000} value={form.description} onChange={set('description')} />
       </div>
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Path gambar <span className="font-normal text-gray-500">(opsional, upload menyusul)</span>
-        </label>
-        <input className={inputClass} maxLength={255} value={form.imagePath} onChange={set('imagePath')} placeholder="kerupuk5.jpg" />
-      </div>
+      <ProductPhotoField
+        productId={productId}
+        name={form.name}
+        current={photo}
+        pending={pending}
+        onPending={(p) => {
+          setUploadError(null);
+          setPending(p);
+        }}
+        onDeleted={() => {
+          setPhoto({ image: '', thumb: '' });
+          onChanged?.();
+        }}
+        uploading={uploading}
+        progress={progress}
+        disabled={saving}
+      />
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" checked={!!form.isActive} onChange={set('isActive')} /> Aktif (tampil di toko)
       </label>
@@ -303,8 +380,8 @@ const ProductForm = ({ initial, categories, onCancel, onSaved }) => {
         <button type="button" className={btnSecondary} onClick={onCancel}>
           Batal
         </button>
-        <button type="submit" className={btnPrimary} disabled={saving}>
-          {saving ? 'Menyimpan...' : 'Simpan'}
+        <button type="submit" className={btnPrimary} disabled={saving || uploading}>
+          {saving ? 'Menyimpan...' : uploading ? 'Mengunggah foto…' : 'Simpan'}
         </button>
       </div>
     </form>
@@ -444,8 +521,13 @@ const Products = () => {
                 <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 text-gray-500">{p.id}</td>
                   <td className="px-3 py-2">
-                    <div className="font-medium text-gray-800">{p.name}</div>
-                    {p.description && <div className="text-xs text-gray-500 line-clamp-1 max-w-xs">{p.description}</div>}
+                    <div className="flex items-center gap-2">
+                      <SmallThumb src={p.thumb} alt={p.name} size={40} />
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-800">{p.name}</div>
+                        {p.description && <div className="text-xs text-gray-500 line-clamp-1 max-w-xs">{p.description}</div>}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     {p.categoryName}
@@ -488,7 +570,8 @@ const Products = () => {
                           unit: p.unit || 'pcs',
                           tiers: tiersToRows(p.tiers),
                           description: p.description || '',
-                          imagePath: p.imagePath || '',
+                          image: p.image || '',
+                          thumb: p.thumb || '',
                           isActive: p.isActive,
                         })
                       }
@@ -517,6 +600,7 @@ const Products = () => {
               setEditing(null);
               load();
             }}
+            onChanged={load}
           />
         </Modal>
       )}

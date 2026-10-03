@@ -63,3 +63,52 @@ export const fmtTime = (iso) => {
     return iso;
   }
 };
+
+// Unggah berkas (multipart/form-data, field "file") ke /api/admin{path} dengan kemajuan unggah.
+// XMLHttpRequest dipakai karena fetch belum menyediakan kemajuan unggah. Galat sama seperti adminFetch:
+// sesi Access berakhir -> AdminSessionError; galat server -> Error(pesan server) dengan .status.
+export const adminUpload = (path, blob, { filename = 'foto.jpg', onProgress, method = 'POST' } = {}) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `/api/admin${path}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('X-Requested-With', ADMIN_HEADER['X-Requested-With']);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.responseType = 'text';
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+      };
+    }
+    // Pengalihan lintas domain ke login Cloudflare Access berakhir sebagai galat jaringan.
+    xhr.onerror = () => reject(new AdminSessionError());
+    xhr.ontimeout = () => reject(new Error('Unggahan terlalu lama. Periksa koneksi lalu coba lagi.'));
+    xhr.timeout = 120000;
+    xhr.onload = () => {
+      const ct = xhr.getResponseHeader('content-type') || '';
+      if (xhr.status === 0 || !ct.includes('application/json')) {
+        reject(xhr.status === 413 ? Object.assign(new Error('Ukuran foto melebihi 2 MB.'), { status: 413 }) : new AdminSessionError());
+        return;
+      }
+      let data = null;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        data = null;
+      }
+      if (xhr.status === 401) {
+        reject(new AdminSessionError());
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const err = new Error(data?.error || `Unggahan gagal (${xhr.status})`);
+        err.status = xhr.status;
+        reject(err);
+        return;
+      }
+      resolve(data);
+    };
+    const fd = new FormData();
+    fd.append('file', blob, filename);
+    xhr.send(fd);
+  });

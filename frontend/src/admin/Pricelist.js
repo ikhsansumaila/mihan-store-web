@@ -23,7 +23,7 @@ import {
   defaultOrderUrl,
   waShareUrl,
 } from '../pricelist/layout';
-import { renderPricelist, canvasToBlob, loadLogo } from '../pricelist/render';
+import { renderPricelist, canvasToBlob, loadLogo, loadPhotos } from '../pricelist/render';
 import { canShareFiles, copyText, downloadAll, downloadBlob, shareFiles, toFiles } from '../pricelist/share';
 
 // Halaman Pricelist: pilih produk, atur judul/tanggal/catatan/tema/kolom, pratinjau PNG langsung (dibuat di
@@ -151,6 +151,9 @@ const Pricelist = () => {
   const [theme, setTheme] = useState(DEFAULT_THEME);
   const [columns, setColumns] = useState(1);
   const [priceMode, setPriceMode] = useState(DEFAULT_PRICE_MODE);
+  // Opsi foto produk di gambar (bawaan mati). Thumbnail dimuat same-origin sebelum menggambar.
+  const [showPhotos, setShowPhotos] = useState(false);
+  const photoCacheRef = useRef(new Map());
   const [selected, setSelected] = useState(() => new Set());
   const [customText, setCustomText] = useState(null);
   const [logo, setLogo] = useState(undefined); // undefined = sedang dimuat
@@ -216,7 +219,17 @@ const Pricelist = () => {
     setPreview((p) => ({ ...p, busy: true }));
     const t = setTimeout(async () => {
       try {
-        const rendered = renderPricelist({ groups, columns, title, dateText, note, orderUrl: renderUrl, theme, priceMode }, { logo });
+        const photos = showPhotos
+          ? await loadPhotos(
+              groups.flatMap((g) => g.items),
+              { cache: photoCacheRef.current }
+            )
+          : null;
+        if (cancelled) return;
+        const rendered = renderPricelist(
+          { groups, columns, title, dateText, note, orderUrl: renderUrl, theme, priceMode, showPhotos },
+          { logo, photos }
+        );
         const blobs = await Promise.all(rendered.map((r) => canvasToBlob(r.canvas)));
         if (cancelled) return;
         const pages = rendered.map((r, i) => ({
@@ -237,7 +250,7 @@ const Pricelist = () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [catalog, groups, columns, title, dateText, note, renderUrl, theme, priceMode, logo, today]);
+  }, [catalog, groups, columns, title, dateText, note, renderUrl, theme, priceMode, showPhotos, logo, today]);
 
   const toggle = useCallback((id) => {
     setSelected((prev) => {
@@ -396,6 +409,24 @@ const Pricelist = () => {
                 : 'Belum ada produk terpilih yang punya harga grosir; gambar hanya memuat harga eceran.'}
             </p>
           </fieldset>
+          <div>
+            <label htmlFor="pl-photos" className="flex cursor-pointer items-start gap-2 text-sm text-gray-800">
+              <input
+                id="pl-photos"
+                type="checkbox"
+                className="mt-0.5 h-5 w-5 shrink-0 accent-purple-700"
+                checked={showPhotos}
+                onChange={(e) => setShowPhotos(e.target.checked)}
+                data-testid="pl-photos"
+              />
+              <span>
+                <span className="font-semibold">Tampilkan foto produk</span>
+                <span className="block text-xs text-gray-500">
+                  Foto kecil di kiri tiap produk (bawaan mati). Produk tanpa foto mendapat kotak kosong. Gambar menjadi lebih panjang.
+                </span>
+              </span>
+            </label>
+          </div>
           <div>
             <Label htmlFor="pl-url" hint="(untuk pelanggan memesan)">
               Alamat web pemesanan

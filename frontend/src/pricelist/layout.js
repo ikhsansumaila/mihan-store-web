@@ -86,6 +86,8 @@ export const toItem = (p) => ({
   categoryId: p.categoryId ?? null,
   categoryName: p.categoryName || '',
   active: p.isActive !== false,
+  // URL thumbnail same-origin ("/uploads/...") untuk opsi "Tampilkan foto produk"; '' bila tidak ada foto.
+  thumb: /^\/[^/\s]\S*$/.test(String(p.thumb || '').trim()) ? String(p.thumb).trim() : '',
 });
 
 // Teks per jenjang: "10+ : Rp 42.000".

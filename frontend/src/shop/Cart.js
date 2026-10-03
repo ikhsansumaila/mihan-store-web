@@ -4,6 +4,7 @@ import { errorMessage } from '../auth';
 import { ackCartPrices, removeCartItem, setCartQty, isUnauthorized } from './api';
 import { useCart } from './CartContext';
 import { perUnit, rupiah, tierNote } from './format';
+import { SmallThumb } from './productImage';
 
 export const Notice = ({ kind = 'info', children }) => {
   const cls = {
@@ -167,6 +168,8 @@ const Cart = () => {
 
   if (loading && !cart) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-600">Memuat keranjang...</p>;
   const items = cart?.items || [];
+  // Kolom foto kecil hanya tampil bila minimal satu produk punya foto (baris lain: placeholder netral).
+  const showThumbs = items.some((i) => i.thumb);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -196,14 +199,17 @@ const Cart = () => {
           <ul className="bg-white rounded-xl shadow divide-y">
             {items.map((it) => (
               <li key={it.productId} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${it.available ? '' : 'bg-gray-50'}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-800 break-words">{it.name}</div>
-                  <CartItemPricing item={it} onAck={ack} acking={acking} />
-                  {!it.available && (
-                    <span className="inline-block mt-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded px-2 py-0.5">
-                      Tidak tersedia
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0 flex gap-3">
+                  {showThumbs && <SmallThumb src={it.thumb} alt={it.name} size={48} className={it.available ? '' : 'opacity-60'} />}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-800 break-words">{it.name}</div>
+                    <CartItemPricing item={it} onAck={ack} acking={acking} />
+                    {!it.available && (
+                      <span className="inline-block mt-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded px-2 py-0.5">
+                        Tidak tersedia
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4">
                   {it.available ? (

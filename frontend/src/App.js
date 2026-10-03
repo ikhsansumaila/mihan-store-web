@@ -13,6 +13,9 @@ import Cart from './shop/Cart';
 import Checkout from './shop/Checkout';
 import { MyOrders, OrderDetail } from './shop/Orders';
 import { perUnit, rupiah } from './shop/format';
+import { safeImageUrl } from './shop/productImage';
+
+export { safeImageUrl };
 
 const API_BASE_URL = '/api';
 
@@ -37,16 +40,13 @@ const CartGlyph = ({ className }) => (
   </svg>
 );
 
-// URL gambar produk yang bisa dimuat langsung. Saat ini toko belum menyajikan berkas gambar (kolom `image`
-// hanya nama berkas, mis. "kerupuk1.jpg", tanpa berkas fisik), jadi hanya URL absolut http(s) atau path
-// berawalan "/" yang dipakai; selain itu langsung placeholder (tanpa permintaan jaringan yang pasti gagal).
-export const productImageUrl = (product) => {
-  const s = String(product?.image || '').trim();
-  return /^https?:\/\/\S+$/i.test(s) || /^\/[^/\s]\S*$/.test(s) ? s : null;
-};
+// URL gambar kartu produk: thumbnail (sisi terpanjang 400 px, dari /api/products `thumb`) bila ada,
+// selain itu foto utama (`image`).
+export const productImageUrl = (product) => safeImageUrl(product?.thumb) || safeImageUrl(product?.image);
 
 // Area gambar kartu: gambar (object-cover) bila ada; placeholder bila tidak ada atau gagal dimuat.
-// >= 640px: tinggi h-48 seperti sebelumnya; HP: rasio 4/3 dan ikon lebih kecil.
+// >= 640px: tinggi h-48 seperti sebelumnya; HP: rasio 4/3 dan ikon lebih kecil. Ukuran area ditentukan wadah
+// (bukan gambar), jadi gambar yang dimuat belakangan (lazy) tidak menggeser tata letak.
 export const ProductImage = ({ product }) => {
   const src = productImageUrl(product);
   const [failed, setFailed] = useState(false);
@@ -59,7 +59,16 @@ export const ProductImage = ({ product }) => {
       }`}
     >
       {showImg ? (
-        <img src={src} alt={product.name} loading="lazy" className="w-full h-full object-cover" onError={() => setFailed(true)} />
+        <img
+          src={src}
+          alt={product.name}
+          loading="lazy"
+          decoding="async"
+          width={400}
+          height={300}
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
       ) : (
         <span data-testid="product-image-placeholder" role="img" aria-label={`Gambar ${product.name} belum tersedia`}>
           🖼️

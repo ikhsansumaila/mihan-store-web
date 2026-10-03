@@ -62,6 +62,49 @@ export const loadLogo = (src = LOGO_SRC) =>
     return undefined;
   });
 
+// Foto produk (opsi "Tampilkan foto produk"): thumbnail persegi dipotong tengah di kiri baris.
+export const PHOTO_SIZE = { 1: 96, 2: 84 };
+export const PHOTO_GAP = 18;
+export const PHOTO_TIMEOUT_MS = 8000;
+
+// Muat satu thumbnail same-origin (tanpa crossOrigin -> canvas tidak tercemar). null bila gagal/terlalu lama.
+const loadOnePhoto = (src, timeoutMs) =>
+  new Promise((resolve) => {
+    if (!src || typeof Image === 'undefined') return resolve(null);
+    let done = false;
+    let timer = null;
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const img = new Image();
+    timer = setTimeout(() => finish(null), timeoutMs);
+    img.onload = () => finish(img.naturalWidth && img.naturalHeight ? img : null);
+    img.onerror = () => finish(null);
+    img.decoding = 'async';
+    img.src = src;
+    return undefined;
+  });
+
+// Muat thumbnail semua produk terpilih SEBELUM menggambar: Map(id -> Image | null). Gagal/lewat batas waktu ->
+// null (digambar sebagai kotak placeholder). Hanya path same-origin ("/uploads/...") yang dimuat.
+export const loadPhotos = async (items, { timeoutMs = PHOTO_TIMEOUT_MS, cache } = {}) => {
+  const out = new Map();
+  await Promise.all(
+    (items || []).map(async (it) => {
+      const src = /^\/[^/\s]\S*$/.test(String(it.thumb || '')) ? it.thumb : '';
+      if (!src) return out.set(it.id, null);
+      if (cache && cache.has(src)) return out.set(it.id, cache.get(src));
+      const img = await loadOnePhoto(src, timeoutMs);
+      if (cache) cache.set(src, img);
+      return out.set(it.id, img);
+    })
+  );
+  return out;
+};
+
 const defaultCreateCanvas = () => document.createElement('canvas');
 
 const measurer = (ctx, f) => (s) => {
@@ -70,8 +113,14 @@ const measurer = (ctx, f) => (s) => {
 };
 
 // Hitung tata letak semua halaman. groups: hasil groupProducts().
-export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, orderUrl, priceMode = DEFAULT_PRICE_MODE }, mctx) => {
+export const layoutPricelist = (
+  { groups, columns = 1, title, dateText, note, orderUrl, priceMode = DEFAULT_PRICE_MODE, showPhotos = false },
+  mctx
+) => {
   const cols = columns === 2 ? 2 : 1;
+  // Opsi foto: kolom foto persegi di kiri sel; teks bergeser, tinggi baris minimal setinggi foto.
+  const photo = showPhotos ? PHOTO_SIZE[cols] : 0;
+  const photoW = showPhotos ? photo + PHOTO_GAP : 0;
   const textX = M + G.logo + 36;
   const textW = WIDTH - textX - M;
   const titleLines = wrapText(title || '', textW, measurer(mctx, font(800, G.titleSize)), 2);
@@ -104,11 +153,11 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, or
       const unitText = showBase ? ` / ${unit}` : `per ${unit}`;
       const unitW = mUnit(unitText);
       const priceW = (price ? mPrice(price) : 0) + unitW;
-      const nameW = Math.max(80, cellW - 2 * G.cellPadX - priceW - 24);
+      const nameW = Math.max(80, cellW - 2 * G.cellPadX - photoW - priceW - 24);
       const lines = wrapText(it.name, nameW, mName, 2);
-      const tierLines = showTiers ? wrapSegments(tierSegments(it.tiers), cellW - 2 * G.cellPadX, mTier, G.tierMaxLines) : [];
+      const tierLines = showTiers ? wrapSegments(tierSegments(it.tiers), cellW - 2 * G.cellPadX - photoW, mTier, G.tierMaxLines) : [];
       const contentH = lines.length * G.nameLH + (tierLines.length ? G.tierGap + tierLines.length * tierLH : 0);
-      return { ...it, priceText: price, unitText, unitW, lines, tierLines, contentH, h: contentH + 2 * G.rowPadY };
+      return { ...it, priceText: price, unitText, unitW, lines, tierLines, contentH, h: Math.max(contentH, photo) + 2 * G.rowPadY };
     });
     return { key: g.key, name: g.name, rows: toRows(items, cols, (c) => c.h) };
   });
@@ -135,7 +184,36 @@ export const layoutPricelist = ({ groups, columns = 1, title, dateText, note, or
     url,
     pages,
     textX,
+    showPhotos: !!showPhotos,
+    photo,
+    photoW,
   };
+};
+
+// Gambar foto (dipotong tengah, sudut membulat) atau kotak placeholder netral bila tidak ada/gagal dimuat.
+const drawPhoto = (ctx, img, x, y, size) => {
+  const call = (m, ...a) => typeof ctx[m] === 'function' && ctx[m](...a);
+  call('save');
+  roundRect(ctx, x, y, size, size, 12);
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fill();
+  if (img && img.naturalWidth && img.naturalHeight) {
+    call('clip');
+    const s = Math.max(size / img.naturalWidth, size / img.naturalHeight);
+    const sw = size / s;
+    const sh = size / s;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, x, y, size, size);
+  } else {
+    // Placeholder: bingkai gambar sederhana abu-abu.
+    ctx.fillStyle = '#d1d5db';
+    const m = size * 0.28;
+    ctx.fillRect(x + m, y + size * 0.62, size - 2 * m, size * 0.06);
+    roundRect(ctx, x + size * 0.36, y + size * 0.3, size * 0.16, size * 0.16, size * 0.08);
+    ctx.fill();
+  }
+  call('restore');
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -150,7 +228,7 @@ const roundRect = (ctx, x, y, w, h, r) => {
 };
 
 // Gambar satu halaman ke ctx (ukuran kanvas sudah WIDTH x page.canvasHeight).
-export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } = {}) => {
+export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null, photos = null } = {}) => {
   const T = THEMES[theme] || THEMES[DEFAULT_THEME];
   const page = L.pages[index];
   const H = page.canvasHeight;
@@ -231,10 +309,13 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
         // Isi sel (nama maks 2 baris + baris jenjang) di tengah vertikal baris; harga + satuan rata kanan,
         // sejajar tengah blok nama. Tanpa jenjang: sama seperti sebelumnya (nama & harga di tengah baris).
         const top = y + (row.h - cell.contentH) / 2;
+        // Opsi foto: kotak foto di kiri (tengah vertikal), teks mulai setelahnya.
+        const tx = x + G.cellPadX + (L.showPhotos ? L.photoW : 0);
+        if (L.showPhotos) drawPhoto(ctx, photos ? photos.get(cell.id) : null, x + G.cellPadX, y + (row.h - L.photo) / 2, L.photo);
         ctx.fillStyle = '#111827';
         ctx.textAlign = 'left';
         ctx.font = font(500, L.nameSize);
-        cell.lines.forEach((line, li) => ctx.fillText(line, x + G.cellPadX, top + G.nameLH / 2 + li * G.nameLH));
+        cell.lines.forEach((line, li) => ctx.fillText(line, tx, top + G.nameLH / 2 + li * G.nameLH));
         const midY = top + (cell.lines.length * G.nameLH) / 2;
         const right = x + L.cellW - G.cellPadX;
         ctx.textAlign = 'right';
@@ -251,7 +332,7 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
           ctx.fillStyle = L.priceMode === 'wholesale' ? T.primary : T.accent;
           ctx.font = font(600, L.tierSize);
           const ty0 = top + cell.lines.length * G.nameLH + G.tierGap + L.tierLH / 2;
-          cell.tierLines.forEach((line, ti) => ctx.fillText(line, x + G.cellPadX, ty0 + ti * L.tierLH));
+          cell.tierLines.forEach((line, ti) => ctx.fillText(line, tx, ty0 + ti * L.tierLH));
         }
       });
       y += row.h;
@@ -289,7 +370,7 @@ export const drawPage = (ctx, L, index, { theme = DEFAULT_THEME, logo = null } =
 };
 
 // Buat semua halaman sebagai kanvas. Melempar Error bila Canvas 2D tidak tersedia.
-export const renderPricelist = (opts, { createCanvas = defaultCreateCanvas, logo = null } = {}) => {
+export const renderPricelist = (opts, { createCanvas = defaultCreateCanvas, logo = null, photos = null } = {}) => {
   const probe = createCanvas();
   const mctx = probe.getContext && probe.getContext('2d');
   if (!mctx) throw new Error('Browser ini tidak mendukung pembuatan gambar (Canvas).');
@@ -299,7 +380,7 @@ export const renderPricelist = (opts, { createCanvas = defaultCreateCanvas, logo
     canvas.width = WIDTH;
     canvas.height = p.canvasHeight;
     const ctx = canvas.getContext('2d');
-    drawPage(ctx, L, i, { theme: opts.theme, logo });
+    drawPage(ctx, L, i, { theme: opts.theme, logo, photos });
     return { canvas, width: WIDTH, height: p.canvasHeight };
   });
 };
