@@ -35,6 +35,7 @@ const StatCard = ({ icon, tone, label, value, sub, to }) => (
 const SHORTCUTS = [
   { to: '/admin/products?tambah=1', label: 'Tambah Produk', desc: 'Buat produk baru di katalog', icon: 'plus' },
   { to: '/admin/orders?status=pending_payment', label: 'Pesanan baru', desc: 'Pesanan menunggu pembayaran', icon: 'cart' },
+  { to: '/admin/customers', label: 'Pelanggan', desc: 'Daftar pelanggan & alias', icon: 'users' },
   { to: '/admin/pricelist', label: 'Buat Pricelist', desc: 'Gambar daftar harga untuk WhatsApp', icon: 'pricelist' },
   { to: '/admin/settings', label: 'Pengaturan Toko', desc: 'WhatsApp & rekening bank', icon: 'settings' },
   { to: '/admin/activity', label: 'Log Aktivitas', desc: 'Riwayat perubahan & akses', icon: 'clock' },
@@ -58,12 +59,13 @@ const Dashboard = () => {
       {error && <ErrorBox error={error} />}
 
       <section aria-label="Statistik">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           <StatCard icon="box" tone="purple" label="Produk aktif" value={p.active ?? 0} sub={`${p.total ?? 0} total · ${p.inactive ?? 0} nonaktif`} to="/admin/products" />
           <StatCard icon="tag" tone="blue" label="Kategori" value={data.categories ?? 0} to="/admin/categories" />
           <StatCard icon="alert" tone="amber" label="Menunggu pembayaran" value={o.pendingPayment ?? 0} sub="perlu dicek transfernya" to="/admin/orders?status=pending_payment" />
           <StatCard icon="check" tone="green" label="Dibayar" value={o.paid ?? 0} sub="siap dikirim / diselesaikan" to="/admin/orders?status=paid" />
           <StatCard icon="chart" tone="slate" label="Pesanan 7 hari terakhir" value={o.last7Days ?? 0} to="/admin/orders" />
+          <StatCard icon="users" tone="blue" label="Pelanggan" value={data.customers ?? 0} sub="akun pelanggan terdaftar" to="/admin/customers" />
         </div>
       </section>
 
@@ -71,7 +73,7 @@ const Dashboard = () => {
         <h2 id="pintasan-cepat" className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Pintasan cepat
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {SHORTCUTS.map((s) => (
             <Link
               key={s.label}

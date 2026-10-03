@@ -5,6 +5,7 @@ import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSeco
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 import MoneyInput from '../components/MoneyInput';
+import { AliasEditModal } from './AliasEditModal';
 
 // Batas server (backend/order_logic.go): ongkir maks. Rp 10.000.000, subtotal maks. Rp 2.000.000.000.
 const SHIPPING_MAX = 10000000;
@@ -60,7 +61,7 @@ export const OrdersList = () => {
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pesanan</h1>
       <form onSubmit={apply} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
         <label className="block lg:col-span-2">
-          <span className="block text-xs font-semibold text-gray-600 mb-1">Cari (no. pesanan, nama, telepon)</span>
+          <span className="block text-xs font-semibold text-gray-600 mb-1">Cari (no. pesanan, nama, alias, telepon)</span>
           <input className={inputClass} value={draft.q} onChange={set('q')} maxLength={100} placeholder="MS-261002-0001" />
         </label>
         <label className="block">
@@ -135,7 +136,16 @@ export const OrdersList = () => {
                   </td>
                   <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
                   <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
-                    <div>{o.customerName}</div>
+                    {o.customer?.alias ? (
+                      <>
+                        <div className="font-semibold text-purple-800" data-testid="order-alias">
+                          {o.customer.alias}
+                        </div>
+                        <div className="text-xs text-gray-600">{o.customerName}</div>
+                      </>
+                    ) : (
+                      <div>{o.customerName}</div>
+                    )}
                     <div className="text-xs text-gray-500">
                       → {o.recipientName}, {o.city}
                     </div>
@@ -308,6 +318,8 @@ export const AdminOrderDetail = () => {
   const [error, setError] = useState(null);
   const [action, setAction] = useState(null);
   const [printing, setPrinting] = useState(false);
+  const [useAlias, setUseAlias] = useState(false);
+  const [editAlias, setEditAlias] = useState(false);
 
   useEffect(() => {
     setError(null);
@@ -321,11 +333,12 @@ export const AdminOrderDetail = () => {
   if (!order) return <p className="text-gray-500">Memuat...</p>;
 
   const r = order.recipient || {};
+  const alias = order.customer?.alias || '';
   const wa = waLink(r.phone, buildAdminSummaryText(order, settings));
   const printInvoice = async () => {
     setPrinting(true);
     try {
-      await generateInvoicePdf(orderToInvoice(order, settings));
+      await generateInvoicePdf(orderToInvoice(order, settings, { useAlias: useAlias && !!alias }));
     } finally {
       setPrinting(false);
     }
@@ -345,9 +358,23 @@ export const AdminOrderDetail = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           {order.status !== 'cancelled' && (
-            <button type="button" className={btnSecondary} onClick={printInvoice} disabled={printing}>
-              {printing ? 'Menyiapkan...' : 'Cetak invoice'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={btnSecondary} onClick={printInvoice} disabled={printing}>
+                {printing ? 'Menyiapkan...' : 'Cetak invoice'}
+              </button>
+              {alias && (
+                <label className="inline-flex items-center gap-1.5 text-sm text-gray-700" title={`Nama di invoice: ${alias}`}>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-purple-700 focus:ring-purple-500"
+                    checked={useAlias}
+                    onChange={(e) => setUseAlias(e.target.checked)}
+                    data-testid="invoice-use-alias"
+                  />
+                  Pakai nama alias
+                </label>
+              )}
+            </div>
           )}
           {wa ? (
             <a href={wa} target="_blank" rel="noopener noreferrer" className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-600">
@@ -477,10 +504,30 @@ export const AdminOrderDetail = () => {
             </div>
           </Card>
           <Card title="Akun pemesan">
-            <div className="text-sm">
-              <div className="font-medium">{order.customer?.name}</div>
+            <div className="text-sm space-y-0.5" data-testid="order-customer">
+              <div className="text-xs text-gray-500">Alias (hanya admin)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {alias ? (
+                  <span className="font-semibold text-purple-800" data-testid="order-detail-alias">
+                    {alias}
+                  </span>
+                ) : (
+                  <span className="text-xs italic text-gray-400">Belum ada alias</span>
+                )}
+                {order.customer?.id ? (
+                  <button type="button" className="text-xs font-medium text-purple-700 underline" onClick={() => setEditAlias(true)}>
+                    {alias ? 'Ubah alias' : 'Beri alias'}
+                  </button>
+                ) : null}
+              </div>
+              <div className="font-medium pt-1">{order.customer?.name}</div>
               <div className="text-gray-600">@{order.customer?.username}</div>
               <div className="text-gray-600 break-all">{order.customer?.email}</div>
+              {order.customer?.id ? (
+                <Link to={`/admin/customers/${order.customer.id}`} className="inline-block pt-1 text-xs font-medium text-purple-700 hover:underline">
+                  Lihat halaman pelanggan ›
+                </Link>
+              ) : null}
             </div>
           </Card>
           <Card title="Pembayaran">
@@ -506,6 +553,18 @@ export const AdminOrderDetail = () => {
           </Card>
         </div>
       </div>
+
+      {editAlias && (
+        <AliasEditModal
+          customer={order.customer}
+          onClose={() => setEditAlias(false)}
+          onSaved={(a) => {
+            setOrder((o) => ({ ...o, customer: { ...o.customer, alias: a } }));
+            if (!a) setUseAlias(false);
+            setEditAlias(false);
+          }}
+        />
+      )}
 
       {action && (
         <StatusAction

@@ -22,13 +22,14 @@ const loadImage = (url) =>
   });
 
 // Ubah pesanan (respons GET /api/admin/orders/{id}) menjadi parameter invoice.
-export const orderToInvoice = (order, settings = {}) => {
+// opts.useAlias: nama di invoice = alias pelanggan (khusus admin, bawaan MATI); tanpa alias tetap nama penerima.
+export const orderToInvoice = (order, settings = {}, opts = {}) => {
   const payment =
     settings.bank_name && settings.bank_account_number && settings.bank_account_holder
       ? { bankName: settings.bank_name, accountNumber: settings.bank_account_number, accountHolder: settings.bank_account_holder }
       : DEFAULT_PAYMENT;
   return {
-    customerName: order.recipient?.name || order.customer?.name || '-',
+    customerName: (opts.useAlias && order.customer?.alias) || order.recipient?.name || order.customer?.name || '-',
     // unit/tierMinQty: snapshot satuan & harga grosir (null untuk pesanan lama -> tampil seperti dulu, "PCS").
     items: (order.items || []).map((it) => ({
       name: it.name,

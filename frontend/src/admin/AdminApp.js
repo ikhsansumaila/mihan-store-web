@@ -12,6 +12,7 @@ import { OrdersList, AdminOrderRoute } from './Orders';
 import Settings from './Settings';
 import Pricelist from './Pricelist';
 import Regions from './Regions';
+import { CustomersList, CustomerDetail } from './Customers';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
@@ -58,6 +59,8 @@ const AdminApp = () => {
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<OrdersListRoute />} />
         <Route path="orders/:id" element={<AdminOrderRoute />} />
+        <Route path="customers" element={<CustomersList />} />
+        <Route path="customers/:id" element={<CustomerDetail />} />
         <Route path="settings" element={<Settings />} />
         <Route path="regions" element={<Regions />} />
         <Route path="products" element={<Products />} />
