@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
-import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { ErrorBox, Modal, cardClass, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { InfiniteFooter, peekListSnapshot, useInfiniteList } from './infiniteList';
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 import MoneyInput from '../components/MoneyInput';
@@ -98,44 +99,46 @@ const StatusTabs = ({ active, counts, onSelect }) => {
   );
 };
 
+// Nama pemesan (alias bila ada) + penerima; dipakai baris tabel dan kartu HP.
+const OrderParty = ({ o, aliasTestId }) => (
+  <>
+    {o.customer?.alias ? (
+      <>
+        <div className="font-semibold text-purple-800" data-testid={aliasTestId}>
+          {o.customer.alias}
+        </div>
+        <div className="text-xs text-gray-600">{o.customerName}</div>
+      </>
+    ) : (
+      <div>{o.customerName}</div>
+    )}
+    <div className="text-xs text-gray-500">
+      → {o.recipientName}, {o.city}
+    </div>
+  </>
+);
+
+const LIST_CACHE_ID = 'admin-orders';
+
 export const OrdersList = () => {
   // Tab status disimpan di URL (?status=...): refresh/kembali tetap di tab yang sama, pintasan Dashboard
   // (?status=pending_payment) langsung membuka tabnya. Tanpa ?status = tab "Semua".
   const [searchParams, setSearchParams] = useSearchParams();
   const status = tabFromSearch(searchParams);
   const { summary } = useAdminSummary();
-  const [filters, setFilters] = useState(emptyFilters);
-  const [draft, setDraft] = useState(emptyFilters);
-  // Halaman dikaitkan ke tab: ganti tab (klik atau URL berubah) selalu mulai dari halaman 1.
-  const [pageState, setPageState] = useState({ status, page: 1 });
-  const page = pageState.status === status ? pageState.page : 1;
-  const setPage = (p) => setPageState({ status, page: p });
-  const [data, setData] = useState({ items: [], total: 0, perPage: 20 });
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await adminFetch(`/orders${qs({ status, ...filters, page, per_page: 20 })}`));
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [status, filters, page]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Kembali dari detail: filter pencarian/tanggal ikut dipulihkan dari snapshot daftar.
+  const [initialFilters] = useState(() => peekListSnapshot(LIST_CACHE_ID)?.extra || emptyFilters);
+  const [filters, setFilters] = useState(initialFilters);
+  const [draft, setDraft] = useState(initialFilters);
+  const topRef = useRef(null);
+  // Gulir tanpa batas: ganti tab/pencarian/tanggal = mulai lagi dari halaman 1 (urutan parameter tetap).
+  const list = useInfiniteList('/orders', { status, ...filters }, { cacheId: LIST_CACHE_ID, topRef });
 
   const selectTab = (value) => {
     if (value === status) return;
     const next = new URLSearchParams(searchParams);
     if (value) next.set('status', value);
     else next.delete('status');
-    setPageState({ status: value, page: 1 });
     setSearchParams(next, { replace: true });
   };
 
@@ -147,12 +150,14 @@ export const OrdersList = () => {
 
   const apply = (e) => {
     e.preventDefault();
-    setPage(1);
     setFilters({ ...draft, q: draft.q.trim() });
   };
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   // Diteruskan ke detail agar tautan "Semua pesanan" kembali ke tab yang sama.
   const listSearch = searchParams.toString() ? `?${searchParams}` : '';
+  const detailLink = (o) => ({ to: `/admin/orders/${o.id}`, state: { ordersSearch: listSearch }, onClick: () => list.remember(filters) });
+  const empty = !list.loading && !list.error && list.items.length === 0;
+  const firstLoad = list.loading && list.items.length === 0;
 
   return (
     <div>
@@ -177,7 +182,6 @@ export const OrdersList = () => {
             onClick={() => {
               setDraft(emptyFilters);
               setFilters(emptyFilters);
-              setPage(1);
             }}
           >
             Reset
@@ -187,72 +191,91 @@ export const OrdersList = () => {
           </button>
         </div>
       </form>
-      <ErrorBox error={error} />
-      {/* Kartu daftar: tab status menempel di tepi atas, tepat di atas judul kolom tabel. */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden" data-testid="order-list-card">
+      <ErrorBox error={list.error} />
+      {/* Kartu daftar: tab status menempel di tepi atas, tepat di atas judul kolom tabel (md+) / kartu (HP). */}
+      <div ref={topRef} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden" data-testid="order-list-card">
         <StatusTabs active={status} counts={counts} onSelect={selectTab} />
-        <div id="order-list-panel" role="tabpanel" aria-label={`Pesanan: ${ORDER_TABS.find((t) => t.value === status).label}`} className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="p-3">No. pesanan</th>
-                <th className="p-3">Tanggal</th>
-                <th className="p-3">Pemesan / penerima</th>
-                <th className="p-3 text-right">Item</th>
-                <th className="p-3 text-right">Total</th>
-                <th className="p-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && data.items.length === 0 ? (
+        <div id="order-list-panel" role="tabpanel" aria-label={`Pesanan: ${ORDER_TABS.find((t) => t.value === status).label}`}>
+          {/* HP (< md): kartu per pesanan, seluruh kartu bisa diketuk; tanpa geser horizontal. */}
+          <ul className="space-y-2 bg-gray-50 p-2 md:hidden" data-testid="order-cards">
+            {firstLoad && <li className="p-6 text-center text-sm text-gray-500">Memuat...</li>}
+            {empty && <li className="p-6 text-center text-sm text-gray-500">Belum ada pesanan.</li>}
+            {list.items.map((o) => (
+              <li key={o.id}>
+                <Link
+                  {...detailLink(o)}
+                  data-testid="order-card"
+                  className="block rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm active:bg-purple-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-purple-700 [overflow-wrap:anywhere]">{o.orderNo}</span>
+                    <OrderStatusBadge status={o.status} />
+                  </div>
+                  <div className="mt-1 min-w-0 text-gray-800 [overflow-wrap:anywhere]">
+                    <OrderParty o={o} />
+                  </div>
+                  <div className="mt-2 flex items-end justify-between gap-2 border-t border-gray-100 pt-2">
+                    <span className="text-xs text-gray-500">
+                      {fmtTime(o.createdAt)} · {o.itemCount} item
+                    </span>
+                    <span className="whitespace-nowrap font-semibold text-gray-900">{rupiah(o.total)}</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {/* md ke atas: tabel. */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-gray-500">
-                    Memuat...
-                  </td>
+                  <th className="p-3">No. pesanan</th>
+                  <th className="p-3">Tanggal</th>
+                  <th className="p-3">Pemesan / penerima</th>
+                  <th className="p-3 text-right">Item</th>
+                  <th className="p-3 text-right">Total</th>
+                  <th className="p-3">Status</th>
                 </tr>
-              ) : data.items.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="p-6 text-center text-gray-500">
-                    Belum ada pesanan.
-                  </td>
-                </tr>
-              ) : (
-                data.items.map((o) => (
-                  <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
-                    <td className="p-3 font-semibold whitespace-nowrap">
-                      <Link to={`/admin/orders/${o.id}`} state={{ ordersSearch: listSearch }} className="text-purple-700 hover:underline">
-                        {o.orderNo}
-                      </Link>
-                    </td>
-                    <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
-                    <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
-                      {o.customer?.alias ? (
-                        <>
-                          <div className="font-semibold text-purple-800" data-testid="order-alias">
-                            {o.customer.alias}
-                          </div>
-                          <div className="text-xs text-gray-600">{o.customerName}</div>
-                        </>
-                      ) : (
-                        <div>{o.customerName}</div>
-                      )}
-                      <div className="text-xs text-gray-500">
-                        → {o.recipientName}, {o.city}
-                      </div>
-                    </td>
-                    <td className="p-3 text-right">{o.itemCount}</td>
-                    <td className="p-3 text-right font-semibold whitespace-nowrap">{rupiah(o.total)}</td>
-                    <td className="p-3">
-                      <OrderStatusBadge status={o.status} />
+              </thead>
+              <tbody>
+                {firstLoad ? (
+                  <tr>
+                    <td colSpan="6" className="p-6 text-center text-gray-500">
+                      Memuat...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : empty ? (
+                  <tr>
+                    <td colSpan="6" className="p-6 text-center text-gray-500">
+                      Belum ada pesanan.
+                    </td>
+                  </tr>
+                ) : (
+                  list.items.map((o) => (
+                    <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
+                      <td className="p-3 font-semibold whitespace-nowrap">
+                        <Link {...detailLink(o)} className="text-purple-700 hover:underline">
+                          {o.orderNo}
+                        </Link>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
+                      <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
+                        <OrderParty o={o} aliasTestId="order-alias" />
+                      </td>
+                      <td className="p-3 text-right">{o.itemCount}</td>
+                      <td className="p-3 text-right font-semibold whitespace-nowrap">{rupiah(o.total)}</td>
+                      <td className="p-3">
+                        <OrderStatusBadge status={o.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <Pagination page={page} perPage={data.perPage} total={data.total} onPage={setPage} />
+      <InfiniteFooter list={list} noun="pesanan" />
     </div>
   );
 };

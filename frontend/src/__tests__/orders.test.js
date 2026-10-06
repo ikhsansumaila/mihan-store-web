@@ -4,6 +4,8 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { fillCheckout } from '../testUtils/regionFixtures';
 import { clearRegionCache } from '../shop/regionsApi';
+import { activeObservers, installIntersectionObserver, intersect, uninstallIntersectionObserver } from '../testUtils/intersection';
+import { clearListSnapshots } from '../admin/infiniteList';
 
 const mockState = {
   calls: [],
@@ -75,7 +77,8 @@ jest.mock('../admin/api', () => {
       const key = Object.keys(mockState.admin)
         .filter((k) => path.startsWith(k))
         .sort((a, b) => b.length - a.length)[0];
-      return Promise.resolve(key ? mockState.admin[key] : {});
+      const v = key ? mockState.admin[key] : {};
+      return Promise.resolve(typeof v === 'function' ? v(path) : v);
     },
   };
 });
@@ -330,13 +333,40 @@ const ADMIN_LIST = {
   items: [
     { id: 5, orderNo: 'MS-261002-0005', status: 'paid', total: 152000, itemCount: 3, recipientName: 'Budi', city: 'Tangerang', customerName: 'Budi', createdAt: '2026-10-02T03:00:00Z' },
   ],
-  total: 45,
+  total: 1,
   page: 1,
   perPage: 20,
+};
+const mkOrder = (id) => ({ id, orderNo: `MS-261002-${String(id).padStart(4, '0')}`, status: 'paid', total: 1000 * id, itemCount: 1, recipientName: `P${id}`, city: 'Kota', customerName: `C${id}`, createdAt: '2026-10-02T03:00:00Z' });
+// 45 pesanan, 20 per halaman, sesuai ?page= (halaman 2 sengaja memuat ulang id 20 untuk uji dedup).
+const pagedOrders = (path) => {
+  const page = Number(new URLSearchParams(path.split('?')[1]).get('page') || 1);
+  const ids = page === 1 ? [...Array(20)].map((_, i) => i + 1) : page === 2 ? [20, ...[...Array(19)].map((_, i) => i + 21)] : [...Array(6)].map((_, i) => i + 40);
+  return { items: ids.map(mkOrder), total: 45, page, perPage: 20 };
+};
+const deferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 };
 const tabEls = () => [...container.querySelectorAll('[role="tablist"] [role="tab"]')];
 const tabBy = (status) => container.querySelector(`[role="tab"][data-status="${status}"]`);
 const listCalls = () => mockState.calls.filter((c) => c.url.startsWith('admin/orders?')).map((c) => c.url);
+const tableRows = () => [...container.querySelectorAll('#order-list-panel tbody tr')].filter((tr) => tr.querySelector('a'));
+const cards = () => [...container.querySelectorAll('[data-testid="order-card"]')];
+const footerText = () => container.querySelector('[data-testid="infinite-footer"] [role="status"]').textContent;
+// Sentinel lewat di layar lalu keluar lagi (seperti menggulir sekali).
+const scrollDown = async () => {
+  await act(async () => {
+    intersect();
+    intersect(false);
+  });
+  await flush();
+};
 const typeInto = async (el, value) => {
   await act(async () => {
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, value);
@@ -344,91 +374,214 @@ const typeInto = async (el, value) => {
   });
 };
 
-test('admin Pesanan: tab status menggantikan dropdown, default Semua, tab bisa di-scroll horizontal', async () => {
-  mockState.admin = { '/orders': ADMIN_LIST };
-  await renderAt('/admin/orders');
-  expect(container.querySelector('select[aria-label="Filter status"]')).toBeNull();
-  expect(tabEls().map((t) => t.textContent)).toEqual(['Semua', 'Menunggu pembayaran', 'Dibayar', 'Selesai', 'Dibatalkan']);
-  expect(tabBy('all').getAttribute('aria-selected')).toBe('true');
-  expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20']);
-  // Baris tab scroll sendiri (bukan halaman), tombol tidak menyusut/terpotong.
-  const scroller = container.querySelector('[data-testid="order-status-tabs"]');
-  expect(scroller.className).toContain('overflow-x-auto');
-  expect(container.querySelector('[role="tablist"]').className).toContain('w-max');
-  tabEls().forEach((t) => expect(t.className).toMatch(/\bshrink-0\b.*\bwhitespace-nowrap\b/));
-  expect(container.querySelector('#order-list-panel[role="tabpanel"]')).not.toBeNull();
-  // Tab menempel di tepi atas kartu daftar, langsung di atas tabel (judul kolom); filter tetap di atas kartu.
-  const card = container.querySelector('[data-testid="order-list-card"]');
-  expect(card.firstElementChild).toBe(scroller);
-  expect(scroller.nextElementSibling.id).toBe('order-list-panel');
-  expect(scroller.nextElementSibling.firstElementChild.tagName).toBe('TABLE');
-  expect(scroller.className).not.toMatch(/\bm[btxy]?-\d/);
-  const form = container.querySelector('form');
-  expect(form.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(tabBy('all').className).toContain('bg-gray-50');
-  expect(container.querySelector('#order-list-panel thead').className).toContain('bg-gray-50');
-});
+describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
+  beforeEach(() => {
+    installIntersectionObserver();
+    clearListSnapshots();
+  });
+  afterEach(() => uninstallIntersectionObserver());
 
-test('admin Pesanan: klik tab menyimpan ?status di URL (replace), memuat ulang dari halaman 1, pencarian tetap berlaku', async () => {
-  mockState.admin = { '/orders': ADMIN_LIST };
-  await renderAt('/admin/orders');
-  // Cari + tanggal, lalu ke halaman 2.
-  await typeInto(container.querySelector('form input[maxlength="100"]'), '  Budi ');
-  await typeInto(container.querySelector('form input[type="date"]'), '2026-10-01');
-  await act(async () => btn('Terapkan').click());
-  await flush();
-  await act(async () => btn('Berikutnya ›').click());
-  await flush();
-  expect(listCalls().at(-1)).toBe('admin/orders?from=2026-10-01&q=Budi&page=2&per_page=20');
+  test('tab status menggantikan dropdown, default Semua, tab menempel di atas daftar dan bisa di-scroll horizontal', async () => {
+    mockState.admin = { '/orders': ADMIN_LIST };
+    await renderAt('/admin/orders');
+    expect(container.querySelector('select[aria-label="Filter status"]')).toBeNull();
+    expect(tabEls().map((t) => t.textContent)).toEqual(['Semua', 'Menunggu pembayaran', 'Dibayar', 'Selesai', 'Dibatalkan']);
+    expect(tabBy('all').getAttribute('aria-selected')).toBe('true');
+    expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20']);
+    const scroller = container.querySelector('[data-testid="order-status-tabs"]');
+    expect(scroller.className).toContain('overflow-x-auto');
+    expect(container.querySelector('[role="tablist"]').className).toContain('w-max');
+    tabEls().forEach((t) => expect(t.className).toMatch(/\bshrink-0\b.*\bwhitespace-nowrap\b/));
+    // Tab menempel di tepi atas kartu daftar: langsung di atas kartu pesanan (HP) dan judul kolom tabel (md+).
+    const card = container.querySelector('[data-testid="order-list-card"]');
+    const panel = container.querySelector('#order-list-panel[role="tabpanel"]');
+    expect(card.firstElementChild).toBe(scroller);
+    expect(scroller.nextElementSibling).toBe(panel);
+    expect(scroller.className).not.toMatch(/\bm[btxy]?-\d/);
+    const [mobile, wide] = panel.children;
+    expect(mobile.getAttribute('data-testid')).toBe('order-cards');
+    expect(mobile.className).toContain('md:hidden');
+    expect(wide.className).toMatch(/\bhidden\b.*\bmd:block\b/);
+    expect(wide.firstElementChild.tagName).toBe('TABLE');
+    const form = container.querySelector('form');
+    expect(form.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tabBy('all').className).toContain('bg-gray-50');
+    expect(panel.querySelector('thead').className).toContain('bg-gray-50');
+    // Tanpa paginasi.
+    expect(btn('Berikutnya ›')).toBeUndefined();
+    expect(btn('‹ Sebelumnya')).toBeUndefined();
+    expect(container.textContent).not.toMatch(/halaman \d+ dari/);
+  });
 
-  const historyLength = window.history.length;
-  await act(async () => tabBy('paid').click());
-  await flush();
-  expect(window.location.pathname).toBe('/admin/orders');
-  expect(window.location.search).toBe('?status=paid');
-  expect(window.history.length).toBe(historyLength);
-  expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
-  expect(listCalls().at(-1)).toBe('admin/orders?status=paid&from=2026-10-01&q=Budi&page=1&per_page=20');
+  test('kartu HP: seluruh kartu adalah tautan ke detail, info utama tanpa geser horizontal', async () => {
+    mockState.admin = {
+      '/orders': { ...ADMIN_LIST, items: [{ ...ADMIN_LIST.items[0], customer: { alias: 'Bu Budi' } }] },
+    };
+    await renderAt('/admin/orders');
+    const [c] = cards();
+    expect(c.tagName).toBe('A');
+    expect(c.getAttribute('href')).toBe('/admin/orders/5');
+    ['MS-261002-0005', 'Dibayar', 'Bu Budi', 'Budi', '→ Budi, Tangerang', '3 item', 'Rp'].forEach((t) => expect(c.textContent).toContain(t));
+    expect(c.closest('ul').className).not.toContain('overflow-x');
+    expect(container.querySelector('[data-testid="order-cards"]').className).not.toMatch(/min-w-\[/);
+    // data-testid alias hanya di tabel (sekali per pesanan).
+    expect(container.querySelectorAll('[data-testid="order-alias"]')).toHaveLength(1);
+  });
 
-  // Reset mengosongkan pencarian/tanggal, tab tetap.
-  await act(async () => btn('Reset').click());
-  await flush();
-  expect(listCalls().at(-1)).toBe('admin/orders?status=paid&page=1&per_page=20');
-  expect(window.location.search).toBe('?status=paid');
+  test('gulir ke bawah memuat halaman berikutnya, tanpa duplikat, satu permintaan per pemicu, lalu pesan akhir', async () => {
+    mockState.admin = { '/orders': pagedOrders };
+    await renderAt('/admin/orders');
+    expect(tableRows()).toHaveLength(20);
+    expect(cards()).toHaveLength(20);
+    expect(container.querySelector('[data-testid="infinite-sentinel"]').getAttribute('aria-hidden')).toBe('true');
+    expect(activeObservers()[0].options.rootMargin).toBe('300px 0px');
 
-  // Kembali ke Semua: ?status dihapus.
-  await act(async () => tabBy('all').click());
-  await flush();
-  expect(window.location.search).toBe('');
-  expect(listCalls().at(-1)).toBe('admin/orders?page=1&per_page=20');
-});
+    // Sentinel terpicu dua kali sebelum respons datang: hanya satu permintaan halaman 2.
+    await act(async () => {
+      intersect();
+      intersect();
+      intersect(false);
+    });
+    await flush();
+    expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20', 'admin/orders?page=2&per_page=20']);
+    expect(tableRows()).toHaveLength(39); // id 20 di halaman 2 tidak digandakan
+    expect(new Set(tableRows().map((r) => r.querySelector('a').textContent)).size).toBe(39);
 
-test('admin Pesanan: refresh di ?status=cancelled tetap di tab itu; panah kanan/kiri berpindah tab', async () => {
-  mockState.admin = { '/orders': ADMIN_LIST };
-  await renderAt('/admin/orders?status=cancelled');
-  expect(tabBy('cancelled').getAttribute('aria-selected')).toBe('true');
-  expect(listCalls()).toEqual(['admin/orders?status=cancelled&page=1&per_page=20']);
-  await act(async () => tabBy('cancelled').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
-  await flush();
-  expect(window.location.search).toBe('');
-  expect(document.activeElement).toBe(tabBy('all'));
-  await act(async () => tabBy('all').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
-  await flush();
-  expect(window.location.search).toBe('?status=cancelled');
-});
+    await scrollDown();
+    expect(listCalls().at(-1)).toBe('admin/orders?page=3&per_page=20');
+    expect(tableRows()).toHaveLength(45);
+    expect(footerText()).toBe('Semua pesanan sudah ditampilkan (45).');
+    // Sudah habis: pemicu berikutnya tidak meminta apa pun.
+    const n = listCalls().length;
+    await scrollDown();
+    expect(listCalls()).toHaveLength(n);
+  });
 
-test('admin Pesanan: tautan "Semua pesanan" di detail kembali ke tab asal', async () => {
-  mockState.admin = { '/orders/5': adminOrder, '/orders': ADMIN_LIST, '/settings': { settings: {} } };
-  await renderAt('/admin/orders?status=paid');
-  await act(async () => container.querySelector('a[href="/admin/orders/5"]').click());
-  await flush();
-  expect(window.location.pathname).toBe('/admin/orders/5');
-  const back = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Semua pesanan'));
-  expect(back.getAttribute('href')).toBe('/admin/orders?status=paid');
-  await act(async () => back.click());
-  await flush();
-  expect(window.location.search).toBe('?status=paid');
-  expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
+  test('sentinel tetap terlihat setelah halaman masuk (layar tinggi): halaman berikutnya dimuat otomatis sampai habis', async () => {
+    mockState.admin = { '/orders': pagedOrders };
+    await renderAt('/admin/orders');
+    await act(async () => intersect());
+    await flush();
+    await flush();
+    expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20', 'admin/orders?page=2&per_page=20', 'admin/orders?page=3&per_page=20']);
+    expect(tableRows()).toHaveLength(45);
+  });
+
+  test('ganti tab saat permintaan lama berjalan: respons basi diabaikan', async () => {
+    const slow = deferred();
+    mockState.admin = { '/orders': (path) => (path.includes('status=') ? ADMIN_LIST : slow.promise) };
+    await renderAt('/admin/orders');
+    expect(footerText()).toBe('Memuat pesanan...');
+    await act(async () => tabBy('paid').click());
+    await flush();
+    expect(tableRows().map((r) => r.querySelector('a').textContent)).toEqual(['MS-261002-0005']);
+    await act(async () => slow.resolve(pagedOrders('/orders?page=1')));
+    await flush();
+    expect(tableRows().map((r) => r.querySelector('a').textContent)).toEqual(['MS-261002-0005']);
+    expect(footerText()).toBe('Semua pesanan sudah ditampilkan (1).');
+  });
+
+  test('gagal memuat halaman berikutnya: pesan + tombol "Muat lagi" yang mencoba lagi', async () => {
+    let failPage2 = true;
+    mockState.admin = {
+      '/orders': (path) => (/[?&]page=2(&|$)/.test(path) && failPage2 ? Promise.reject(new Error('Layanan sedang tidak tersedia')) : pagedOrders(path)),
+    };
+    await renderAt('/admin/orders');
+    await scrollDown();
+    expect(footerText()).toBe('Gagal memuat pesanan.');
+    expect(container.textContent).toContain('Layanan sedang tidak tersedia');
+    expect(tableRows()).toHaveLength(20); // daftar lama tetap
+    // Error: sentinel tidak terus-menerus mencoba.
+    const n = listCalls().length;
+    await scrollDown();
+    expect(listCalls()).toHaveLength(n);
+    failPage2 = false;
+    await act(async () => btn('Muat lagi').click());
+    await flush();
+    expect(tableRows()).toHaveLength(39);
+    expect(btn('Muat lagi')).toBeUndefined();
+  });
+
+  test('klik tab menyimpan ?status di URL (replace), memuat ulang dari halaman 1, pencarian tetap berlaku', async () => {
+    mockState.admin = { '/orders': pagedOrders };
+    await renderAt('/admin/orders');
+    await typeInto(container.querySelector('form input[maxlength="100"]'), '  Budi ');
+    await typeInto(container.querySelector('form input[type="date"]'), '2026-10-01');
+    await act(async () => btn('Terapkan').click());
+    await flush();
+    expect(listCalls().at(-1)).toBe('admin/orders?from=2026-10-01&q=Budi&page=1&per_page=20');
+    await scrollDown();
+    expect(listCalls().at(-1)).toBe('admin/orders?from=2026-10-01&q=Budi&page=2&per_page=20');
+    expect(tableRows()).toHaveLength(39);
+
+    const historyLength = window.history.length;
+    await act(async () => tabBy('paid').click());
+    await flush();
+    expect(window.location.pathname).toBe('/admin/orders');
+    expect(window.location.search).toBe('?status=paid');
+    expect(window.history.length).toBe(historyLength);
+    expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
+    expect(listCalls().at(-1)).toBe('admin/orders?status=paid&from=2026-10-01&q=Budi&page=1&per_page=20');
+    expect(tableRows()).toHaveLength(20); // daftar dimulai ulang
+
+    // Reset mengosongkan pencarian/tanggal, tab tetap.
+    await act(async () => btn('Reset').click());
+    await flush();
+    expect(listCalls().at(-1)).toBe('admin/orders?status=paid&page=1&per_page=20');
+    expect(window.location.search).toBe('?status=paid');
+
+    await act(async () => tabBy('all').click());
+    await flush();
+    expect(window.location.search).toBe('');
+    expect(listCalls().at(-1)).toBe('admin/orders?page=1&per_page=20');
+  });
+
+  test('refresh di ?status=cancelled tetap di tab itu; panah kanan/kiri berpindah tab', async () => {
+    mockState.admin = { '/orders': ADMIN_LIST };
+    await renderAt('/admin/orders?status=cancelled');
+    expect(tabBy('cancelled').getAttribute('aria-selected')).toBe('true');
+    expect(listCalls()).toEqual(['admin/orders?status=cancelled&page=1&per_page=20']);
+    await act(async () => tabBy('cancelled').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+    await flush();
+    expect(window.location.search).toBe('');
+    expect(document.activeElement).toBe(tabBy('all'));
+    await act(async () => tabBy('all').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+    await flush();
+    expect(window.location.search).toBe('?status=cancelled');
+  });
+
+  test('kembali dari detail: tab, filter, dan daftar yang sudah dimuat dipulihkan lalu disegarkan', async () => {
+    mockState.admin = { '/orders/5': adminOrder, '/orders': pagedOrders, '/settings': { settings: {} } };
+    await renderAt('/admin/orders?status=paid');
+    await typeInto(container.querySelector('form input[maxlength="100"]'), 'C');
+    await act(async () => btn('Terapkan').click());
+    await flush();
+    await scrollDown();
+    expect(tableRows()).toHaveLength(39);
+    await act(async () => container.querySelector('a[href="/admin/orders/5"]').click());
+    await flush();
+    expect(window.location.pathname).toBe('/admin/orders/5');
+    const back = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Semua pesanan'));
+    expect(back.getAttribute('href')).toBe('/admin/orders?status=paid');
+    mockState.calls = [];
+    await act(async () => back.click());
+    await flush();
+    expect(window.location.search).toBe('?status=paid');
+    expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
+    expect(container.querySelector('form input[maxlength="100"]').value).toBe('C');
+    expect(tableRows()).toHaveLength(39);
+    // Disegarkan: halaman 1..2 yang tadi tampil dimuat ulang dengan filter yang sama.
+    expect(listCalls()).toEqual(['admin/orders?status=paid&q=C&page=1&per_page=20', 'admin/orders?status=paid&q=C&page=2&per_page=20']);
+  });
+
+  test('tanpa IntersectionObserver (browser lama): tombol "Muat lagi" sebagai cadangan', async () => {
+    uninstallIntersectionObserver();
+    mockState.admin = { '/orders': pagedOrders };
+    await renderAt('/admin/orders');
+    await act(async () => btn('Muat lagi').click());
+    await flush();
+    expect(tableRows()).toHaveLength(39);
+  });
 });
 
 test('admin detail dibuka langsung: tautan "Semua pesanan" ke daftar tanpa status', async () => {
