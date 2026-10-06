@@ -178,3 +178,24 @@ test('produk: daftar kosong menampilkan "Tidak ada produk." tanpa pesan akhir', 
   expect(container.textContent).toContain('Tidak ada produk.');
   expect(footerText()).toBe('');
 });
+
+// Kategori: API tidak berhalaman, jadi hanya kartu (HP) / tabel (md+), tanpa gulir bertahap.
+test('kategori: kartu di HP, ketuk kartu = Ubah, tombol Hapus di kartu tidak membuka form', async () => {
+  await renderAt('/admin/categories');
+  const list = container.querySelector('[data-testid="category-cards"]');
+  expect(list.className).toContain('md:hidden');
+  expect(container.querySelector('table').parentElement.className).toMatch(/\bhidden\b.*\bmd:block\b/);
+  const [card] = container.querySelectorAll('[data-testid="category-card"]');
+  ['Kerupuk', 'kerupuk', 'Urutan', 'Produk aktif / total'].forEach((t) => expect(card.textContent).toContain(t));
+  expect(container.querySelector('[data-testid="infinite-footer"]')).toBeNull();
+
+  await act(async () => card.querySelector('.font-medium').click());
+  expect(dialog().textContent).toContain('Ubah kategori');
+  expect(dialog().querySelector('input').value).toBe('Kerupuk');
+  await act(async () => dialog().querySelector('button[aria-label="Tutup"]').click());
+
+  const del = [...card.querySelectorAll('button')].find((b) => b.textContent === 'Hapus');
+  await act(async () => del.click());
+  expect(dialog().textContent).toContain('Hapus kategori?');
+  expect(dialog().textContent).not.toContain('Ubah kategori');
+});
