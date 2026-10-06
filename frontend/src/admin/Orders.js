@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
 import { ErrorBox, Modal, cardClass, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 import MoneyInput from '../components/MoneyInput';
 import { AliasEditModal } from './AliasEditModal';
+import { useAdminSummary } from './AdminLayout';
 
 // Batas server (backend/order_logic.go): ongkir maks. Rp 10.000.000, subtotal maks. Rp 2.000.000.000.
 const SHIPPING_MAX = 10000000;
@@ -17,18 +18,94 @@ export const OrderStatusBadge = ({ status }) => (
   </span>
 );
 
-const emptyFilters = { status: '', from: '', to: '', q: '' };
+const emptyFilters = { from: '', to: '', q: '' };
+
+// Tab status daftar pesanan: "Semua" + satu tab per status (urutan STATUS di shop/format.js).
+export const ORDER_TABS = [{ value: '', label: 'Semua' }, ...Object.keys(STATUS).map((s) => ({ value: s, label: statusLabel(s) }))];
+
+// ?status=... dari URL; nilai tidak dikenal (mis. "constructor") dianggap "Semua".
+export const tabFromSearch = (searchParams) => {
+  const st = searchParams.get('status');
+  return st && Object.prototype.hasOwnProperty.call(STATUS, st) ? st : '';
+};
+
+// Jumlah per tab hanya dari data yang sudah ada (/api/admin/summary: pendingPayment & paid, seluruh pesanan,
+// tidak terpengaruh pencarian/tanggal). Tab lain tanpa angka agar tidak perlu API baru.
+const SUMMARY_COUNT_KEY = { pending_payment: 'pendingPayment', paid: 'paid' };
+
+const StatusTabs = ({ active, counts, onSelect }) => {
+  const scrollerRef = useRef(null);
+  const activeRef = useRef(null);
+  // Di HP tab aktif (mis. dari ?status=cancelled) bisa berada di luar layar: geser baris tab (hanya
+  // horizontal, halaman tidak ikut bergulir) agar tab aktif terlihat.
+  useEffect(() => {
+    const box = scrollerRef.current;
+    const el = activeRef.current;
+    if (!box || !el) return;
+    if (el.offsetLeft < box.scrollLeft || el.offsetLeft + el.offsetWidth > box.scrollLeft + box.clientWidth) {
+      box.scrollLeft = Math.max(0, el.offsetLeft - 12);
+    }
+  }, [active]);
+  // Panah kiri/kanan berpindah tab (pola tablist).
+  const onKeyDown = (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const i = ORDER_TABS.findIndex((t) => t.value === active);
+    const next = ORDER_TABS[(i + (e.key === 'ArrowRight' ? 1 : ORDER_TABS.length - 1)) % ORDER_TABS.length];
+    onSelect(next.value);
+    e.currentTarget.parentElement?.querySelector(`[data-status="${next.value || 'all'}"]`)?.focus();
+  };
+  return (
+    // Satu baris yang bisa di-scroll horizontal di HP; halaman tidak ikut melebar.
+    <div ref={scrollerRef} className="relative mb-4 -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0 [scrollbar-width:thin]" data-testid="order-status-tabs">
+      <div role="tablist" aria-label="Status pesanan" className="flex w-max min-w-full gap-1 border-b border-gray-200">
+        {ORDER_TABS.map((t) => {
+          const selected = t.value === active;
+          const n = counts[t.value];
+          return (
+            <button
+              key={t.value || 'all'}
+              ref={selected ? activeRef : undefined}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls="order-list-panel"
+              data-status={t.value || 'all'}
+              onClick={() => onSelect(t.value)}
+              onKeyDown={onKeyDown}
+              className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                selected ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'
+              }`}
+            >
+              {t.label}
+              {Number.isFinite(n) && (
+                <span
+                  data-testid="tab-count"
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${selected ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  {n}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const OrdersList = () => {
-  // Filter status awal boleh dari URL (?status=..., dipakai pintasan Dashboard).
-  const [searchParams] = useSearchParams();
-  const [initial] = useState(() => {
-    const st = searchParams.get('status');
-    return st && Object.prototype.hasOwnProperty.call(STATUS, st) ? { ...emptyFilters, status: st } : emptyFilters;
-  });
-  const [filters, setFilters] = useState(initial);
-  const [draft, setDraft] = useState(initial);
-  const [page, setPage] = useState(1);
+  // Tab status disimpan di URL (?status=...): refresh/kembali tetap di tab yang sama, pintasan Dashboard
+  // (?status=pending_payment) langsung membuka tabnya. Tanpa ?status = tab "Semua".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const status = tabFromSearch(searchParams);
+  const { summary } = useAdminSummary();
+  const [filters, setFilters] = useState(emptyFilters);
+  const [draft, setDraft] = useState(emptyFilters);
+  // Halaman dikaitkan ke tab: ganti tab (klik atau URL berubah) selalu mulai dari halaman 1.
+  const [pageState, setPageState] = useState({ status, page: 1 });
+  const page = pageState.status === status ? pageState.page : 1;
+  const setPage = (p) => setPageState({ status, page: p });
   const [data, setData] = useState({ items: [], total: 0, perPage: 20 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,17 +114,32 @@ export const OrdersList = () => {
     setLoading(true);
     setError(null);
     try {
-      setData(await adminFetch(`/orders${qs({ ...filters, page, per_page: 20 })}`));
+      setData(await adminFetch(`/orders${qs({ status, ...filters, page, per_page: 20 })}`));
     } catch (err) {
       setError(err);
     } finally {
       setLoading(false);
     }
-  }, [filters, page]);
+  }, [status, filters, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const selectTab = (value) => {
+    if (value === status) return;
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('status', value);
+    else next.delete('status');
+    setPageState({ status: value, page: 1 });
+    setSearchParams(next, { replace: true });
+  };
+
+  const counts = {};
+  Object.entries(SUMMARY_COUNT_KEY).forEach(([s, key]) => {
+    const n = summary?.orders?.[key];
+    if (Number.isFinite(n)) counts[s] = n;
+  });
 
   const apply = (e) => {
     e.preventDefault();
@@ -55,25 +147,17 @@ export const OrdersList = () => {
     setFilters({ ...draft, q: draft.q.trim() });
   };
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
+  // Diteruskan ke detail agar tautan "Semua pesanan" kembali ke tab yang sama.
+  const listSearch = searchParams.toString() ? `?${searchParams}` : '';
 
   return (
     <div>
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pesanan</h1>
-      <form onSubmit={apply} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+      <StatusTabs active={status} counts={counts} onSelect={selectTab} />
+      <form onSubmit={apply} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <label className="block lg:col-span-2">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Cari (no. pesanan, nama, alias, telepon)</span>
           <input className={inputClass} value={draft.q} onChange={set('q')} maxLength={100} placeholder="MS-261002-0001" />
-        </label>
-        <label className="block">
-          <span className="block text-xs font-semibold text-gray-600 mb-1">Status</span>
-          <select className={inputClass} value={draft.status} onChange={set('status')} aria-label="Filter status">
-            <option value="">Semua status</option>
-            {Object.keys(STATUS).map((s) => (
-              <option key={s} value={s}>
-                {statusLabel(s)}
-              </option>
-            ))}
-          </select>
         </label>
         <label className="block">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Dari tanggal</span>
@@ -83,7 +167,7 @@ export const OrdersList = () => {
           <span className="block text-xs font-semibold text-gray-600 mb-1">Sampai tanggal</span>
           <input type="date" className={inputClass} value={draft.to} onChange={set('to')} />
         </label>
-        <div className="flex gap-2 sm:col-span-2 lg:col-span-5 justify-end">
+        <div className="flex gap-2 sm:col-span-2 lg:col-span-4 justify-end">
           <button
             type="button"
             className={btnSecondary}
@@ -101,7 +185,7 @@ export const OrdersList = () => {
         </div>
       </form>
       <ErrorBox error={error} />
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+      <div id="order-list-panel" role="tabpanel" aria-label={`Pesanan: ${ORDER_TABS.find((t) => t.value === status).label}`} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
@@ -130,7 +214,7 @@ export const OrdersList = () => {
               data.items.map((o) => (
                 <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
                   <td className="p-3 font-semibold whitespace-nowrap">
-                    <Link to={`/admin/orders/${o.id}`} className="text-purple-700 hover:underline">
+                    <Link to={`/admin/orders/${o.id}`} state={{ ordersSearch: listSearch }} className="text-purple-700 hover:underline">
                       {o.orderNo}
                     </Link>
                   </td>
@@ -313,6 +397,13 @@ const Card = ({ title, children }) => (
 
 export const AdminOrderDetail = () => {
   const { id } = useParams();
+  const { state: navState } = useLocation();
+  // Kembali ke tab daftar asal (?status=...) bila datang dari daftar pesanan; hanya status yang dikenal.
+  const backSearch = (() => {
+    const raw = typeof navState?.ordersSearch === 'string' ? navState.ordersSearch : '';
+    const st = tabFromSearch(new URLSearchParams(raw));
+    return st ? `?status=${st}` : '';
+  })();
   const [order, setOrder] = useState(null);
   const [settings, setSettings] = useState({});
   const [error, setError] = useState(null);
@@ -348,7 +439,7 @@ export const AdminOrderDetail = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to="/admin/orders" className="text-sm text-purple-700 hover:underline">
+          <Link to={`/admin/orders${backSearch}`} className="text-sm text-purple-700 hover:underline">
             ‹ Semua pesanan
           </Link>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex flex-wrap items-center gap-3">

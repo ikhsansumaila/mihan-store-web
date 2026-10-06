@@ -326,6 +326,108 @@ test('admin Pesanan: menu baru, daftar dengan lencana status', async () => {
   expect(container.querySelector('a[href="/admin/orders/5"]')).not.toBeNull();
 });
 
+const ADMIN_LIST = {
+  items: [
+    { id: 5, orderNo: 'MS-261002-0005', status: 'paid', total: 152000, itemCount: 3, recipientName: 'Budi', city: 'Tangerang', customerName: 'Budi', createdAt: '2026-10-02T03:00:00Z' },
+  ],
+  total: 45,
+  page: 1,
+  perPage: 20,
+};
+const tabEls = () => [...container.querySelectorAll('[role="tablist"] [role="tab"]')];
+const tabBy = (status) => container.querySelector(`[role="tab"][data-status="${status}"]`);
+const listCalls = () => mockState.calls.filter((c) => c.url.startsWith('admin/orders?')).map((c) => c.url);
+const typeInto = async (el, value) => {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+};
+
+test('admin Pesanan: tab status menggantikan dropdown, default Semua, tab bisa di-scroll horizontal', async () => {
+  mockState.admin = { '/orders': ADMIN_LIST };
+  await renderAt('/admin/orders');
+  expect(container.querySelector('select[aria-label="Filter status"]')).toBeNull();
+  expect(tabEls().map((t) => t.textContent)).toEqual(['Semua', 'Menunggu pembayaran', 'Dibayar', 'Selesai', 'Dibatalkan']);
+  expect(tabBy('all').getAttribute('aria-selected')).toBe('true');
+  expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20']);
+  // Baris tab scroll sendiri (bukan halaman), tombol tidak menyusut/terpotong.
+  const scroller = container.querySelector('[data-testid="order-status-tabs"]');
+  expect(scroller.className).toContain('overflow-x-auto');
+  expect(container.querySelector('[role="tablist"]').className).toContain('w-max');
+  tabEls().forEach((t) => expect(t.className).toMatch(/\bshrink-0\b.*\bwhitespace-nowrap\b/));
+  expect(container.querySelector('#order-list-panel[role="tabpanel"]')).not.toBeNull();
+});
+
+test('admin Pesanan: klik tab menyimpan ?status di URL (replace), memuat ulang dari halaman 1, pencarian tetap berlaku', async () => {
+  mockState.admin = { '/orders': ADMIN_LIST };
+  await renderAt('/admin/orders');
+  // Cari + tanggal, lalu ke halaman 2.
+  await typeInto(container.querySelector('form input[maxlength="100"]'), '  Budi ');
+  await typeInto(container.querySelector('form input[type="date"]'), '2026-10-01');
+  await act(async () => btn('Terapkan').click());
+  await flush();
+  await act(async () => btn('Berikutnya ›').click());
+  await flush();
+  expect(listCalls().at(-1)).toBe('admin/orders?from=2026-10-01&q=Budi&page=2&per_page=20');
+
+  const historyLength = window.history.length;
+  await act(async () => tabBy('paid').click());
+  await flush();
+  expect(window.location.pathname).toBe('/admin/orders');
+  expect(window.location.search).toBe('?status=paid');
+  expect(window.history.length).toBe(historyLength);
+  expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
+  expect(listCalls().at(-1)).toBe('admin/orders?status=paid&from=2026-10-01&q=Budi&page=1&per_page=20');
+
+  // Reset mengosongkan pencarian/tanggal, tab tetap.
+  await act(async () => btn('Reset').click());
+  await flush();
+  expect(listCalls().at(-1)).toBe('admin/orders?status=paid&page=1&per_page=20');
+  expect(window.location.search).toBe('?status=paid');
+
+  // Kembali ke Semua: ?status dihapus.
+  await act(async () => tabBy('all').click());
+  await flush();
+  expect(window.location.search).toBe('');
+  expect(listCalls().at(-1)).toBe('admin/orders?page=1&per_page=20');
+});
+
+test('admin Pesanan: refresh di ?status=cancelled tetap di tab itu; panah kanan/kiri berpindah tab', async () => {
+  mockState.admin = { '/orders': ADMIN_LIST };
+  await renderAt('/admin/orders?status=cancelled');
+  expect(tabBy('cancelled').getAttribute('aria-selected')).toBe('true');
+  expect(listCalls()).toEqual(['admin/orders?status=cancelled&page=1&per_page=20']);
+  await act(async () => tabBy('cancelled').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+  await flush();
+  expect(window.location.search).toBe('');
+  expect(document.activeElement).toBe(tabBy('all'));
+  await act(async () => tabBy('all').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+  await flush();
+  expect(window.location.search).toBe('?status=cancelled');
+});
+
+test('admin Pesanan: tautan "Semua pesanan" di detail kembali ke tab asal', async () => {
+  mockState.admin = { '/orders/5': adminOrder, '/orders': ADMIN_LIST, '/settings': { settings: {} } };
+  await renderAt('/admin/orders?status=paid');
+  await act(async () => container.querySelector('a[href="/admin/orders/5"]').click());
+  await flush();
+  expect(window.location.pathname).toBe('/admin/orders/5');
+  const back = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Semua pesanan'));
+  expect(back.getAttribute('href')).toBe('/admin/orders?status=paid');
+  await act(async () => back.click());
+  await flush();
+  expect(window.location.search).toBe('?status=paid');
+  expect(tabBy('paid').getAttribute('aria-selected')).toBe('true');
+});
+
+test('admin detail dibuka langsung: tautan "Semua pesanan" ke daftar tanpa status', async () => {
+  mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: {} } };
+  await renderAt('/admin/orders/5');
+  const back = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Semua pesanan'));
+  expect(back.getAttribute('href')).toBe('/admin/orders');
+});
+
 test('admin detail pesanan: diskon/ongkir, tombol status, invoice, WhatsApp pelanggan', async () => {
   mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: { bank_name: 'BCA', bank_account_number: '123', bank_account_holder: 'Toko' } } };
   await renderAt('/admin/orders/5');

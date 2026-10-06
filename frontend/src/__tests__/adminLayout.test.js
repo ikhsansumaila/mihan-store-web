@@ -317,13 +317,30 @@ test('pintasan Tambah Produk membuka form tambah produk', async () => {
   expect(window.location.search).toBe('');
 });
 
-test('pintasan Pesanan baru memfilter status menunggu pembayaran', async () => {
+const activeTab = () => container.querySelector('[role="tablist"] [role="tab"][aria-selected="true"]');
+
+test('pintasan Pesanan baru membuka tab menunggu pembayaran', async () => {
   await renderAt('/admin/orders?status=pending_payment');
-  expect(container.querySelector('select[aria-label="Filter status"]').value).toBe('pending_payment');
+  expect(activeTab().getAttribute('data-status')).toBe('pending_payment');
   expect(mockState.calls.some((c) => c.startsWith('/orders?') && c.includes('status=pending_payment'))).toBe(true);
 });
 
-test('status tidak dikenal di URL diabaikan', async () => {
+test('status tidak dikenal di URL diabaikan (tab Semua)', async () => {
   await renderAt('/admin/orders?status=constructor');
-  expect(container.querySelector('select[aria-label="Filter status"]').value).toBe('');
+  expect(activeTab().getAttribute('data-status')).toBe('all');
+  expect(mockState.calls.filter((c) => c.startsWith('/orders?')).every((c) => !c.includes('status='))).toBe(true);
+});
+
+test('tab pesanan: jumlah dari ringkasan untuk Menunggu pembayaran & Dibayar; menu Pesanan kembali ke tab Semua', async () => {
+  await renderAt('/admin/orders?status=paid');
+  const counts = Object.fromEntries(
+    [...container.querySelectorAll('[role="tab"]')].map((t) => [t.getAttribute('data-status'), t.querySelector('[data-testid="tab-count"]')?.textContent ?? null]),
+  );
+  expect(counts).toEqual({ all: null, pending_payment: '4', paid: '2', completed: null, cancelled: null });
+  // Klik menu sidebar "Pesanan" (URL tanpa ?status) -> tab Semua, daftar dimuat ulang tanpa filter status.
+  mockState.calls = [];
+  await act(async () => linkByLabel('Pesanan').click());
+  await flush();
+  expect(activeTab().getAttribute('data-status')).toBe('all');
+  expect(mockState.calls.some((c) => c.startsWith('/orders?') && !c.includes('status='))).toBe(true);
 });

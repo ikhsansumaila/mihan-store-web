@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { adminFetch } from './api';
 import { ErrorBox, cardClass } from './ui';
 import AdminLayout from './AdminLayout';
@@ -16,12 +16,6 @@ import { CustomersList, CustomerDetail } from './Customers';
 
 // Halaman admin. Akses dijaga Cloudflare Access (di tepi) + backend (ADMIN_EMAILS, role/status DB).
 // Tautan dari luar ke /admin HARUS anchor biasa (muat ulang penuh) agar dicegat Cloudflare Access.
-
-// Daftar pesanan dipasang ulang bila query (?status=) berubah agar filter awal dari URL berlaku.
-const OrdersListRoute = () => {
-  const { search } = useLocation();
-  return <OrdersList key={search} />;
-};
 
 const AdminApp = () => {
   const [me, setMe] = useState(null);
@@ -57,7 +51,7 @@ const AdminApp = () => {
     <AdminLayout me={me}>
       <Routes>
         <Route index element={<Dashboard />} />
-        <Route path="orders" element={<OrdersListRoute />} />
+        <Route path="orders" element={<OrdersList />} />
         <Route path="orders/:id" element={<AdminOrderRoute />} />
         <Route path="customers" element={<CustomersList />} />
         <Route path="customers/:id" element={<CustomerDetail />} />
