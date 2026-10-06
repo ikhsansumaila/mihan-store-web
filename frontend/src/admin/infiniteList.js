@@ -163,7 +163,12 @@ export const useInfiniteList = (basePath, params, { cacheId, topRef } = {}) => {
     [cacheId],
   );
 
-  return { ...state, loadMore, retry, refresh, remember };
+  // Ubah satu item di tempat (mis. alias baru) tanpa memuat ulang.
+  const updateItem = useCallback((id, patch) => {
+    setState((s) => ({ ...s, items: s.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
+  }, []);
+
+  return { ...state, loadMore, retry, refresh, remember, updateItem };
 };
 
 // Kaki daftar: sentinel IntersectionObserver (rootMargin 300px), status memuat (aria-live), pesan akhir,

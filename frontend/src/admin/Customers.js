@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { adminFetch, qs, rupiah, fmtTime } from './api';
-import { ErrorBox, Pagination, cardClass, inputClass, btnPrimary, btnSecondary } from './ui';
+import { adminFetch, rupiah, fmtTime } from './api';
+import { ErrorBox, cardClass, inputClass, btnPrimary, btnSecondary } from './ui';
+import { InfiniteFooter, peekListSnapshot, useInfiniteList } from './infiniteList';
 import { Icon } from './icons';
 import { AliasEditModal, AliasText } from './AliasEditModal';
 import { OrderStatusBadge } from './Orders';
@@ -31,40 +32,40 @@ export const AccountStatus = ({ status }) =>
     <span className="inline-block whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Ditangguhkan</span>
   );
 
+const LIST_CACHE_ID = 'admin-customers';
+
 export const CustomersList = () => {
-  const [draft, setDraft] = useState('');
-  const [q, setQ] = useState('');
-  const [sort, setSort] = useState('newest');
-  const [page, setPage] = useState(1);
-  const [data, setData] = useState({ items: [], total: 0, perPage: 20 });
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Kembali dari detail pelanggan: pencarian/urutan ikut dipulihkan dari snapshot daftar.
+  const [initial] = useState(() => peekListSnapshot(LIST_CACHE_ID)?.extra || { q: '', sort: 'newest' });
+  const [draft, setDraft] = useState(initial.q);
+  const [q, setQ] = useState(initial.q);
+  const [sort, setSort] = useState(initial.sort);
   const [editing, setEditing] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await adminFetch(`/customers${qs({ q, sort, page, per_page: 20 })}`));
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [q, sort, page]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const topRef = useRef(null);
+  // Gulir tanpa batas; ganti pencarian/urutan = mulai lagi dari halaman 1.
+  const list = useInfiniteList('/customers', { q, sort }, { cacheId: LIST_CACHE_ID, topRef });
 
   const apply = (e) => {
     e.preventDefault();
-    setPage(1);
     setQ(draft.trim());
   };
 
-  const updateAlias = (id, alias) =>
-    setData((d) => ({ ...d, items: d.items.map((c) => (c.id === id ? { ...c, alias } : c)) }));
+  const remember = () => list.remember({ q, sort });
+  const firstLoad = list.loading && list.items.length === 0;
+  const empty = !list.loading && !list.error && list.items.length === 0;
+  const emptyText = q ? 'Tidak ada pelanggan yang cocok.' : 'Belum ada pelanggan.';
+  const aliasButton = (c, extra = '') => (
+    <button
+      type="button"
+      className={`${btnSecondary} !px-2.5 !py-1.5 ${extra}`}
+      onClick={() => setEditing(c)}
+      aria-label={`Ubah alias ${c.name}`}
+      title="Ubah alias"
+    >
+      <Icon name="pencil" className="h-4 w-4" />
+      <span className="hidden sm:inline">Alias</span>
+    </button>
+  );
 
   return (
     <div>
@@ -76,15 +77,7 @@ export const CustomersList = () => {
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-600">Urutkan</span>
-          <select
-            className={inputClass}
-            value={sort}
-            aria-label="Urutkan pelanggan"
-            onChange={(e) => {
-              setSort(e.target.value);
-              setPage(1);
-            }}
-          >
+          <select className={inputClass} value={sort} aria-label="Urutkan pelanggan" onChange={(e) => setSort(e.target.value)}>
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
@@ -99,7 +92,6 @@ export const CustomersList = () => {
             onClick={() => {
               setDraft('');
               setQ('');
-              setPage(1);
             }}
           >
             Reset
@@ -109,81 +101,110 @@ export const CustomersList = () => {
           </button>
         </div>
       </form>
-      <ErrorBox error={error} />
-      <div className={`${cardClass} relative overflow-x-auto`}>
-        <table className="w-full min-w-[860px] text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="p-3">Pelanggan</th>
-              <th className="p-3">Kontak</th>
-              <th className="p-3 text-right">Pesanan</th>
-              <th className="p-3 text-right">Total belanja</th>
-              <th className="p-3">Daftar</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">
-                <span className="sr-only">Aksi</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && data.items.length === 0 ? (
+      <ErrorBox error={list.error} />
+      <div ref={topRef}>
+        {/* HP (< md): kartu per pelanggan; seluruh kartu menuju detail, tombol Alias tidak ikut memicu. */}
+        <ul className="space-y-2 md:hidden" data-testid="customer-cards">
+          {firstLoad && <li className={`${cardClass} p-6 text-center text-sm text-gray-500`}>Memuat...</li>}
+          {empty && <li className={`${cardClass} p-6 text-center text-sm text-gray-500`}>{emptyText}</li>}
+          {list.items.map((c) => (
+            <li key={c.id} data-customer-card={c.id} className={`${cardClass} relative p-3 text-sm active:bg-purple-50`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                  {/* Tautan "merentang" (after:inset-0) membuat seluruh kartu bisa diketuk tanpa membungkus tombol. */}
+                  <Link
+                    to={`/admin/customers/${c.id}`}
+                    onClick={remember}
+                    className="block after:absolute after:inset-0 after:rounded-lg after:content-[''] focus:outline-none focus-visible:after:ring-2 focus-visible:after:ring-purple-400"
+                  >
+                    <AliasText alias={c.alias} className="block" />
+                    <span className={c.alias ? 'block text-xs text-gray-600' : 'block font-medium text-gray-900'}>{c.name}</span>
+                  </Link>
+                  <span className="text-xs text-gray-500">@{c.username}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <AccountStatus status={c.status} />
+                  {aliasButton(c, 'relative z-10')}
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-gray-600 [overflow-wrap:anywhere]">
+                {c.email}
+                {c.phone ? ` · ${c.phone}` : ''}
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-2 border-t border-gray-100 pt-2">
+                <span className="text-xs text-gray-500">
+                  {c.orderCount} pesanan · daftar {fmtDate(c.createdAt)}
+                </span>
+                <span className="whitespace-nowrap font-semibold text-gray-900">{rupiah(c.totalSpent)}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {/* md ke atas: tabel. */}
+        <div className={`${cardClass} relative hidden overflow-x-auto md:block`}>
+          <table className="w-full min-w-[860px] text-sm">
+            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <td colSpan="7" className="p-6 text-center text-gray-500">
-                  Memuat...
-                </td>
+                <th className="p-3">Pelanggan</th>
+                <th className="p-3">Kontak</th>
+                <th className="p-3 text-right">Pesanan</th>
+                <th className="p-3 text-right">Total belanja</th>
+                <th className="p-3">Daftar</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">
+                  <span className="sr-only">Aksi</span>
+                </th>
               </tr>
-            ) : data.items.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="p-6 text-center text-gray-500">
-                  {q ? 'Tidak ada pelanggan yang cocok.' : 'Belum ada pelanggan.'}
-                </td>
-              </tr>
-            ) : (
-              data.items.map((c) => (
-                <tr key={c.id} className="border-t border-gray-100 hover:bg-purple-50" data-customer-row={c.id}>
-                  <td className="min-w-[14rem] p-3 [overflow-wrap:anywhere]">
-                    <Link to={`/admin/customers/${c.id}`} className="block hover:underline">
-                      <AliasText alias={c.alias} className="block" />
-                      <span className={c.alias ? 'block text-xs text-gray-600' : 'block font-medium text-gray-900'}>{c.name}</span>
-                    </Link>
-                    <span className="text-xs text-gray-500">@{c.username}</span>
-                  </td>
-                  <td className="min-w-[12rem] p-3 text-xs text-gray-600 [overflow-wrap:anywhere]">
-                    <div>{c.email}</div>
-                    <div>{c.phone || '-'}</div>
-                  </td>
-                  <td className="p-3 text-right">{c.orderCount}</td>
-                  <td className="whitespace-nowrap p-3 text-right font-semibold">{rupiah(c.totalSpent)}</td>
-                  <td className="whitespace-nowrap p-3">{fmtDate(c.createdAt)}</td>
-                  <td className="p-3">
-                    <AccountStatus status={c.status} />
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      type="button"
-                      className={`${btnSecondary} !px-2.5 !py-1.5`}
-                      onClick={() => setEditing(c)}
-                      aria-label={`Ubah alias ${c.name}`}
-                      title="Ubah alias"
-                    >
-                      <Icon name="pencil" className="h-4 w-4" />
-                      <span className="hidden sm:inline">Alias</span>
-                    </button>
+            </thead>
+            <tbody>
+              {firstLoad ? (
+                <tr>
+                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                    Memuat...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : empty ? (
+                <tr>
+                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                    {emptyText}
+                  </td>
+                </tr>
+              ) : (
+                list.items.map((c) => (
+                  <tr key={c.id} className="border-t border-gray-100 hover:bg-purple-50" data-customer-row={c.id}>
+                    <td className="min-w-[14rem] p-3 [overflow-wrap:anywhere]">
+                      <Link to={`/admin/customers/${c.id}`} onClick={remember} className="block hover:underline">
+                        <AliasText alias={c.alias} className="block" />
+                        <span className={c.alias ? 'block text-xs text-gray-600' : 'block font-medium text-gray-900'}>{c.name}</span>
+                      </Link>
+                      <span className="text-xs text-gray-500">@{c.username}</span>
+                    </td>
+                    <td className="min-w-[12rem] p-3 text-xs text-gray-600 [overflow-wrap:anywhere]">
+                      <div>{c.email}</div>
+                      <div>{c.phone || '-'}</div>
+                    </td>
+                    <td className="p-3 text-right">{c.orderCount}</td>
+                    <td className="whitespace-nowrap p-3 text-right font-semibold">{rupiah(c.totalSpent)}</td>
+                    <td className="whitespace-nowrap p-3">{fmtDate(c.createdAt)}</td>
+                    <td className="p-3">
+                      <AccountStatus status={c.status} />
+                    </td>
+                    <td className="p-3 text-right">{aliasButton(c)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <Pagination page={page} perPage={data.perPage} total={data.total} onPage={setPage} />
+      <InfiniteFooter list={list} noun="pelanggan" />
       <p className="mt-2 text-xs text-gray-500">Total belanja = jumlah total pesanan berstatus Dibayar atau Selesai.</p>
       {editing && (
         <AliasEditModal
           customer={editing}
           onClose={() => setEditing(null)}
           onSaved={(alias) => {
-            updateAlias(editing.id, alias);
+            list.updateItem(editing.id, { alias });
             setEditing(null);
           }}
         />

@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { normalizeAlias, aliasLength, ALIAS_MAX } from '../admin/alias';
 import { orderToInvoice } from '../invoicePdf';
 import { buildAdminSummaryText } from '../shop/format';
+import { clearListSnapshots } from '../admin/infiniteList';
+import { installIntersectionObserver, intersect, uninstallIntersectionObserver } from '../testUtils/intersection';
 
 const mockState = { calls: [], admin: {}, invoices: [], patchReply: null };
 
@@ -44,7 +46,8 @@ jest.mock('../admin/api', () => {
       const key = Object.keys(mockState.admin)
         .filter((k) => path.startsWith(k))
         .sort((a, b) => b.length - a.length)[0];
-      return Promise.resolve(key ? mockState.admin[key] : {});
+      const v = key ? mockState.admin[key] : {};
+      return typeof v === 'function' ? v(path) : Promise.resolve(v);
     },
   };
 });
@@ -119,6 +122,7 @@ const ORDER = (alias) => ({
 });
 
 beforeEach(() => {
+  clearListSnapshots();
   mockState.calls = [];
   mockState.invoices = [];
   mockState.patchReply = null;
@@ -343,4 +347,100 @@ test('orderToInvoice & teks WhatsApp: alias hanya bila diminta, teks WA tidak pe
   const wa = buildAdminSummaryText(o, { bank_name: 'BCA', bank_account_number: '123' });
   expect(wa).not.toContain('Bu Siti');
   expect(wa).toContain('Halo Penerima Rumah');
+});
+
+describe('daftar pelanggan: kartu di HP, gulir tanpa batas', () => {
+  const mkCustomer = (id) => ({
+    id,
+    name: `Pelanggan ${id}`,
+    username: `p${id}`,
+    email: `p${id}@example.com`,
+    phone: null,
+    alias: id === 1 ? 'Bu Satu' : null,
+    status: 'active',
+    orderCount: id,
+    totalSpent: 1000 * id,
+    createdAt: '2026-10-01T03:00:00Z',
+  });
+  // 30 pelanggan, 20 per halaman; halaman 2 sengaja memuat ulang id 20 (uji dedup).
+  const paged = (path) => {
+    const page = Number(new URLSearchParams(path.split('?')[1]).get('page'));
+    const ids = page === 1 ? [...Array(20)].map((_, i) => i + 1) : [20, ...[...Array(10)].map((_, i) => i + 21)];
+    return Promise.resolve({ items: ids.map(mkCustomer), total: 30, page, perPage: 20 });
+  };
+  const cards = () => [...container.querySelectorAll('[data-customer-card]')];
+  const btn = (text) => byText('button', text);
+  const listPaths = () => mockState.calls.filter((c) => c.path.startsWith('/customers?')).map((c) => c.path);
+  const scrollDown = async () => {
+    await act(async () => {
+      intersect();
+      intersect(false);
+    });
+    await flush();
+  };
+
+  beforeEach(() => installIntersectionObserver());
+  afterEach(() => uninstallIntersectionObserver());
+
+  test('kartu: info utama tanpa tabel lebar, seluruh kartu menuju detail, tombol Alias tidak ikut memicu', async () => {
+    await renderAt('/admin/customers');
+    expect(container.querySelector('[data-testid="customer-cards"]').className).toContain('md:hidden');
+    expect(container.querySelector('table').parentElement.className).toMatch(/\bhidden\b.*\bmd:block\b/);
+    const [c] = cards();
+    ['Bu Siti Toko Maju', 'Siti Aminah', '@siti', 'siti@example.com', '4 pesanan', 'Aktif'].forEach((t) => expect(c.textContent).toContain(t));
+    const link = c.querySelector('a');
+    expect(link.getAttribute('href')).toBe('/admin/customers/11');
+    expect(link.className).toContain('after:absolute');
+    expect(link.className).toContain('after:inset-0');
+    const aliasBtn = c.querySelector('button[aria-label="Ubah alias Siti Aminah"]');
+    expect(aliasBtn.closest('a')).toBeNull();
+    expect(aliasBtn.className).toMatch(/\brelative\b.*\bz-10\b/);
+    await click(aliasBtn);
+    expect(window.location.pathname).toBe('/admin/customers');
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    // Simpan alias: kartu & baris diperbarui di tempat tanpa memuat ulang daftar.
+    const before = listPaths().length;
+    const input = container.querySelector('[role="dialog"] input');
+    await typeInto(input, 'Bu Siti Baru');
+    await click(byText('[role="dialog"] button', 'Simpan alias'));
+    expect(cards()[0].querySelector('[data-testid="alias"]').textContent).toBe('Bu Siti Baru');
+    expect(listPaths()).toHaveLength(before);
+    expect(btn('Berikutnya ›')).toBeUndefined();
+  });
+
+  test('gulir memuat halaman berikutnya tanpa duplikat; pencarian & urutan mulai dari halaman 1', async () => {
+    mockState.admin['/customers?'] = paged;
+    await renderAt('/admin/customers');
+    expect(cards()).toHaveLength(20);
+    await scrollDown();
+    expect(cards()).toHaveLength(30);
+    expect(container.querySelector('[data-testid="infinite-footer"] [role="status"]').textContent).toBe('Semua pelanggan sudah ditampilkan (30).');
+    expect(listPaths()).toEqual(['/customers?sort=newest&page=1&per_page=20', '/customers?sort=newest&page=2&per_page=20']);
+    const sel = container.querySelector('select[aria-label="Urutkan pelanggan"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(sel, 'spent');
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await flush();
+    expect(listPaths().at(-1)).toBe('/customers?sort=spent&page=1&per_page=20');
+    expect(cards()).toHaveLength(20);
+  });
+
+  test('kembali dari detail pelanggan: pencarian, urutan, dan daftar dipulihkan lalu disegarkan', async () => {
+    mockState.admin['/customers?'] = paged;
+    mockState.admin['/customers/1'] = { customer: { ...mkCustomer(1), lastOrderAt: null }, recentOrders: [] };
+    await renderAt('/admin/customers');
+    await typeInto(container.querySelector('input[type="search"]:not([aria-label="Cari menu"])'), 'Pel');
+    await click(btn('Cari'));
+    await scrollDown();
+    expect(cards()).toHaveLength(30);
+    await click(cards()[0].querySelector('a'));
+    expect(window.location.pathname).toBe('/admin/customers/1');
+    mockState.calls = [];
+    await click(byText('a', '‹ Semua pelanggan'));
+    expect(window.location.pathname).toBe('/admin/customers');
+    expect(container.querySelector('input[type="search"]:not([aria-label="Cari menu"])').value).toBe('Pel');
+    expect(cards()).toHaveLength(30);
+    expect(listPaths()).toEqual(['/customers?q=Pel&sort=newest&page=1&per_page=20', '/customers?q=Pel&sort=newest&page=2&per_page=20']);
+  });
 });
