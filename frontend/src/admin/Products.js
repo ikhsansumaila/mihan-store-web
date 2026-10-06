@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { adminFetch, qs, rupiah } from './api';
-import { ErrorBox, Modal, Pagination, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { adminFetch, rupiah } from './api';
+import { ErrorBox, Modal, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
+import { InfiniteFooter, useInfiniteList } from './infiniteList';
 import { MAX_TIERS, UNIT_SUGGESTIONS, analyzeTiers, normalizeUnit, tiersToBody, tiersToRows } from '../pricing';
 import MoneyInput from '../components/MoneyInput';
 import ProductPhotoField, { uploadProductPhoto } from './ProductPhoto';
@@ -388,17 +389,56 @@ const ProductForm = ({ initial, categories, onCancel, onSaved, onChanged }) => {
   );
 };
 
+const toForm = (p) => ({
+  id: p.id,
+  name: p.name,
+  categoryId: p.categoryDeleted ? '' : String(p.categoryId),
+  price: String(p.price),
+  unit: p.unit || 'pcs',
+  tiers: tiersToRows(p.tiers),
+  description: p.description || '',
+  image: p.image || '',
+  thumb: p.thumb || '',
+  isActive: p.isActive,
+});
+
+const TierBadge = ({ tiers }) =>
+  tiers?.length > 0 ? (
+    <span
+      className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+      title={tiers.map((t) => `${t.minQty}+ : ${rupiah(t.unitPrice)}`).join(' · ')}
+    >
+      Grosir ({tiers.length} jenjang)
+    </span>
+  ) : null;
+
+const ActiveToggle = ({ p, busy, onToggle }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      onToggle(p);
+    }}
+    disabled={busy}
+    className={`px-2 py-1 rounded-full text-xs font-semibold ${p.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}
+    title="Klik untuk mengubah status"
+  >
+    {p.isActive ? 'Aktif' : 'Nonaktif'}
+  </button>
+);
+
 const Products = () => {
   const [filters, setFilters] = useState({ q: '', category: '', status: '' });
-  const [page, setPage] = useState(1);
-  const [data, setData] = useState({ items: [], total: 0, perPage: 20 });
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // objek form atau null
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const topRef = useRef(null);
+  // Gulir tanpa batas; ganti pencarian/kategori/status = mulai lagi dari halaman 1.
+  const list = useInfiniteList('/products', filters, { topRef });
+  const { refresh } = list;
 
   // Pintasan Dashboard "Tambah Produk" (/admin/products?tambah=1): buka form tambah sekali.
   useEffect(() => {
@@ -407,23 +447,6 @@ const Products = () => {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminFetch(`/products${qs({ ...filters, page, per_page: 20 })}`);
-      setData(res);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, page]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     adminFetch('/categories')
@@ -435,7 +458,7 @@ const Products = () => {
     setBusyId(p.id);
     try {
       await adminFetch(`/products/${p.id}/active`, { method: 'PATCH', body: { active: !p.isActive } });
-      await load();
+      await refresh();
     } catch (err) {
       setError(err);
     } finally {
@@ -449,7 +472,7 @@ const Products = () => {
     try {
       await adminFetch(`/products/${p.id}`, { method: 'DELETE', body: {} });
       setConfirmDelete(null);
-      await load();
+      await refresh();
     } catch (err) {
       setError(err);
       setConfirmDelete(null);
@@ -459,9 +482,11 @@ const Products = () => {
   };
 
   const setFilter = (k) => (e) => {
-    setPage(1);
     setFilters({ ...filters, [k]: e.target.value });
   };
+
+  const firstLoad = list.loading && list.items.length === 0;
+  const empty = !list.loading && !list.error && list.items.length === 0;
 
   return (
     <div>
@@ -489,106 +514,133 @@ const Products = () => {
         </select>
       </div>
 
-      <ErrorBox error={error} />
+      <ErrorBox error={error || list.error} />
 
-      <div className="mt-3 overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Nama</th>
-              <th className="px-3 py-2">Kategori</th>
-              <th className="px-3 py-2 text-right">Harga</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+      <div ref={topRef} className="mt-3">
+        {/* HP (< md): kartu per produk; ketuk kartu = Ubah. Tombol status/Ubah/Hapus tetap terlihat tanpa geser. */}
+        <ul className="space-y-2 md:hidden" data-testid="product-cards">
+          {firstLoad && <li className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">Memuat...</li>}
+          {empty && <li className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">Tidak ada produk.</li>}
+          {list.items.map((p) => (
+            <li
+              key={p.id}
+              data-testid="product-card"
+              onClick={() => setEditing(toForm(p))}
+              className="cursor-pointer rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm active:bg-purple-50"
+            >
+              <div className="flex gap-3">
+                <SmallThumb src={p.thumb} alt={p.name} size={56} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-gray-800 [overflow-wrap:anywhere]">{p.name}</div>
+                  <div className="text-xs text-gray-500">
+                    #{p.id} · {p.categoryName}
+                    {p.categoryDeleted && <span className="ml-1 text-red-600">(dihapus)</span>}
+                  </div>
+                  <div className="mt-1 font-semibold text-gray-900">
+                    {rupiah(p.price)} <span className="text-xs font-normal text-gray-500">/ {p.unit || 'pcs'}</span>
+                  </div>
+                  <TierBadge tiers={p.tiers} />
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-gray-100 pt-2">
+                <ActiveToggle p={p} busy={busyId === p.id} onToggle={toggle} />
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    className="py-1 font-medium text-purple-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(toForm(p));
+                    }}
+                  >
+                    Ubah
+                  </button>
+                  <button
+                    type="button"
+                    className="py-1 font-medium text-red-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDelete(p);
+                    }}
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* md ke atas: tabel. */}
+        <div className="hidden overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm md:block">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Memuat...
-                </td>
+                <th className="px-3 py-2">ID</th>
+                <th className="px-3 py-2">Nama</th>
+                <th className="px-3 py-2">Kategori</th>
+                <th className="px-3 py-2 text-right">Harga</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2 text-right">Aksi</th>
               </tr>
-            ) : data.items.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Tidak ada produk.
-                </td>
-              </tr>
-            ) : (
-              data.items.map((p) => (
-                <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-3 py-2 text-gray-500">{p.id}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <SmallThumb src={p.thumb} alt={p.name} size={40} />
-                      <div className="min-w-0">
-                        <div className="font-medium text-gray-800">{p.name}</div>
-                        {p.description && <div className="text-xs text-gray-500 line-clamp-1 max-w-xs">{p.description}</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    {p.categoryName}
-                    {p.categoryDeleted && <span className="ml-1 text-xs text-red-600">(dihapus)</span>}
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    {rupiah(p.price)} <span className="text-xs text-gray-500">/ {p.unit || 'pcs'}</span>
-                    {p.tiers?.length > 0 && (
-                      <div>
-                        <span
-                          className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
-                          title={p.tiers.map((t) => `${t.minQty}+ : ${rupiah(t.unitPrice)}`).join(' · ')}
-                        >
-                          Grosir ({p.tiers.length} jenjang)
-                        </span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => toggle(p)}
-                      disabled={busyId === p.id}
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        p.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                      }`}
-                      title="Klik untuk mengubah status"
-                    >
-                      {p.isActive ? 'Aktif' : 'Nonaktif'}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      className="text-purple-700 hover:underline mr-3"
-                      onClick={() =>
-                        setEditing({
-                          id: p.id,
-                          name: p.name,
-                          categoryId: p.categoryDeleted ? '' : String(p.categoryId),
-                          price: String(p.price),
-                          unit: p.unit || 'pcs',
-                          tiers: tiersToRows(p.tiers),
-                          description: p.description || '',
-                          image: p.image || '',
-                          thumb: p.thumb || '',
-                          isActive: p.isActive,
-                        })
-                      }
-                    >
-                      Ubah
-                    </button>
-                    <button className="text-red-600 hover:underline" onClick={() => setConfirmDelete(p)}>
-                      Hapus
-                    </button>
+            </thead>
+            <tbody>
+              {firstLoad ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                    Memuat...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : empty ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                    Tidak ada produk.
+                  </td>
+                </tr>
+              ) : (
+                list.items.map((p) => (
+                  <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-2 text-gray-500">{p.id}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <SmallThumb src={p.thumb} alt={p.name} size={40} />
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-800">{p.name}</div>
+                          {p.description && <div className="text-xs text-gray-500 line-clamp-1 max-w-xs">{p.description}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {p.categoryName}
+                      {p.categoryDeleted && <span className="ml-1 text-xs text-red-600">(dihapus)</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      {rupiah(p.price)} <span className="text-xs text-gray-500">/ {p.unit || 'pcs'}</span>
+                      {p.tiers?.length > 0 && (
+                        <div>
+                          <TierBadge tiers={p.tiers} />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <ActiveToggle p={p} busy={busyId === p.id} onToggle={toggle} />
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <button className="text-purple-700 hover:underline mr-3" onClick={() => setEditing(toForm(p))}>
+                        Ubah
+                      </button>
+                      <button className="text-red-600 hover:underline" onClick={() => setConfirmDelete(p)}>
+                        Hapus
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <Pagination page={page} perPage={data.perPage} total={data.total} onPage={setPage} />
+      <InfiniteFooter list={list} noun="produk" />
 
       {editing && (
         <Modal title={editing.id ? `Ubah produk #${editing.id}` : 'Tambah produk'} onClose={() => setEditing(null)} wide>
@@ -598,9 +650,9 @@ const Products = () => {
             onCancel={() => setEditing(null)}
             onSaved={() => {
               setEditing(null);
-              load();
+              refresh();
             }}
-            onChanged={load}
+            onChanged={refresh}
           />
         </Modal>
       )}
