@@ -56,9 +56,11 @@ const StatusTabs = ({ active, counts, onSelect }) => {
     e.currentTarget.parentElement?.querySelector(`[data-status="${next.value || 'all'}"]`)?.focus();
   };
   return (
-    // Satu baris yang bisa di-scroll horizontal di HP; halaman tidak ikut melebar.
-    <div ref={scrollerRef} className="relative mb-4 -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0 [scrollbar-width:thin]" data-testid="order-status-tabs">
-      <div role="tablist" aria-label="Status pesanan" className="flex w-max min-w-full gap-1 border-b border-gray-200">
+    // Tepi atas kartu tabel: satu baris yang bisa di-scroll horizontal di HP (halaman tidak ikut melebar).
+    // Garis bawah baris tab = batas atas tabel; tab aktif berlatar sama dengan judul kolom (gray-50) dan
+    // menutup garis itu (-mb-px) sehingga menyambung langsung ke tabel.
+    <div ref={scrollerRef} className="relative overflow-x-auto bg-white [scrollbar-width:thin]" data-testid="order-status-tabs">
+      <div role="tablist" aria-label="Status pesanan" className="flex w-max min-w-full gap-1 border-b border-gray-200 px-2 pt-2">
         {ORDER_TABS.map((t) => {
           const selected = t.value === active;
           const n = counts[t.value];
@@ -73,8 +75,10 @@ const StatusTabs = ({ active, counts, onSelect }) => {
               data-status={t.value || 'all'}
               onClick={() => onSelect(t.value)}
               onKeyDown={onKeyDown}
-              className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
-                selected ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'
+              className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-t-md border px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-400 ${
+                selected
+                  ? 'border-gray-200 border-b-gray-50 bg-gray-50 text-purple-700 shadow-[inset_0_2px_0_0_#9333ea]'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
               {t.label}
@@ -153,7 +157,6 @@ export const OrdersList = () => {
   return (
     <div>
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Pesanan</h1>
-      <StatusTabs active={status} counts={counts} onSelect={selectTab} />
       <form onSubmit={apply} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <label className="block lg:col-span-2">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Cari (no. pesanan, nama, alias, telepon)</span>
@@ -185,65 +188,69 @@ export const OrdersList = () => {
         </div>
       </form>
       <ErrorBox error={error} />
-      <div id="order-list-panel" role="tabpanel" aria-label={`Pesanan: ${ORDER_TABS.find((t) => t.value === status).label}`} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="p-3">No. pesanan</th>
-              <th className="p-3">Tanggal</th>
-              <th className="p-3">Pemesan / penerima</th>
-              <th className="p-3 text-right">Item</th>
-              <th className="p-3 text-right">Total</th>
-              <th className="p-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && data.items.length === 0 ? (
+      {/* Kartu daftar: tab status menempel di tepi atas, tepat di atas judul kolom tabel. */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden" data-testid="order-list-card">
+        <StatusTabs active={status} counts={counts} onSelect={selectTab} />
+        <div id="order-list-panel" role="tabpanel" aria-label={`Pesanan: ${ORDER_TABS.find((t) => t.value === status).label}`} className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <td colSpan="6" className="p-6 text-center text-gray-500">
-                  Memuat...
-                </td>
+                <th className="p-3">No. pesanan</th>
+                <th className="p-3">Tanggal</th>
+                <th className="p-3">Pemesan / penerima</th>
+                <th className="p-3 text-right">Item</th>
+                <th className="p-3 text-right">Total</th>
+                <th className="p-3">Status</th>
               </tr>
-            ) : data.items.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="p-6 text-center text-gray-500">
-                  Belum ada pesanan.
-                </td>
-              </tr>
-            ) : (
-              data.items.map((o) => (
-                <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
-                  <td className="p-3 font-semibold whitespace-nowrap">
-                    <Link to={`/admin/orders/${o.id}`} state={{ ordersSearch: listSearch }} className="text-purple-700 hover:underline">
-                      {o.orderNo}
-                    </Link>
-                  </td>
-                  <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
-                  <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
-                    {o.customer?.alias ? (
-                      <>
-                        <div className="font-semibold text-purple-800" data-testid="order-alias">
-                          {o.customer.alias}
-                        </div>
-                        <div className="text-xs text-gray-600">{o.customerName}</div>
-                      </>
-                    ) : (
-                      <div>{o.customerName}</div>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      → {o.recipientName}, {o.city}
-                    </div>
-                  </td>
-                  <td className="p-3 text-right">{o.itemCount}</td>
-                  <td className="p-3 text-right font-semibold whitespace-nowrap">{rupiah(o.total)}</td>
-                  <td className="p-3">
-                    <OrderStatusBadge status={o.status} />
+            </thead>
+            <tbody>
+              {loading && data.items.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="p-6 text-center text-gray-500">
+                    Memuat...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : data.items.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="p-6 text-center text-gray-500">
+                    Belum ada pesanan.
+                  </td>
+                </tr>
+              ) : (
+                data.items.map((o) => (
+                  <tr key={o.id} className="border-t border-gray-100 hover:bg-purple-50">
+                    <td className="p-3 font-semibold whitespace-nowrap">
+                      <Link to={`/admin/orders/${o.id}`} state={{ ordersSearch: listSearch }} className="text-purple-700 hover:underline">
+                        {o.orderNo}
+                      </Link>
+                    </td>
+                    <td className="p-3 whitespace-nowrap">{fmtTime(o.createdAt)}</td>
+                    <td className="p-3 min-w-[16rem] [overflow-wrap:anywhere]">
+                      {o.customer?.alias ? (
+                        <>
+                          <div className="font-semibold text-purple-800" data-testid="order-alias">
+                            {o.customer.alias}
+                          </div>
+                          <div className="text-xs text-gray-600">{o.customerName}</div>
+                        </>
+                      ) : (
+                        <div>{o.customerName}</div>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        → {o.recipientName}, {o.city}
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">{o.itemCount}</td>
+                    <td className="p-3 text-right font-semibold whitespace-nowrap">{rupiah(o.total)}</td>
+                    <td className="p-3">
+                      <OrderStatusBadge status={o.status} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       <Pagination page={page} perPage={data.perPage} total={data.total} onPage={setPage} />
     </div>

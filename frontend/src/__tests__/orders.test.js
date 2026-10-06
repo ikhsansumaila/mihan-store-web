@@ -357,6 +357,16 @@ test('admin Pesanan: tab status menggantikan dropdown, default Semua, tab bisa d
   expect(container.querySelector('[role="tablist"]').className).toContain('w-max');
   tabEls().forEach((t) => expect(t.className).toMatch(/\bshrink-0\b.*\bwhitespace-nowrap\b/));
   expect(container.querySelector('#order-list-panel[role="tabpanel"]')).not.toBeNull();
+  // Tab menempel di tepi atas kartu daftar, langsung di atas tabel (judul kolom); filter tetap di atas kartu.
+  const card = container.querySelector('[data-testid="order-list-card"]');
+  expect(card.firstElementChild).toBe(scroller);
+  expect(scroller.nextElementSibling.id).toBe('order-list-panel');
+  expect(scroller.nextElementSibling.firstElementChild.tagName).toBe('TABLE');
+  expect(scroller.className).not.toMatch(/\bm[btxy]?-\d/);
+  const form = container.querySelector('form');
+  expect(form.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(tabBy('all').className).toContain('bg-gray-50');
+  expect(container.querySelector('#order-list-panel thead').className).toContain('bg-gray-50');
 });
 
 test('admin Pesanan: klik tab menyimpan ?status di URL (replace), memuat ulang dari halaman 1, pencarian tetap berlaku', async () => {
