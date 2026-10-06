@@ -119,7 +119,7 @@ export const useInfiniteList = (basePath, params, { cacheId, topRef } = {}) => {
       if (Number.isFinite(top) && top < 0) window.scrollTo?.({ top: Math.max(0, window.scrollY + top - 72) });
     }
     loadPage(1);
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key]); // sengaja hanya key: loadPage/refresh stabil, path dibaca lewat pathRef
 
   // Kembali dari detail: pulihkan posisi gulir sekali.
   useLayoutEffect(() => {
