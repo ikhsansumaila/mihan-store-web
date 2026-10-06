@@ -392,9 +392,26 @@ describe('daftar pelanggan: kartu di HP, gulir tanpa batas', () => {
     expect(link.getAttribute('href')).toBe('/admin/customers/11');
     expect(link.className).toContain('after:absolute');
     expect(link.className).toContain('after:inset-0');
+    // Pensil kecil tepat di kanan alias (sebaris), di atas lapisan tautan kartu, area ketuk 32px.
     const aliasBtn = c.querySelector('button[aria-label="Ubah alias Siti Aminah"]');
     expect(aliasBtn.closest('a')).toBeNull();
     expect(aliasBtn.className).toMatch(/\brelative\b.*\bz-10\b/);
+    expect(aliasBtn.className).toMatch(/\bh-8\b/);
+    expect(aliasBtn.className).toMatch(/\bw-8\b/);
+    expect(aliasBtn.className).toContain('focus-visible:ring-2');
+    expect(aliasBtn.getAttribute('title')).toBe('Ubah alias');
+    expect(aliasBtn.textContent).toBe('');
+    expect(aliasBtn.querySelector('svg').getAttribute('class')).toContain('h-3.5');
+    expect(aliasBtn.previousElementSibling.getAttribute('data-testid')).toBe('alias');
+    expect(aliasBtn.parentElement.className).toContain('flex');
+    expect(c.querySelectorAll('button')).toHaveLength(1);
+    // Tanpa alias: tombol "Tambah alias" redup + pensil.
+    const c2 = container.querySelector('[data-customer-card="12"]');
+    const addBtn = c2.querySelector('button[aria-label="Tambah alias Bayu"]');
+    expect(addBtn.textContent).toBe('Tambah alias');
+    expect(addBtn.querySelector('svg')).not.toBeNull();
+    expect(addBtn.closest('a')).toBeNull();
+    expect(c2.querySelector('a').textContent).toBe('Bayu');
     await click(aliasBtn);
     expect(window.location.pathname).toBe('/admin/customers');
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();

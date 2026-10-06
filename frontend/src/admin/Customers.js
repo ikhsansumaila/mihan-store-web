@@ -54,10 +54,10 @@ export const CustomersList = () => {
   const firstLoad = list.loading && list.items.length === 0;
   const empty = !list.loading && !list.error && list.items.length === 0;
   const emptyText = q ? 'Tidak ada pelanggan yang cocok.' : 'Belum ada pelanggan.';
-  const aliasButton = (c, extra = '') => (
+  const aliasButton = (c) => (
     <button
       type="button"
-      className={`${btnSecondary} !px-2.5 !py-1.5 ${extra}`}
+      className={`${btnSecondary} !px-2.5 !py-1.5`}
       onClick={() => setEditing(c)}
       aria-label={`Ubah alias ${c.name}`}
       title="Ubah alias"
@@ -111,20 +111,39 @@ export const CustomersList = () => {
             <li key={c.id} data-customer-card={c.id} className={`${cardClass} relative p-3 text-sm active:bg-purple-50`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                  {/* Baris alias + pensil kecil. Tombol di atas lapisan tautan kartu (relative z-10), jadi tidak
+                      membuka detail; area ketuk 32px lewat padding, ikon tetap kecil. Tanpa alias: tombol
+                      "Tambah alias" redup + pensil. */}
+                  <div className="flex min-w-0 items-center gap-0.5">
+                    {c.alias && <AliasText alias={c.alias} className="min-w-0" />}
+                    <button
+                      type="button"
+                      onClick={() => setEditing(c)}
+                      aria-label={c.alias ? `Ubah alias ${c.name}` : `Tambah alias ${c.name}`}
+                      title={c.alias ? 'Ubah alias' : 'Tambah alias'}
+                      data-testid="card-alias-edit"
+                      className={`relative z-10 -my-1.5 inline-flex h-8 shrink-0 items-center gap-1 rounded-md text-gray-400 hover:text-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 active:bg-purple-100 ${
+                        c.alias ? 'w-8 justify-center' : '-ml-1 px-1 text-xs italic'
+                      }`}
+                    >
+                      {!c.alias && <span>Tambah alias</span>}
+                      <Icon name="pencil" className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                   {/* Tautan "merentang" (after:inset-0) membuat seluruh kartu bisa diketuk tanpa membungkus tombol. */}
                   <Link
                     to={`/admin/customers/${c.id}`}
                     onClick={remember}
-                    className="block after:absolute after:inset-0 after:rounded-lg after:content-[''] focus:outline-none focus-visible:after:ring-2 focus-visible:after:ring-purple-400"
+                    className={`block after:absolute after:inset-0 after:rounded-lg after:content-[''] focus:outline-none focus-visible:after:ring-2 focus-visible:after:ring-purple-400 ${
+                      c.alias ? 'text-xs text-gray-600' : 'font-medium text-gray-900'
+                    }`}
                   >
-                    <AliasText alias={c.alias} className="block" />
-                    <span className={c.alias ? 'block text-xs text-gray-600' : 'block font-medium text-gray-900'}>{c.name}</span>
+                    {c.name}
                   </Link>
                   <span className="text-xs text-gray-500">@{c.username}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <AccountStatus status={c.status} />
-                  {aliasButton(c, 'relative z-10')}
                 </div>
               </div>
               <div className="mt-1 text-xs text-gray-600 [overflow-wrap:anywhere]">
