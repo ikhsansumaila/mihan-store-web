@@ -271,11 +271,14 @@ test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko, tombol batal s
   expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/6281299998888\?text=/);
   const text = decodeURIComponent(wa.getAttribute('href').split('text=')[1]);
   expect(text).toContain('MS-261002-0001');
-  expect(text).toContain('Rp 152.000');
+  expect(text).toContain('- Kerupuk Finna Udang x2\n- Kerupuk Finna Bawang x1');
+  expect(text).not.toContain('Rp');
   expect(text).not.toContain('Melati');
   // Nama di teks WhatsApp = nama penerima pesanan, bukan nama akun login (USER.name = 'Budi').
   expect(text).toContain('Nama: Budi Penerima');
-  expect(text).toContain(`Buka di admin: ${window.location.origin}/admin/orders/MS-261002-0001`);
+  expect(text).not.toContain('Buka di admin');
+  expect(text).not.toContain('/admin/');
+  expect(text.endsWith(`\n\nMohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih\n\n${window.location.origin}/pesanan/MS-261002-0001`)).toBe(true);
   expect(text).not.toMatch(/Nama: Budi$/m);
   expect(container.textContent).toContain('Info rekening toko belum diatur');
   expect(btn('Batalkan pesanan')).toBeTruthy();

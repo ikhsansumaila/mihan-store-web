@@ -1,5 +1,5 @@
 // Tes unit pembentuk teks WhatsApp dan generator invoice (jsPDF ditiru).
-import { adminOrderUrl, buildAdminSummaryText, buildCustomerConfirmText, newIdempotencyKey, siteOrigin, waLink, waNumber } from '../shop/format';
+import { CUSTOMER_CONFIRM_CLOSING, adminOrderUrl, buildAdminSummaryText, buildCustomerConfirmText, customerOrderUrl, newIdempotencyKey, siteOrigin, waLink, waNumber } from '../shop/format';
 
 const mockDocs = [];
 jest.mock('jspdf', () => ({
@@ -59,28 +59,77 @@ test('waNumber/waLink: normalisasi ke 62xxx dan menolak nomor tidak valid', () =
   expect(waLink('+6281234567890', 'a b&c')).toBe('https://wa.me/6281234567890?text=a%20b%26c');
 });
 
-test('teks konfirmasi pelanggan memuat nomor pesanan, item, total, nama; tanpa alamat/telepon', () => {
+test('teks konfirmasi pelanggan memuat nomor pesanan, item, nama; tanpa nominal, status, alamat/telepon', () => {
   const t = buildCustomerConfirmText(order, 'Akun Google Berbeda');
-  expect(t).toContain('MS-261002-0001');
-  expect(t).toContain('Kerupuk Udang x2 = Rp 90.000');
-  expect(t).toContain('Total: Rp 152.000');
+  expect(t).toBe(
+    [
+      'Halo Mihan Store, saya ingin konfirmasi pesanan:',
+      '',
+      'No. pesanan: MS-261002-0001',
+      `Nama: ${order.recipient.name}`,
+      '',
+      'Item:',
+      '- Kerupuk Udang x2',
+      '- Kerupuk Bawang x1',
+      '',
+      'Mohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih',
+      '',
+      `${window.location.origin}/pesanan/MS-261002-0001`,
+    ].join('\n'),
+  );
+  expect(t).not.toContain('Rp');
+  expect(t).not.toMatch(/Total|Ongkir|Diskon|Subtotal|Status/);
   expect(t).toContain(`Nama: ${order.recipient.name}`);
   expect(t).not.toContain('Akun Google Berbeda'); // nama penerima diutamakan, bukan nama akun login
   expect(t).not.toContain('Melati');
   expect(t).not.toContain('6281311112222');
 });
 
-test('teks konfirmasi memuat tautan admin (origin + nomor pesanan) sebelum "Terima kasih."', () => {
+test('teks konfirmasi: tanpa tautan admin; kalimat penutup lalu tautan halaman pesanan pelanggan', () => {
   const t = buildCustomerConfirmText(order, 'X');
-  const lines = t.split('\n');
-  const i = lines.indexOf(`Buka di admin: ${window.location.origin}/admin/orders/MS-261002-0001`);
-  expect(i).toBeGreaterThan(-1);
-  expect(lines.slice(i + 1)).toEqual(['', 'Terima kasih.']);
+  expect(t).not.toContain('Buka di admin');
+  expect(t).not.toContain('/admin/');
+  expect(t).not.toContain('Terima kasih.');
+  expect(CUSTOMER_CONFIRM_CLOSING).toBe('Mohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih');
+  expect(t.split('\n').slice(-3)).toEqual([CUSTOMER_CONFIRM_CLOSING, '', `${window.location.origin}/pesanan/MS-261002-0001`]);
+  expect(customerOrderUrl('MS-20261006-0042', 'https://store.mihan.web.id')).toBe('https://store.mihan.web.id/pesanan/MS-20261006-0042');
+  expect(customerOrderUrl('a b/c', 'https://x.id')).toBe('https://x.id/pesanan/a%20b%2Fc');
+  expect(customerOrderUrl('MS-1')).toBe(`${window.location.origin}/pesanan/MS-1`);
+  // Tanpa nomor pesanan: tidak ada baris tautan, teks diakhiri kalimat penutup.
+  const noNo = buildCustomerConfirmText({ ...order, orderNo: '' }, 'X');
+  expect(noNo).not.toContain('/pesanan/');
+  expect(noNo.endsWith(`\n\n${CUSTOMER_CONFIRM_CLOSING}`)).toBe(true);
+  // Helper tautan admin tetap tersedia untuk keperluan lain.
   expect(adminOrderUrl('MS-261002-0001', 'https://store.mihan.web.id')).toBe('https://store.mihan.web.id/admin/orders/MS-261002-0001');
   expect(adminOrderUrl('a b/c', 'https://x.id')).toBe('https://x.id/admin/orders/a%20b%2Fc');
   expect(siteOrigin()).toBe(window.location.origin);
-  // Tanpa nomor pesanan: tidak ada baris tautan.
-  expect(buildCustomerConfirmText({ ...order, orderNo: '' }, 'X')).not.toContain('Buka di admin');
+});
+
+test('teks konfirmasi pelanggan persis sesuai contoh yang disetujui pemilik (satuan + harga grosir)', () => {
+  const ex = {
+    orderNo: 'MS-20261006-0042',
+    status: 'pending_payment',
+    discount: 10000,
+    shippingFee: 25000,
+    total: 999000,
+    recipient: { name: 'Budi Santoso' },
+    items: [
+      { name: 'Beras Premium 5kg', unit: 'karung', qty: 2, unitPrice: 75000, lineTotal: 150000, tierMinQty: null },
+      { name: 'Minyak Goreng 2L', unit: 'pcs', qty: 6, unitPrice: 33000, lineTotal: 198000, tierMinQty: 6 },
+    ],
+  };
+  expect(buildCustomerConfirmText(ex, 'Akun').replace(window.location.origin, 'https://store.mihan.web.id')).toBe(`Halo Mihan Store, saya ingin konfirmasi pesanan:
+
+No. pesanan: MS-20261006-0042
+Nama: Budi Santoso
+
+Item:
+- Beras Premium 5kg x2 karung
+- Minyak Goreng 2L x6 pcs (harga grosir)
+
+Mohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih
+
+https://store.mihan.web.id/pesanan/MS-20261006-0042`);
 });
 
 test('teks konfirmasi: nama akun hanya cadangan bila nama penerima kosong, lalu "-"', () => {

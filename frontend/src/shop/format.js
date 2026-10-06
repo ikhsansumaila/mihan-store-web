@@ -72,7 +72,7 @@ export const waLink = (phone, text) => {
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
 };
 
-// Asal (origin) situs untuk tautan admin di teks WhatsApp; cadangan alamat produksi bila window tidak tersedia.
+// Asal (origin) situs untuk tautan (admin / halaman pesanan pelanggan); cadangan alamat produksi bila window tidak tersedia.
 export const STORE_ORIGIN_FALLBACK = 'https://store.mihan.web.id';
 export const siteOrigin = () => {
   const o = typeof window !== 'undefined' && window.location ? window.location.origin : '';
@@ -82,8 +82,14 @@ export const siteOrigin = () => {
 // Tautan halaman pesanan di admin berdasarkan NOMOR pesanan (rute admin menerjemahkannya ke id).
 export const adminOrderUrl = (orderNo, origin = siteOrigin()) => `${origin}/admin/orders/${encodeURIComponent(orderNo || '')}`;
 
-// Teks konfirmasi pelanggan -> toko (nomor pesanan, item, total, nama, tautan admin).
+// Tautan halaman pesanan milik PELANGGAN (rute toko /pesanan/:orderNo).
+export const customerOrderUrl = (orderNo, origin = siteOrigin()) => `${origin}/pesanan/${encodeURIComponent(orderNo || '')}`;
+
+// Teks konfirmasi pelanggan -> toko: nomor pesanan, nama, dan daftar item (jumlah + satuan + tanda grosir).
+// Sengaja TANPA nominal (harga, diskon, ongkir, total), status, maupun tautan admin; toko yang menginfokan ongkir & total.
+// Di bawah kalimat penutup: tautan halaman pesanan pelanggan (/pesanan/<no>) bila nomor pesanan ada.
 // Nama = nama PENERIMA di pesanan; nama akun (mis. dari login Google) hanya cadangan bila penerima kosong.
+export const CUSTOMER_CONFIRM_CLOSING = 'Mohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih';
 export const buildCustomerConfirmText = (order, accountName) => {
   const name = String(order.recipient?.name || '').trim() || String(accountName || '').trim() || '-';
   const lines = [
@@ -96,19 +102,14 @@ export const buildCustomerConfirmText = (order, accountName) => {
   ];
   (order.items || []).forEach((it) => {
     const qty = it.unit ? `${it.qty} ${it.unit}` : `${it.qty}`;
-    lines.push(`- ${it.name} x${qty} = ${rupiah(it.lineTotal)}${it.tierMinQty ? ' (harga grosir)' : ''}`);
+    lines.push(`- ${it.name} x${qty}${it.tierMinQty ? ' (harga grosir)' : ''}`);
   });
   lines.push('');
-  if (order.discount > 0) lines.push(`Diskon: -${rupiah(order.discount)}`);
-  if (order.shippingFee > 0) lines.push(`Ongkir: ${rupiah(order.shippingFee)}`);
-  lines.push(`Total: ${rupiah(order.total)}`);
-  lines.push(`Status: ${statusLabel(order.status)}`);
-  lines.push('');
+  lines.push(CUSTOMER_CONFIRM_CLOSING);
   if (order.orderNo) {
-    lines.push(`Buka di admin: ${adminOrderUrl(order.orderNo)}`);
     lines.push('');
+    lines.push(customerOrderUrl(order.orderNo));
   }
-  lines.push('Terima kasih.');
   return lines.join('\n');
 };
 

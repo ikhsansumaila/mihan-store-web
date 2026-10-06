@@ -119,8 +119,9 @@ describe('teks WhatsApp & invoice memakai satuan dan harga efektif', () => {
 
   test('konfirmasi pelanggan memuat satuan dan tanda harga grosir', () => {
     const t = buildCustomerConfirmText(order, 'X');
-    expect(t).toContain('- Kerupuk Grosir x12 pak = Rp 504.000 (harga grosir)');
-    expect(t).toContain('- Saos x1 botol = Rp 45.000');
+    expect(t).toContain('- Kerupuk Grosir x12 pak (harga grosir)');
+    expect(t).toContain('- Saos x1 botol\n');
+    expect(t).not.toContain('Rp');
   });
 
   test('invoice pesanan: satuan, harga efektif per satuan, catatan HARGA GROSIR (MIN N); pesanan lama tetap PCS', async () => {
