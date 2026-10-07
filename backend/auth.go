@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"mihanstore/notify"
+	"mihanstore/push"
 )
 
 const (
@@ -50,6 +51,8 @@ type App struct {
 	cancelLimiter    *RateLimiter // per pengguna: batalkan pesanan
 	aliasLimiter     *RateLimiter // per admin: ubah alias pelanggan
 	notifier         notify.Notifier
+	pusher           push.Sender  // Web Push admin (Noop bila VAPID belum dikonfigurasi)
+	pushLimiter      *RateLimiter // per admin: langganan/tes push
 	now              func() time.Time
 
 	// Data wilayah (regions*.go).
@@ -85,6 +88,7 @@ func NewApp(cfg Config) *App {
 		checkoutLimiter:  NewRateLimiter(10, 10*time.Minute),
 		cancelLimiter:    NewRateLimiter(10, 10*time.Minute),
 		aliasLimiter:     NewRateLimiter(60, time.Minute),
+		pushLimiter:      NewRateLimiter(20, time.Minute),
 		// Server tiruan (http, host bebas) hanya diizinkan untuk database uji.
 		notifier: notify.New(cfg.DiscordOrderWebhookURL, cfg.IsTestDB()),
 		now:      func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
@@ -99,6 +103,7 @@ func NewApp(cfg Config) *App {
 		imageLimiter: NewRateLimiter(20, time.Minute),
 		imageSem:     make(chan struct{}, 2),
 	}
+	a.pusher = push.New(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, &pushStore{app: a})
 	a.setImageStore(NewLocalStore(cfg.UploadsDir, "/uploads/"), cfg.MaxUploadsMB)
 	if cfg.TestRegionMinProvinces > 0 {
 		a.regionFetchCfg.MinProvinces = cfg.TestRegionMinProvinces

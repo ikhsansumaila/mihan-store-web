@@ -4,6 +4,7 @@ import { ErrorBox, cardClass } from './ui';
 import { LogTable } from './Activity';
 import { Icon } from './icons';
 import { useAdminSummary } from './AdminLayout';
+import PushCard from './PushCard';
 
 // Dashboard bergaya cPanel: kartu statistik ber-ikon, pintasan cepat, 10 aktivitas terakhir.
 // Data dari /api/admin/summary (sama seperti Ringkasan sebelumnya).
@@ -57,6 +58,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">Dashboard</h1>
       {error && <ErrorBox error={error} />}
+      <PushCard />
 
       <section aria-label="Statistik">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">

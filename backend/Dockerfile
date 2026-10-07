@@ -10,6 +10,7 @@ RUN go mod download
 # Salin source dan build binary statis
 COPY *.go ./
 COPY notify ./notify
+COPY push ./push
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/main .
 
 # Final stage

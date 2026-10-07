@@ -50,6 +50,11 @@ type Config struct {
 	// URL publik toko untuk tautan di notifikasi (default https://store.mihan.web.id).
 	PublicBaseURL string
 
+	// Web Push admin (VAPID). Kunci privat RAHASIA; kosong = fitur nonaktif (Noop), backend tetap jalan.
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string // mailto:... atau https://... (default PUBLIC_BASE_URL bila https)
+
 	// Sumber data wilayah (default https://wilayah.id/api). Di produksi hanya https://wilayah.id/...;
 	// URL lain (server tiruan) hanya berlaku bila DB_NAME berakhiran _test.
 	RegionAPIBase string
@@ -131,6 +136,17 @@ func LoadConfig() Config {
 
 		DiscordOrderWebhookURL: strings.TrimSpace(os.Getenv("DISCORD_ORDER_WEBHOOK_URL")),
 		PublicBaseURL:          normalizeBaseURL(os.Getenv("PUBLIC_BASE_URL")),
+
+		VAPIDPublicKey:  strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY")),
+		VAPIDPrivateKey: strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")),
+		VAPIDSubject:    strings.TrimSpace(os.Getenv("VAPID_SUBJECT")),
+	}
+	if cfg.VAPIDSubject == "" {
+		if strings.HasPrefix(cfg.PublicBaseURL, "https://") {
+			cfg.VAPIDSubject = cfg.PublicBaseURL
+		} else {
+			cfg.VAPIDSubject = defaultPublicBaseURL
+		}
 	}
 	tAccess := strings.TrimSpace(os.Getenv("TEST_ONLY_CF_ACCESS_JWKS_URL"))
 	tGoogle := strings.TrimSpace(os.Getenv("TEST_ONLY_GOOGLE_JWKS_URL"))

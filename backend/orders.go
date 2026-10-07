@@ -7,6 +7,7 @@ package main
 // - Item, harga, dan total SELALU diambil dari database di server (bukan dari body).
 // - Pesanan orang lain dijawab 404 persis seperti pesanan yang tidak ada (anti-IDOR).
 // - Notifikasi Discord dikirim setelah commit, asinkron, tanpa data pribadi selain nama.
+// - Web Push admin (pesanan baru / dibatalkan pelanggan) juga setelah commit, asinkron, hanya nomor pesanan.
 
 import (
 	"errors"
@@ -20,6 +21,7 @@ import (
 	"gorm.io/gorm"
 
 	"mihanstore/notify"
+	"mihanstore/push"
 )
 
 const (
@@ -484,6 +486,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.notifyOrder(db, notify.KindCreated, orderID)
+	a.pushOrder(db, push.KindCreated, orderID)
 	o, err := findOrderByID(db, orderID)
 	if err != nil {
 		writeJSON(w, http.StatusCreated, map[string]any{"success": true})
@@ -655,6 +658,7 @@ func (a *App) CancelMyOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.notifyOrder(db, notify.KindCancelled, orderID)
+	a.pushOrder(db, push.KindCancelled, orderID)
 	o, err := findOrderByID(db, orderID)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
