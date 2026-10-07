@@ -150,13 +150,23 @@ export const currentSubscription = async () => {
   return reg.pushManager.getSubscription();
 };
 
-export const fetchPushConfig = () => adminFetch('/push/public-key');
+// API langganan per audiens. Admin: /api/admin/push/* (Cloudflare Access + CSRF, lewat adminFetch).
+// Pelanggan: /api/push/* (sesi Bearer), lihat shop/pushApi.js. Bentuk sama: {fetchConfig, save, remove}.
+export const adminPushApi = {
+  fetchConfig: () => adminFetch('/push/public-key'),
+  save: (body) => adminFetch('/push/subscribe', { method: 'POST', body }),
+  remove: (endpoint) => adminFetch('/push/subscribe', { method: 'DELETE', body: { endpoint } }),
+};
 
-export const sendSubscription = (sub) => adminFetch('/push/subscribe', { method: 'POST', body: sub.toJSON ? sub.toJSON() : sub });
+export const fetchPushConfig = () => adminPushApi.fetchConfig();
+
+const subJSON = (sub) => (sub && typeof sub.toJSON === 'function' ? sub.toJSON() : sub);
+
+export const sendSubscription = (sub, api = adminPushApi) => api.save(subJSON(sub));
 
 // subscribeDevice: dipanggil SETELAH izin "granted". Mendaftarkan service worker, berlangganan dengan
-// kunci publik server (langganan lama dengan kunci lain diganti), lalu menyimpan di server.
-export const subscribeDevice = async (publicKey) => {
+// kunci publik server (langganan lama dengan kunci lain diganti), lalu menyimpan di server (audiens api).
+export const subscribeDevice = async (publicKey, api = adminPushApi) => {
   const reg = await registerSW();
   const ready = (await navigator.serviceWorker.ready) || reg;
   const key = urlBase64ToUint8Array(publicKey);
@@ -166,20 +176,27 @@ export const subscribeDevice = async (publicKey) => {
     sub = null;
   }
   if (!sub) sub = await ready.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-  await sendSubscription(sub);
+  await sendSubscription(sub, api);
   return sub;
 };
 
-// unsubscribeDevice: berhenti berlangganan di browser dan hapus dari server.
-export const unsubscribeDevice = async () => {
+// unsubscribeDevice: hapus langganan audiens ini di server, lalu berhenti berlangganan di browser KECUALI
+// server menyatakan endpoint yang sama masih dipakai audiens lain (admin & pelanggan di browser yang sama).
+// Bila server gagal dihubungi, browser tetap berhenti berlangganan (lebih aman), lalu galat dilempar.
+export const unsubscribeDevice = async (api = adminPushApi) => {
   const sub = await currentSubscription();
   if (!sub) return false;
   const { endpoint } = sub;
+  let keep = false;
+  let error = null;
   try {
-    await sub.unsubscribe();
-  } finally {
-    await adminFetch('/push/subscribe', { method: 'DELETE', body: { endpoint } });
+    const r = await api.remove(endpoint);
+    keep = !!(r && r.keepBrowserSubscription);
+  } catch (e) {
+    error = e;
   }
+  if (!keep) await sub.unsubscribe();
+  if (error) throw error;
   return true;
 };
 

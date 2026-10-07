@@ -92,7 +92,8 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "no-referrer")
 		if strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/") ||
 			r.URL.Path == "/api/cart" || strings.HasPrefix(r.URL.Path, "/api/cart/") ||
-			r.URL.Path == "/api/orders" || strings.HasPrefix(r.URL.Path, "/api/orders/") || r.URL.Path == "/api/store-info" {
+			r.URL.Path == "/api/orders" || strings.HasPrefix(r.URL.Path, "/api/orders/") || r.URL.Path == "/api/store-info" ||
+			strings.HasPrefix(r.URL.Path, "/api/push/") {
 			h.Set("Cache-Control", "no-store")
 			h.Set("Pragma", "no-cache")
 		}

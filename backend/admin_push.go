@@ -62,13 +62,32 @@ func (s *pushStore) List(ctx context.Context, userID uint64) ([]push.Subscriptio
 	}
 	q := `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps
 		JOIN users u ON u.id = ps.user_id
-		WHERE u.role = 'admin' AND u.status = 'active' AND u.deleted_at IS NULL AND LOWER(u.email) IN ?`
+		WHERE ps.audience = 'admin' AND u.role = 'admin' AND u.status = 'active' AND u.deleted_at IS NULL AND LOWER(u.email) IN ?`
 	args := []any{emails}
 	if userID != 0 {
 		q += ` AND ps.user_id = ?`
 		args = append(args, userID)
 	}
 	q += ` ORDER BY ps.id LIMIT 500`
+	return scanSubs(db, q, args...)
+}
+
+// ListCustomer: hanya langganan audiens pelanggan milik userID (pemilik pesanan), akun aktif & belum dihapus.
+func (s *pushStore) ListCustomer(ctx context.Context, userID uint64) ([]push.Subscription, error) {
+	if userID == 0 {
+		return nil, nil
+	}
+	db, err := s.conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return scanSubs(db, `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps
+		JOIN users u ON u.id = ps.user_id
+		WHERE ps.audience = 'customer' AND ps.user_id = ? AND u.status = 'active' AND u.deleted_at IS NULL
+		ORDER BY ps.id LIMIT 50`, userID)
+}
+
+func scanSubs(db *gorm.DB, q string, args ...any) ([]push.Subscription, error) {
 	var rows []struct {
 		ID       uint64 `gorm:"column:id"`
 		Endpoint string `gorm:"column:endpoint"`
@@ -122,31 +141,29 @@ func (a *App) pushOrder(db *gorm.DB, kind string, orderID uint64) {
 	a.pusher.OrderEvent(push.Event{Kind: kind, OrderNo: no})
 }
 
-// ---------- Handler admin ----------
-
-func (a *App) pushRateOK(w http.ResponseWriter, admin *User) bool {
-	if ok, wait := a.pushLimiter.Allow("admin:" + strconv.FormatUint(admin.ID, 10)); !ok {
-		retryAfter(w, wait)
-		writeError(w, http.StatusTooManyRequests, msgTooManyAdmin)
-		return false
-	}
-	return true
-}
-
-func (a *App) AdminPushPublicKey(w http.ResponseWriter, r *http.Request) {
-	admin := adminFrom(r.Context())
+// pushCustomer dipanggil SETELAH commit perubahan oleh admin (harga/ongkir, dibayar, selesai, dibatalkan
+// admin). Hanya ke langganan pelanggan PEMILIK pesanan (orders.user_id); asinkron di paket push.
+func (a *App) pushCustomer(db *gorm.DB, kind string, orderID uint64) {
 	if a.pusher == nil || !a.pusher.Enabled() {
-		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "publicKey": "", "subscriptions": 0})
 		return
 	}
-	var n int64
-	if err := a.db.Load().WithContext(r.Context()).Raw(`SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ?`, admin.ID).Scan(&n).Error; err != nil {
-		log.Printf("admin push: gagal menghitung langganan: %v", err)
-		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+	var row struct {
+		OrderNo string `gorm:"column:order_no"`
+		UserID  uint64 `gorm:"column:user_id"`
+	}
+	if err := db.Raw(`SELECT order_no, user_id FROM orders WHERE id = ?`, orderID).Scan(&row).Error; err != nil || row.OrderNo == "" || row.UserID == 0 {
+		log.Printf("web push pelanggan, pesanan %d: gagal membaca pesanan: %v", orderID, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "publicKey": a.pusher.PublicKey(), "subscriptions": n})
+	a.pusher.CustomerOrderEvent(row.UserID, push.Event{Kind: kind, OrderNo: row.OrderNo})
 }
+
+// ---------- Logika langganan bersama (admin & pelanggan) ----------
+
+const (
+	audienceAdmin    = "admin"
+	audienceCustomer = "customer"
+)
 
 type pushSubscribeInput struct {
 	Endpoint       string   `json:"endpoint"`
@@ -157,15 +174,24 @@ type pushSubscribeInput struct {
 	} `json:"keys"`
 }
 
-func (a *App) AdminPushSubscribe(w http.ResponseWriter, r *http.Request) {
-	admin := adminFrom(r.Context())
-	if a.pusher == nil || !a.pusher.Enabled() {
-		writeError(w, http.StatusServiceUnavailable, msgPushDisabled)
-		return
+type pushUnsubscribeInput struct {
+	Endpoint string `json:"endpoint"`
+}
+
+func (a *App) pushEnabled() bool { return a.pusher != nil && a.pusher.Enabled() }
+
+func pushRateOK(w http.ResponseWriter, rl *RateLimiter, key, msg string) bool {
+	if ok, wait := rl.Allow(key); !ok {
+		retryAfter(w, wait)
+		writeError(w, http.StatusTooManyRequests, msg)
+		return false
 	}
-	if !a.pushRateOK(w, admin) {
-		return
-	}
+	return true
+}
+
+// saveSubscription: validasi + upsert per (endpoint, audiens). Endpoint yang sama didaftarkan akun lain
+// memindahkan kepemilikan baris audiens itu. Maks. 10 langganan per pengguna per audiens.
+func (a *App) saveSubscription(w http.ResponseWriter, r *http.Request, user *User, audience string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxPushBodyBytes)
 	var in pushSubscribeInput
 	if err := decodeJSON(w, r, &in, false); err != nil {
@@ -191,18 +217,23 @@ func (a *App) AdminPushSubscribe(w http.ResponseWriter, r *http.Request) {
 	now := a.now()
 	db := a.db.Load().WithContext(r.Context())
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, endpoint_hash, p256dh, auth, user_agent, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?) AS new
+		if err := tx.Exec(`INSERT INTO push_subscriptions (user_id, audience, endpoint, endpoint_hash, p256dh, auth, user_agent, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?) AS new
 			ON DUPLICATE KEY UPDATE user_id = new.user_id, endpoint = new.endpoint, p256dh = new.p256dh,
 				auth = new.auth, user_agent = new.user_agent`,
-			admin.ID, in.Endpoint, hash, in.Keys.P256dh, in.Keys.Auth, uaPtr, now).Error; err != nil {
+			user.ID, audience, in.Endpoint, hash, in.Keys.P256dh, in.Keys.Auth, uaPtr, now).Error; err != nil {
 			return err
 		}
-		// Batas per admin: simpan maksimal 10 langganan; yang paling lama tidak dipakai dibuang.
+		// Kunci perangkat diperbarui juga di baris audiens lain untuk endpoint yang sama (satu browser).
+		if err := tx.Exec(`UPDATE push_subscriptions SET p256dh = ?, auth = ? WHERE endpoint_hash = ? AND audience <> ?`,
+			in.Keys.P256dh, in.Keys.Auth, hash, audience).Error; err != nil {
+			return err
+		}
+		// Batas per pengguna per audiens: simpan maksimal 10 langganan; yang paling lama tidak dipakai dibuang.
 		var old []uint64
-		if err := tx.Raw(`SELECT id FROM push_subscriptions WHERE user_id = ? AND endpoint_hash <> ?
+		if err := tx.Raw(`SELECT id FROM push_subscriptions WHERE user_id = ? AND audience = ? AND endpoint_hash <> ?
 			ORDER BY COALESCE(last_used_at, created_at) DESC, id DESC LIMIT 1000 OFFSET ?`,
-			admin.ID, hash, maxPushSubsPerAdm-1).Scan(&old).Error; err != nil {
+			user.ID, audience, hash, maxPushSubsPerAdm-1).Scan(&old).Error; err != nil {
 			return err
 		}
 		if len(old) > 0 {
@@ -211,22 +242,17 @@ func (a *App) AdminPushSubscribe(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
-		log.Printf("admin push: gagal menyimpan langganan: %v", err)
+		log.Printf("push: gagal menyimpan langganan (%s): %v", audience, err)
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "subscribed": true})
 }
 
-type pushUnsubscribeInput struct {
-	Endpoint string `json:"endpoint"`
-}
-
-func (a *App) AdminPushUnsubscribe(w http.ResponseWriter, r *http.Request) {
-	admin := adminFrom(r.Context())
-	if !a.pushRateOK(w, admin) {
-		return
-	}
+// deleteSubscription: hapus baris audiens ini milik pengguna ini untuk endpoint itu.
+// keepBrowserSubscription = endpoint yang sama masih dipakai audiens lain (mis. admin dan pelanggan di
+// browser yang sama): browser TIDAK perlu berhenti berlangganan agar audiens lain tetap menerima.
+func (a *App) deleteSubscription(w http.ResponseWriter, r *http.Request, user *User, audience string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxPushBodyBytes)
 	var in pushUnsubscribeInput
 	if err := decodeJSON(w, r, &in, false); err != nil {
@@ -238,24 +264,67 @@ func (a *App) AdminPushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msgPushInvalidSub)
 		return
 	}
-	// Hanya langganan milik admin ini yang bisa dihapus lewat rute ini.
-	res := a.db.Load().WithContext(r.Context()).Exec(`DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND user_id = ?`,
-		endpointHash(in.Endpoint), admin.ID)
+	hash := endpointHash(in.Endpoint)
+	db := a.db.Load().WithContext(r.Context())
+	res := db.Exec(`DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND audience = ? AND user_id = ?`, hash, audience, user.ID)
 	if res.Error != nil {
-		log.Printf("admin push: gagal menghapus langganan: %v", res.Error)
+		log.Printf("push: gagal menghapus langganan (%s): %v", audience, res.Error)
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "removed": res.RowsAffected > 0})
+	var others int64
+	if err := db.Raw(`SELECT COUNT(*) FROM push_subscriptions WHERE endpoint_hash = ? AND audience <> ?`, hash, audience).Scan(&others).Error; err != nil {
+		others = 0
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "removed": res.RowsAffected > 0, "keepBrowserSubscription": others > 0})
+}
+
+// ---------- Handler admin ----------
+
+func (a *App) AdminPushPublicKey(w http.ResponseWriter, r *http.Request) {
+	admin := adminFrom(r.Context())
+	if !a.pushEnabled() {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "publicKey": "", "subscriptions": 0})
+		return
+	}
+	var n int64
+	if err := a.db.Load().WithContext(r.Context()).Raw(`SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ? AND audience = 'admin'`, admin.ID).Scan(&n).Error; err != nil {
+		log.Printf("admin push: gagal menghitung langganan: %v", err)
+		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "publicKey": a.pusher.PublicKey(), "subscriptions": n})
+}
+
+func adminPushKey(u *User) string { return "admin:" + strconv.FormatUint(u.ID, 10) }
+
+func (a *App) AdminPushSubscribe(w http.ResponseWriter, r *http.Request) {
+	admin := adminFrom(r.Context())
+	if !a.pushEnabled() {
+		writeError(w, http.StatusServiceUnavailable, msgPushDisabled)
+		return
+	}
+	if !pushRateOK(w, a.pushLimiter, adminPushKey(admin), msgTooManyAdmin) {
+		return
+	}
+	a.saveSubscription(w, r, admin, audienceAdmin)
+}
+
+func (a *App) AdminPushUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	admin := adminFrom(r.Context())
+	if !pushRateOK(w, a.pushLimiter, adminPushKey(admin), msgTooManyAdmin) {
+		return
+	}
+	a.deleteSubscription(w, r, admin, audienceAdmin)
 }
 
 func (a *App) AdminPushTest(w http.ResponseWriter, r *http.Request) {
 	admin := adminFrom(r.Context())
-	if a.pusher == nil || !a.pusher.Enabled() {
+	if !a.pushEnabled() {
 		writeError(w, http.StatusServiceUnavailable, msgPushDisabled)
 		return
 	}
-	if !a.pushRateOK(w, admin) {
+	if !pushRateOK(w, a.pushLimiter, adminPushKey(admin), msgTooManyAdmin) {
 		return
 	}
 	// Body kosong / {} saja (CSRF tetap mewajibkan Content-Type JSON).
@@ -274,4 +343,38 @@ func (a *App) AdminPushTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sent": sent, "total": total})
+}
+
+// ---------- Handler pelanggan (sesi Bearer, lihat customer() di cart.go) ----------
+// Token Bearer tidak dikirim otomatis oleh browser, jadi rute ini tidak butuh pemeriksaan CSRF
+// (sama seperti /api/cart dan /api/orders).
+
+const msgTooManyPush = "Terlalu banyak permintaan. Coba lagi beberapa saat lagi."
+
+func (a *App) PushPublicKey(w http.ResponseWriter, r *http.Request) {
+	if !a.pushEnabled() {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "publicKey": ""})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "publicKey": a.pusher.PublicKey()})
+}
+
+func (a *App) PushSubscribe(w http.ResponseWriter, r *http.Request) {
+	u := customerFrom(r.Context())
+	if !a.pushEnabled() {
+		writeError(w, http.StatusServiceUnavailable, msgPushDisabled)
+		return
+	}
+	if !limitUser(w, a.pushCustLimiter, u, msgTooManyPush) {
+		return
+	}
+	a.saveSubscription(w, r, u, audienceCustomer)
+}
+
+func (a *App) PushUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	u := customerFrom(r.Context())
+	if !limitUser(w, a.pushCustLimiter, u, msgTooManyPush) {
+		return
+	}
+	a.deleteSubscription(w, r, u, audienceCustomer)
 }

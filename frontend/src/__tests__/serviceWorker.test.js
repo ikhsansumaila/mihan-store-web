@@ -59,29 +59,37 @@ test('tanpa handler fetch dan tanpa Cache Storage', () => {
   expect(src).not.toMatch(/caches\.|addEventListener\(\s*['"]fetch/);
 });
 
-test('safeUrl: hanya path /admin relatif same-origin', () => {
+test('safeUrl: hanya path /admin atau /pesanan relatif same-origin', () => {
   const { api } = loadSW();
   const ok = {
     '/admin': '/admin',
     '/admin/orders/MS-261007-0001': '/admin/orders/MS-261007-0001',
     '/admin/orders?status=pending_payment': '/admin/orders?status=pending_payment',
+    '/pesanan': '/pesanan',
+    '/pesanan/MS-261007-0001': '/pesanan/MS-261007-0001',
   };
   Object.entries(ok).forEach(([i, o]) => expect(api.safeUrl(i)).toBe(o));
   [
     'https://evil.example/admin',
+    'https://evil.example/pesanan/MS-1',
     '//evil.example/admin',
+    '//evil.example/pesanan',
     '/admin//evil.example',
+    '/pesanan//evil.example',
     '/\\evil.example',
     '/admin\\..\\x',
-    'javascript:alert(1)',
-    '/pesanan/MS-1',
-    '/administrator',
+    '/pesanan/../admin',
     '/admin/../pesanan',
+    'javascript:alert(1)',
+    'data:text/html,x',
+    '/keranjang',
+    '/pesananku',
+    '/administrator',
     ' /admin',
     null,
     42,
-    `/admin/${'x'.repeat(400)}`,
-  ].forEach((u) => expect(api.safeUrl(u)).toBe(u === '/admin/../pesanan' ? '/admin' : '/admin'));
+    `/pesanan/${'x'.repeat(400)}`,
+  ].forEach((u) => expect(api.safeUrl(u)).toBe('/'));
 });
 
 test('push: judul, nomor pesanan, ikon, tag per pesanan, url aman', async () => {
@@ -111,7 +119,7 @@ test('push: payload rusak/kosong/url asing tetap aman', async () => {
   expect(shown).toHaveLength(3);
   shown.forEach((s) => {
     expect(s.title).toBe('Mihan Store');
-    expect(s.options.data.url).toBe('/admin');
+    expect(s.options.data.url).toBe('/');
     expect(s.options.tag).toBeUndefined();
   });
 });
@@ -131,7 +139,7 @@ test('notificationclick: fokus/arahkan tab yang ada, atau buka jendela baru', as
   w = loadSW({ clientsList: [] });
   w.handlers.notificationclick({ notification: { close, data: { url: 'https://evil.example/' } }, waitUntil: (p) => (waited = p) });
   await waited;
-  expect(w.opened).toEqual([`${ORIGIN}/admin`]);
+  expect(w.opened).toEqual([`${ORIGIN}/`]);
 });
 
 test('manifest: nama, start_url, standalone, ikon 192/512', () => {
@@ -147,4 +155,13 @@ test('manifest: nama, start_url, standalone, ikon 192/512', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
   expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest">');
   expect(html).toContain('<meta name="apple-mobile-web-app-capable" content="yes">');
+});
+
+test('push pelanggan: url /pesanan/<nomor> dipertahankan', async () => {
+  const { handlers, shown } = loadSW();
+  const p = pushEvent({ title: 'Pembayaran diterima', body: 'Pesanan MS-1: pembayaran sudah kami terima', url: '/pesanan/MS-1', tag: 'pesanan-MS-1' });
+  handlers.push(p.ev);
+  await p.done();
+  expect(shown[0].options.data.url).toBe('/pesanan/MS-1');
+  expect(shown[0].options.tag).toBe('pesanan-MS-1');
 });

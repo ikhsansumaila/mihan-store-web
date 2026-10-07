@@ -4,11 +4,14 @@
  * langsung terpakai (tidak tertahan cache service worker).
  *
  * Payload push (JSON dari backend, paket push): {title, body, url, tag}. Isi minimal (judul + nomor
- * pesanan). url hanya diterima bila path relatif same-origin yang diawali /admin.
+ * pesanan). url hanya diterima bila path relatif same-origin yang diawali /admin (admin) atau /pesanan
+ * (pelanggan); selain itu dibuka "/".
  */
 'use strict';
 
-var DEFAULT_URL = '/admin';
+var DEFAULT_URL = '/';
+var ALLOWED_RAW = /^\/(?:admin(?:[/?#]|$)|pesanan(?:[/?#]|$))/;
+var ALLOWED_PATH = /^\/(?:admin(?:\/|$)|pesanan(?:\/|$))/;
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -22,13 +25,14 @@ function str(v, max) {
   return typeof v === 'string' ? v.slice(0, max) : '';
 }
 
-// safeUrl: hanya "/admin" atau "/admin/..." (path relatif, tanpa skema/host, tanpa "//" atau "\").
+// safeUrl: hanya "/admin", "/admin/...", "/pesanan", "/pesanan/..." (path relatif, tanpa skema/host,
+// tanpa "//" atau "\", tanpa ".."); selain itu "/".
 function safeUrl(u) {
   if (typeof u !== 'string' || u.length > 300) return DEFAULT_URL;
-  if (!/^\/admin(?:[/?#]|$)/.test(u) || /[\\\s]/.test(u) || u.indexOf('//') !== -1) return DEFAULT_URL;
+  if (!ALLOWED_RAW.test(u) || /[\\\s]/.test(u) || u.indexOf('//') !== -1 || u.indexOf('..') !== -1) return DEFAULT_URL;
   try {
     var url = new URL(u, self.location.origin);
-    if (url.origin !== self.location.origin || !/^\/admin(?:\/|$)/.test(url.pathname)) return DEFAULT_URL;
+    if (url.origin !== self.location.origin || !ALLOWED_PATH.test(url.pathname)) return DEFAULT_URL;
     return url.pathname + url.search;
   } catch (e) {
     return DEFAULT_URL;

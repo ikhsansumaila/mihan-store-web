@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/gorm"
+
 	webpush "github.com/SherClockHolmes/webpush-go"
 
 	"mihanstore/push"
@@ -98,7 +100,7 @@ func TestIntegrationPushSchemaAndGrants(t *testing.T) {
 	}
 	var cols []string
 	db.Raw(`SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'push_subscriptions' ORDER BY ORDINAL_POSITION`).Scan(&cols)
-	if strings.Join(cols, ",") != "id,user_id,endpoint,endpoint_hash,p256dh,auth,user_agent,created_at,last_used_at" {
+	if strings.Join(cols, ",") != "id,user_id,audience,endpoint,endpoint_hash,p256dh,auth,user_agent,created_at,last_used_at" {
 		t.Fatalf("kolom: %v", cols)
 	}
 }
@@ -235,7 +237,7 @@ func TestIntegrationPushOnOrderEvents(t *testing.T) {
 	epCust := "https://fcm.googleapis.com/fcm/send/" + tag + "-cust"
 	sb := subBody(t, epCust)
 	keys := sb["keys"].(map[string]any)
-	if err := db.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, endpoint_hash, p256dh, auth) VALUES (?, ?, ?, ?, ?)`,
+	if err := db.Exec(`INSERT INTO push_subscriptions (user_id, audience, endpoint, endpoint_hash, p256dh, auth) VALUES (?, 'customer', ?, ?, ?, ?)`,
 		custID, epCust, endpointHash(epCust), keys["p256dh"], keys["auth"]).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -286,4 +288,208 @@ var pushSeq int
 func userSeqNext() int64 {
 	pushSeq++
 	return time.Now().UnixNano()%1000000000*100 + int64(pushSeq)
+}
+
+// ---------- Tahap 2: pelanggan ----------
+
+func custTok(t *testing.T, h http.Handler, db *gorm.DB, name string) (string, uint64) {
+	t.Helper()
+	tok := newCustomer(t, h, name)
+	var id uint64
+	db.Raw("SELECT user_id FROM sessions WHERE token_hash = ?", HashToken(tok)).Scan(&id)
+	return tok, id
+}
+
+func TestIntegrationCustomerPushRoutes(t *testing.T) {
+	app, h, _, _ := setupPush(t)
+	db := app.db.Load()
+	tag := fmt.Sprintf("cr%d", userSeqNext())
+	ep := "https://web.push.apple.com/" + tag
+	// Tanpa sesi -> 401 (tidak pernah 200).
+	for _, m := range []string{"GET", "POST", "DELETE"} {
+		path := "/api/push/subscribe"
+		if m == "GET" {
+			path = "/api/push/public-key"
+		}
+		if r := call(t, h, m, path, "", subBody(t, ep)); r.Code != 401 {
+			t.Fatalf("%s %s tanpa sesi: %d", m, path, r.Code)
+		}
+	}
+	tok, uid := custTok(t, h, db, "Pelanggan Push")
+	r := call(t, h, "GET", "/api/push/public-key", tok, nil)
+	if r.Code != 200 || r.Body["enabled"] != true || r.Body["publicKey"] != app.pusher.PublicKey() {
+		t.Fatalf("public-key pelanggan: %d %v", r.Code, r.Body)
+	}
+	// Pelanggan tidak bisa memakai rute admin.
+	if r := call(t, h, "GET", "/api/admin/push/public-key", tok, nil); r.Code == 200 {
+		t.Fatal("rute admin tidak boleh 200 dengan sesi pelanggan")
+	}
+	for _, b := range []map[string]any{subBody(t, "https://10.0.0.1/x"), subBody(t, "http://web.push.apple.com/x")} {
+		if r := call(t, h, "POST", "/api/push/subscribe", tok, b); r.Code != 400 {
+			t.Fatalf("SSRF harus 400: %d", r.Code)
+		}
+	}
+	big := subBody(t, ep)
+	big["endpoint"] = ep + strings.Repeat("x", 5000)
+	if r := call(t, h, "POST", "/api/push/subscribe", tok, big); r.Code != 413 {
+		t.Fatalf("body besar harus 413: %d", r.Code)
+	}
+	if r := call(t, h, "POST", "/api/push/subscribe", tok, subBody(t, ep)); r.Code != 200 {
+		t.Fatalf("subscribe pelanggan: %d %v", r.Code, r.Body)
+	}
+	var aud string
+	var owner uint64
+	db.Raw("SELECT audience, user_id FROM push_subscriptions WHERE endpoint_hash = ?", endpointHash(ep)).Row().Scan(&aud, &owner)
+	if aud != "customer" || owner != uid {
+		t.Fatalf("baris pelanggan: %s %d", aud, owner)
+	}
+	// Endpoint yang sama didaftarkan akun lain -> kepemilikan pindah (satu baris pelanggan).
+	tok2, uid2 := custTok(t, h, db, "Pelanggan Dua")
+	if r := call(t, h, "POST", "/api/push/subscribe", tok2, subBody(t, ep)); r.Code != 200 {
+		t.Fatalf("subscribe akun 2: %d", r.Code)
+	}
+	var n int64
+	db.Raw("SELECT COUNT(*) FROM push_subscriptions WHERE endpoint_hash = ? AND audience = 'customer'", endpointHash(ep)).Scan(&n)
+	db.Raw("SELECT user_id FROM push_subscriptions WHERE endpoint_hash = ? AND audience = 'customer'", endpointHash(ep)).Scan(&owner)
+	if n != 1 || owner != uid2 {
+		t.Fatalf("pindah kepemilikan: n=%d owner=%d", n, owner)
+	}
+	// Akun lama tidak bisa menghapus milik akun baru.
+	if r := call(t, h, "DELETE", "/api/push/subscribe", tok, map[string]any{"endpoint": ep}); r.Code != 200 || r.Body["removed"] != false {
+		t.Fatalf("hapus milik orang lain: %d %v", r.Code, r.Body)
+	}
+	// Endpoint sama juga didaftarkan admin (browser yang sama): dua audiens hidup berdampingan.
+	if r := adminCall(t, h, "POST", "/api/admin/push/subscribe", integAdmin, subBody(t, ep)); r.Code != 200 {
+		t.Fatalf("subscribe admin endpoint sama: %d", r.Code)
+	}
+	db.Raw("SELECT COUNT(*) FROM push_subscriptions WHERE endpoint_hash = ?", endpointHash(ep)).Scan(&n)
+	if n != 2 {
+		t.Fatalf("admin + pelanggan pada endpoint sama harus 2 baris: %d", n)
+	}
+	// Logout pelanggan: hapus baris pelanggan; browser tetap berlangganan karena admin masih memakai.
+	r = call(t, h, "DELETE", "/api/push/subscribe", tok2, map[string]any{"endpoint": ep})
+	if r.Code != 200 || r.Body["removed"] != true || r.Body["keepBrowserSubscription"] != true {
+		t.Fatalf("hapus pelanggan: %d %v", r.Code, r.Body)
+	}
+	r = adminCall(t, h, "DELETE", "/api/admin/push/subscribe", integAdmin, map[string]any{"endpoint": ep})
+	if r.Code != 200 || r.Body["removed"] != true || r.Body["keepBrowserSubscription"] != false {
+		t.Fatalf("hapus admin: %d %v", r.Code, r.Body)
+	}
+	// Batas 10 per pengguna (audiens pelanggan).
+	for i := 0; i < maxPushSubsPerAdm+2; i++ {
+		if r := call(t, h, "POST", "/api/push/subscribe", tok, subBody(t, fmt.Sprintf("https://fcm.googleapis.com/fcm/send/%s-%02d", tag, i))); r.Code != 200 {
+			t.Fatalf("subscribe %d: %d", i, r.Code)
+		}
+	}
+	db.Raw("SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ? AND audience = 'customer'", uid).Scan(&n)
+	if n != maxPushSubsPerAdm {
+		t.Fatalf("batas per pelanggan: %d", n)
+	}
+	db.Exec("DELETE FROM push_subscriptions WHERE user_id IN ?", []uint64{uid, uid2})
+}
+
+func TestIntegrationCustomerPushEvents(t *testing.T) {
+	app, h, rec, wp := setupPush(t)
+	db := app.db.Load()
+	tag := fmt.Sprintf("ce%d", userSeqNext())
+	tokA, uidA := custTok(t, h, db, "Pemilik Pesanan")
+	tokB, _ := custTok(t, h, db, "Pelanggan Lain")
+	epA := "https://fcm.googleapis.com/fcm/send/" + tag + "-A"
+	epB := "https://fcm.googleapis.com/fcm/send/" + tag + "-B"
+	epAdm := "https://fcm.googleapis.com/fcm/send/" + tag + "-ADM"
+	// Admin yang juga berbelanja: punya langganan pelanggan sendiri (audiens customer) dari akun admin.
+	epAdmCust := "https://fcm.googleapis.com/fcm/send/" + tag + "-ADMCUST"
+	if r := call(t, h, "POST", "/api/push/subscribe", tokA, subBody(t, epA)); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	if r := call(t, h, "POST", "/api/push/subscribe", tokB, subBody(t, epB)); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	if r := adminCall(t, h, "POST", "/api/admin/push/subscribe", integAdmin, subBody(t, epAdm)); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	var adminID uint64
+	db.Raw("SELECT id FROM users WHERE email = ?", integAdmin).Scan(&adminID)
+	sb := subBody(t, epAdmCust)
+	keys := sb["keys"].(map[string]any)
+	db.Exec(`INSERT INTO push_subscriptions (user_id, audience, endpoint, endpoint_hash, p256dh, auth) VALUES (?, 'customer', ?, ?, ?, ?)`,
+		adminID, epAdmCust, endpointHash(epAdmCust), keys["p256dh"], keys["auth"])
+
+	orderNo := createOrderFor(t, h, tokA, 4)
+	wp.Wait()
+	// Pesanan baru: hanya admin (audiens admin), bukan pelanggan mana pun.
+	exact := func(suffix string) int {
+		rec.mu.Lock()
+		defer rec.mu.Unlock()
+		c := 0
+		for _, u := range rec.urls {
+			if strings.HasSuffix(u, tag+suffix) {
+				c++
+			}
+		}
+		return c
+	}
+	if exact("-ADM") != 1 || exact("-A") != 0 || exact("-B") != 0 || exact("-ADMCUST") != 0 {
+		t.Fatalf("pesanan baru: adm=%d A=%d B=%d admcust=%d", exact("-ADM"), exact("-A"), exact("-B"), exact("-ADMCUST"))
+	}
+	id := orderIDByNo(db, orderNo)
+
+	// Harga/ongkir: nilai berubah -> push ke pemilik saja; simpan ulang nilai sama -> tidak ada push.
+	pr := func(ship int) {
+		if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 0, "shippingFee": ship}); r.Code != 200 {
+			t.Fatalf("pricing: %d %v", r.Code, r.Body)
+		}
+		wp.Wait()
+	}
+	pr(15000)
+	if exact("-A") != 1 || exact("-B") != 0 || exact("-ADMCUST") != 0 || exact("-ADM") != 1 {
+		t.Fatalf("ongkir: A=%d B=%d admcust=%d adm=%d", exact("-A"), exact("-B"), exact("-ADMCUST"), exact("-ADM"))
+	}
+	pr(15000)
+	if exact("-A") != 1 {
+		t.Fatalf("nilai sama tidak boleh push lagi: %d", exact("-A"))
+	}
+	// Hanya keterangan diskon berubah -> tidak push.
+	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 0, "shippingFee": 15000, "discountNote": "catatan"}); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	wp.Wait()
+	if exact("-A") != 1 {
+		t.Fatalf("hanya keterangan tidak boleh push: %d", exact("-A"))
+	}
+	adminSetStatus(t, h, id, StatusPending, StatusPaid)
+	wp.Wait()
+	adminSetStatus(t, h, id, StatusPaid, StatusCompleted)
+	wp.Wait()
+	if exact("-A") != 3 || exact("-B") != 0 || exact("-ADMCUST") != 0 || exact("-ADM") != 1 {
+		t.Fatalf("dibayar/selesai: A=%d B=%d admcust=%d adm=%d", exact("-A"), exact("-B"), exact("-ADMCUST"), exact("-ADM"))
+	}
+	// Dibatalkan admin -> push pelanggan; dibatalkan pelanggan sendiri -> tidak ke pelanggan (hanya admin).
+	o2 := createOrderFor(t, h, tokA, 4)
+	wp.Wait()
+	adminSetStatus(t, h, orderIDByNo(db, o2), StatusPending, StatusCancelled)
+	wp.Wait()
+	if exact("-A") != 4 || exact("-ADM") != 2 {
+		t.Fatalf("batal admin: A=%d adm=%d", exact("-A"), exact("-ADM"))
+	}
+	o3 := createOrderFor(t, h, tokA, 4)
+	wp.Wait()
+	if r := call(t, h, "POST", "/api/orders/"+o3+"/cancel", tokA, map[string]any{"reason": "uji"}); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	wp.Wait()
+	if exact("-A") != 4 || exact("-ADM") != 4 {
+		t.Fatalf("batal pelanggan: A=%d adm=%d", exact("-A"), exact("-ADM"))
+	}
+	// Setelah logout (hapus langganan) pelanggan tidak menerima lagi.
+	call(t, h, "DELETE", "/api/push/subscribe", tokA, map[string]any{"endpoint": epA})
+	o4 := createOrderFor(t, h, tokA, 4)
+	wp.Wait()
+	adminSetStatus(t, h, orderIDByNo(db, o4), StatusPending, StatusPaid)
+	wp.Wait()
+	if exact("-A") != 4 {
+		t.Fatalf("setelah berhenti berlangganan tidak boleh menerima: %d", exact("-A"))
+	}
+	_ = uidA
+	db.Exec("DELETE FROM push_subscriptions WHERE endpoint_hash IN ?", []string{endpointHash(epA), endpointHash(epB), endpointHash(epAdm), endpointHash(epAdmCust)})
 }

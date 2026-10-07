@@ -56,6 +56,10 @@ func newRouter(app *App) http.Handler {
 	api.Handle("/orders/{orderNo}", app.customer(app.GetMyOrder)).Methods("GET")
 	api.Handle("/orders/{orderNo}/cancel", app.customer(app.CancelMyOrder)).Methods("POST")
 	api.Handle("/store-info", app.customer(app.StoreInfo)).Methods("GET")
+	// Notifikasi push pelanggan (status pesanan miliknya sendiri).
+	api.Handle("/push/public-key", app.customer(app.PushPublicKey)).Methods("GET")
+	api.Handle("/push/subscribe", app.customer(app.PushSubscribe)).Methods("POST")
+	api.Handle("/push/subscribe", app.customer(app.PushUnsubscribe)).Methods("DELETE")
 
 	// Admin: identitas dari Cloudflare Access + ADMIN_EMAILS (lihat admin.go).
 	admin := api.PathPrefix("/admin").Subrouter()

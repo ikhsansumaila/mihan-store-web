@@ -6,6 +6,10 @@ import Register from './components/Register';
 import CompleteProfile from './components/CompleteProfile';
 import { PrivacyPolicy, TermsOfService } from './components/Legal';
 import AdminApp from './admin/AdminApp';
+import AutoInstallSheet from './admin/AutoInstallSheet';
+import { CUSTOMER_BENEFIT } from './admin/InstallSheet';
+import SettingsMenu from './shop/SettingsMenu';
+import { cleanupCustomerPush } from './shop/pushApi';
 import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession, setReturnTo, errorMessage } from './auth';
 import { CartProvider, useCart } from './shop/CartContext';
 import { addCartItem, isUnauthorized } from './shop/api';
@@ -346,6 +350,8 @@ export const LegacyInvoiceRedirect = () => {
 const App = () => {
   // Dibaca langsung saat render pertama agar halaman yang wajib login tidak salah mengalihkan.
   const [user, setUser] = useState(() => getStoredUser());
+  // true setelah sesi dipastikan server (verifySession) atau setelah login/daftar berhasil di tab ini.
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
     // Periksa sesi ke server (token dikirim lewat header Authorization).
@@ -353,6 +359,7 @@ const App = () => {
       if (valid === true && fresh) {
         saveSession(null, fresh);
         setUser(fresh);
+        setVerified(true);
       } else if (valid === false) {
         clearSession();
         setUser(null);
@@ -362,7 +369,7 @@ const App = () => {
 
   return (
     <Router>
-      <AppContent user={user} setUser={setUser} />
+      <AppContent user={user} setUser={setUser} verified={verified} setVerified={setVerified} />
     </Router>
   );
 };
@@ -398,7 +405,7 @@ const CartIcon = () => {
   );
 };
 
-const AppContent = ({ user, setUser }) => {
+const AppContent = ({ user, setUser, verified, setVerified }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const locRef = useRef(location);
@@ -414,24 +421,31 @@ const AppContent = ({ user, setUser }) => {
 
   return (
     <CartProvider user={user} onUnauthorized={handleUnauthorized}>
-      <Shell user={user} setUser={setUser} />
+      <Shell user={user} setUser={setUser} verified={verified} setVerified={setVerified} />
     </CartProvider>
   );
 };
 
-const Shell = ({ user, setUser }) => {
+const AUTH_PAGES = ['/login', '/register', '/lengkapi-profil'];
+
+const Shell = ({ user, setUser, verified = false, setVerified = () => {} }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
   const handleLogout = async () => {
+    // Lepas langganan push pelanggan di perangkat ini SEBELUM token dicabut (best-effort, maks. 3 detik),
+    // agar HP bersama tidak menerima notifikasi akun ini setelah logout.
+    await cleanupCustomerPush();
     await logoutRequest();
     clearSession();
     setUser(null);
+    setVerified(false);
     navigate('/');
   };
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
+    setVerified(true);
   };
 
   // Area admin memakai layout sendiri (sidebar bergaya cPanel), tanpa navbar & footer toko.
@@ -476,9 +490,11 @@ const Shell = ({ user, setUser }) => {
                   Halo, {user.name}
                   {user.username && <span className="ml-1 text-sm opacity-80">(@{user.username})</span>}
                 </span>
+                {/* Pengaturan (notifikasi, pasang aplikasi, logout). Di bawah md, Logout hanya di menu ini. */}
+                <SettingsMenu user={user} onLogout={handleLogout} />
                 <button
                   onClick={handleLogout}
-                  className="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
+                  className="hidden md:inline-block bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
                 >
                   Logout
                 </button>
@@ -499,6 +515,10 @@ const Shell = ({ user, setUser }) => {
           </div>
         </div>
       </nav>
+
+      {/* Sheet "Pasang Mihan Store" otomatis sekali per sesi tab setelah pelanggan login (bukan di halaman
+          login/daftar; penanda sesi sama dengan area admin sehingga tidak muncul dobel). */}
+      {user && verified && !AUTH_PAGES.includes(pathname) && <AutoInstallSheet benefit={CUSTOMER_BENEFIT} />}
 
       <main className="flex-1">
         <Routes>

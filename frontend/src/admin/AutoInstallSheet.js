@@ -18,6 +18,9 @@ import {
 
 // Sheet "Pasang Mihan Store" yang muncul OTOMATIS sekali setelah admin baru masuk.
 //
+// Dipakai di area admin (AdminLayout) DAN toko untuk pelanggan yang login (App.js Shell). Penanda sesi dan
+// kunci "Jangan tampilkan lagi" SAMA untuk keduanya: paling banyak sekali per sesi tab, tidak pernah dobel.
+//
 // "Baru selesai login" = shell admin (AdminLayout) pertama kali dipasang di tab ini SETELAH
 // /api/admin/me sukses (artinya login Cloudflare Access selesai dan sesi admin terverifikasi backend).
 // Penanda di sessionStorage membuatnya hanya sekali per sesi tab: pindah halaman admin (AdminLayout tetap
@@ -41,7 +44,7 @@ export const autoInstallPlatform = () => {
 
 const otherModalOpen = () => !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
-const AutoInstallSheet = ({ delayMs = DEFAULT_DELAY_MS }) => {
+const AutoInstallSheet = ({ delayMs = DEFAULT_DELAY_MS, benefit }) => {
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState(null);
   const [canInstall, setCanInstall] = useState(installAvailable());
@@ -108,6 +111,7 @@ const AutoInstallSheet = ({ delayMs = DEFAULT_DELAY_MS }) => {
       installing={installing}
       onDismissForever={dismissForever}
       testId="auto-install-sheet"
+      {...(benefit ? { benefit } : {})}
     />
   );
 };

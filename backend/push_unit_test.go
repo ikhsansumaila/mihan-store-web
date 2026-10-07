@@ -100,3 +100,26 @@ func TestEndpointHashStable(t *testing.T) {
 		t.Fatal("hash endpoint")
 	}
 }
+
+// Rute push pelanggan selalu di balik sesi Bearer: tanpa token / token palsu -> 401, tidak pernah 200.
+func TestCustomerPushRoutesRequireSession(t *testing.T) {
+	priv, pub, _ := webpush.GenerateVAPIDKeys()
+	cfg := Config{CORSAllowedOrigins: defaultCORSOrigins, VAPIDPublicKey: pub, VAPIDPrivateKey: priv, VAPIDSubject: "https://store.mihan.web.id"}
+	h := newRouter(NewApp(cfg))
+	for _, rt := range [][2]string{{"GET", "/api/push/public-key"}, {"POST", "/api/push/subscribe"}, {"DELETE", "/api/push/subscribe"}} {
+		for _, tok := range []string{"", "palsu", strings.Repeat("a", 64)} {
+			r := httptest.NewRequest(rt[0], rt[1], strings.NewReader(`{}`))
+			if tok != "" {
+				r.Header.Set("Authorization", "Bearer "+tok)
+			}
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code == 200 || strings.Contains(w.Body.String(), pub) || w.Header().Get("Cache-Control") != "no-store" {
+				t.Errorf("%s %s token=%q: %d", rt[0], rt[1], tok, w.Code)
+			}
+			if tok != strings.Repeat("a", 64) && w.Code != 401 {
+				t.Errorf("%s %s token=%q: %d mau 401", rt[0], rt[1], tok, w.Code)
+			}
+		}
+	}
+}

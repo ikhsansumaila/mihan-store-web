@@ -35,6 +35,12 @@ const (
 	KindCreated   = "created"
 	KindCancelled = "cancelled"
 	KindTest      = "test"
+
+	// Kejadian untuk PELANGGAN pemilik pesanan (diubah oleh admin).
+	KindCustomerPricing   = "customer.pricing"   // diskon/ongkir/total ditetapkan atau diubah admin
+	KindCustomerPaid      = "customer.paid"      // pembayaran diterima
+	KindCustomerCompleted = "customer.completed" // pesanan selesai
+	KindCustomerCancelled = "customer.cancelled" // dibatalkan oleh admin
 )
 
 // Batas validasi langganan.
@@ -67,8 +73,10 @@ type Subscription struct {
 
 // Store: penyimpanan langganan (diimplementasikan di paket main dengan GORM; tiruan di tes).
 type Store interface {
-	// List mengembalikan langganan admin yang masih berhak; userID 0 = semua admin.
+	// List mengembalikan langganan ADMIN (audiens admin) yang masih berhak; userID 0 = semua admin.
 	List(ctx context.Context, userID uint64) ([]Subscription, error)
+	// ListCustomer mengembalikan langganan PELANGGAN (audiens customer) milik userID saja.
+	ListCustomer(ctx context.Context, userID uint64) ([]Subscription, error)
 	Delete(ctx context.Context, id uint64) error
 	Touch(ctx context.Context, id uint64) error
 }
@@ -79,6 +87,8 @@ type Sender interface {
 	PublicKey() string
 	// OrderEvent mengirim ke semua langganan admin secara asinkron (tidak pernah memblokir).
 	OrderEvent(e Event)
+	// CustomerOrderEvent mengirim ke langganan pelanggan milik userID (pemilik pesanan) saja, asinkron.
+	CustomerOrderEvent(userID uint64, e Event)
 	// SendTest mengirim satu notifikasi tes (sinkron) ke langganan milik userID.
 	// Mengembalikan jumlah terkirim dan jumlah langganan yang dicoba.
 	SendTest(ctx context.Context, userID uint64) (sent, total int, err error)
@@ -87,9 +97,10 @@ type Sender interface {
 // Noop: fitur nonaktif (kunci VAPID belum dikonfigurasi).
 type Noop struct{}
 
-func (Noop) Enabled() bool     { return false }
-func (Noop) PublicKey() string { return "" }
-func (Noop) OrderEvent(Event)  {}
+func (Noop) Enabled() bool                    { return false }
+func (Noop) PublicKey() string                { return "" }
+func (Noop) OrderEvent(Event)                 {}
+func (Noop) CustomerOrderEvent(uint64, Event) {}
 func (Noop) SendTest(context.Context, uint64) (int, int, error) {
 	return 0, 0, ErrDisabled
 }
@@ -219,24 +230,38 @@ func NormalizeSubject(s string) string {
 // BuildPayload menyusun isi notifikasi minimal.
 func BuildPayload(e Event) ([]byte, error) {
 	no := strings.TrimSpace(e.OrderNo)
-	var p Payload
+	if e.Kind == KindTest {
+		return json.Marshal(Payload{Title: "Tes notifikasi", Body: "Notifikasi Mihan Store berfungsi di perangkat ini.", URL: "/admin", Tag: "tes-notifikasi"})
+	}
 	switch e.Kind {
-	case KindCreated:
-		p.Title = "Pesanan baru"
-	case KindCancelled:
-		p.Title = "Pesanan dibatalkan"
-	case KindTest:
-		p = Payload{Title: "Tes notifikasi", Body: "Notifikasi Mihan Store berfungsi di perangkat ini.", URL: "/admin", Tag: "tes-notifikasi"}
-		return json.Marshal(p)
+	case KindCreated, KindCancelled, KindCustomerPricing, KindCustomerPaid, KindCustomerCompleted, KindCustomerCancelled:
 	default:
 		return nil, fmt.Errorf("jenis kejadian tidak dikenal: %q", e.Kind)
 	}
 	if no == "" || len(no) > 32 || strings.ContainsAny(no, "/?#\\ ") {
 		return nil, errors.New("nomor pesanan tidak valid")
 	}
-	p.Body = no
-	p.URL = "/admin/orders/" + url.PathEscape(no)
-	p.Tag = "pesanan-" + no
+	esc := url.PathEscape(no)
+	p := Payload{Body: no, URL: "/admin/orders/" + esc, Tag: "pesanan-" + no}
+	switch e.Kind {
+	case KindCreated:
+		p.Title = "Pesanan baru"
+	case KindCancelled:
+		p.Title = "Pesanan dibatalkan"
+	default:
+		// Pelanggan: tautan ke halaman pesanan miliknya; isi tanpa nominal/alamat/telepon.
+		p.URL = "/pesanan/" + esc
+		switch e.Kind {
+		case KindCustomerPricing:
+			p.Title, p.Body = "Ongkir sudah dikonfirmasi", "Pesanan "+no+": silakan cek total dan lanjut pembayaran"
+		case KindCustomerPaid:
+			p.Title, p.Body = "Pembayaran diterima", "Pesanan "+no+": pembayaran sudah kami terima"
+		case KindCustomerCompleted:
+			p.Title, p.Body = "Pesanan selesai", "Pesanan "+no+" telah selesai. Terima kasih!"
+		case KindCustomerCancelled:
+			p.Title, p.Body = "Pesanan dibatalkan", "Pesanan "+no+" dibatalkan oleh toko"
+		}
+	}
 	return json.Marshal(p)
 }
 
@@ -303,6 +328,10 @@ func (w *WebPush) Wait() { w.wg.Wait() }
 
 // OrderEvent: asinkron, tidak pernah memblokir pemanggil.
 func (w *WebPush) OrderEvent(e Event) {
+	if IsCustomerKind(e.Kind) || e.Kind == KindTest {
+		w.logf("web push: kejadian %q bukan untuk admin", e.Kind)
+		return
+	}
 	body, err := BuildPayload(e)
 	if err != nil {
 		w.logf("web push: gagal menyusun pesan: %v", err)
@@ -321,6 +350,47 @@ func (w *WebPush) OrderEvent(e Event) {
 		subs, err := w.store.List(ctx, 0)
 		if err != nil {
 			w.logf("web push: gagal membaca langganan: %v", err)
+			return
+		}
+		for _, s := range subs {
+			w.deliver(ctx, s, body)
+		}
+	}()
+}
+
+// IsCustomerKind: true untuk kejadian yang ditujukan ke pelanggan.
+func IsCustomerKind(k string) bool {
+	switch k {
+	case KindCustomerPricing, KindCustomerPaid, KindCustomerCompleted, KindCustomerCancelled:
+		return true
+	}
+	return false
+}
+
+// CustomerOrderEvent: asinkron; hanya ke langganan pelanggan milik userID (pemilik pesanan).
+func (w *WebPush) CustomerOrderEvent(userID uint64, e Event) {
+	if userID == 0 || !IsCustomerKind(e.Kind) {
+		w.logf("web push: kejadian pelanggan tidak sah (%q)", e.Kind)
+		return
+	}
+	body, err := BuildPayload(e)
+	if err != nil {
+		w.logf("web push: gagal menyusun pesan pelanggan: %v", err)
+		return
+	}
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		defer func() {
+			if v := recover(); v != nil {
+				w.logf("web push: panic: %v", v)
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		subs, err := w.store.ListCustomer(ctx, userID)
+		if err != nil {
+			w.logf("web push: gagal membaca langganan pelanggan: %v", err)
 			return
 		}
 		for _, s := range subs {

@@ -45,6 +45,13 @@ type memStore struct {
 	owner   map[uint64]uint64
 	deleted []uint64
 	touched []uint64
+	cust    map[uint64][]Subscription // langganan pelanggan per user
+}
+
+func (m *memStore) ListCustomer(_ context.Context, userID uint64) ([]Subscription, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]Subscription(nil), m.cust[userID]...), nil
 }
 
 func (m *memStore) List(_ context.Context, userID uint64) ([]Subscription, error) {
@@ -344,5 +351,61 @@ func TestPayloadDecryptable(t *testing.T) {
 	}
 	if p["title"] != "Pesanan dibatalkan" || p["body"] != "MS-261007-0001" || p["url"] != "/admin/orders/MS-261007-0001" {
 		t.Fatalf("isi: %v", p)
+	}
+}
+
+func TestBuildPayloadCustomer(t *testing.T) {
+	cases := map[string][2]string{
+		KindCustomerPricing:   {"Ongkir sudah dikonfirmasi", "Pesanan MS-261007-0009: silakan cek total dan lanjut pembayaran"},
+		KindCustomerPaid:      {"Pembayaran diterima", "Pesanan MS-261007-0009: pembayaran sudah kami terima"},
+		KindCustomerCompleted: {"Pesanan selesai", "Pesanan MS-261007-0009 telah selesai. Terima kasih!"},
+		KindCustomerCancelled: {"Pesanan dibatalkan", "Pesanan MS-261007-0009 dibatalkan oleh toko"},
+	}
+	for k, want := range cases {
+		b, err := BuildPayload(Event{Kind: k, OrderNo: "MS-261007-0009"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var p map[string]string
+		json.Unmarshal(b, &p)
+		if p["title"] != want[0] || p["body"] != want[1] || p["url"] != "/pesanan/MS-261007-0009" || p["tag"] != "pesanan-MS-261007-0009" || len(p) != 4 {
+			t.Errorf("%s: %v", k, p)
+		}
+		if strings.Contains(string(b), "Rp") || strings.Contains(string(b), "/admin") {
+			t.Errorf("%s: isi tidak minimal: %s", k, b)
+		}
+	}
+}
+
+// Audiens terpisah: kejadian admin hanya ke List (admin), kejadian pelanggan hanya ke ListCustomer(pemilik).
+func TestAudienceSeparation(t *testing.T) {
+	pub, priv := vapidKeys(t)
+	p, a := clientKeys(t)
+	st := &memStore{
+		subs: []Subscription{{ID: 1, Endpoint: "https://fcm.googleapis.com/fcm/send/admin1", P256dh: p, Auth: a}},
+		cust: map[uint64][]Subscription{
+			7: {{ID: 2, Endpoint: "https://fcm.googleapis.com/fcm/send/cust7", P256dh: p, Auth: a}},
+			8: {{ID: 3, Endpoint: "https://fcm.googleapis.com/fcm/send/cust8", P256dh: p, Auth: a}},
+		},
+	}
+	fc := &fakeClient{}
+	s := New(pub, priv, "https://store.mihan.web.id", st, WithHTTPClient(fc), WithLogf(func(string, ...any) {})).(*WebPush)
+	s.CustomerOrderEvent(7, Event{Kind: KindCustomerPaid, OrderNo: "MS-1"})
+	s.Wait()
+	if len(fc.reqs) != 1 || !strings.HasSuffix(fc.reqs[0].URL.Path, "cust7") {
+		t.Fatalf("pelanggan: hanya pemilik pesanan: %d", len(fc.reqs))
+	}
+	s.OrderEvent(Event{Kind: KindCreated, OrderNo: "MS-1"})
+	s.Wait()
+	if len(fc.reqs) != 2 || !strings.HasSuffix(fc.reqs[1].URL.Path, "admin1") {
+		t.Fatal("admin: hanya langganan admin")
+	}
+	// Jenis yang salah alamat ditolak.
+	s.OrderEvent(Event{Kind: KindCustomerPaid, OrderNo: "MS-1"})
+	s.CustomerOrderEvent(7, Event{Kind: KindCreated, OrderNo: "MS-1"})
+	s.CustomerOrderEvent(0, Event{Kind: KindCustomerPaid, OrderNo: "MS-1"})
+	s.Wait()
+	if len(fc.reqs) != 2 {
+		t.Fatalf("kejadian salah audiens tidak boleh terkirim: %d", len(fc.reqs))
 	}
 }

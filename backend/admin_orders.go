@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"mihanstore/notify"
+	"mihanstore/push"
 )
 
 type AdminOrderSummary struct {
@@ -280,6 +281,7 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	db := a.db.Load().WithContext(r.Context())
+	amountsChanged := false // diskon/ongkir/total berubah nilainya (bukan hanya keterangan) -> push pelanggan
 	err := db.Transaction(func(tx *gorm.DB) error {
 		o, err := lockOrderByID(tx, id)
 		if err != nil {
@@ -310,6 +312,7 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 		if res.RowsAffected != 1 {
 			return &httpError{http.StatusConflict, msgStatusChanged}
 		}
+		amountsChanged = o.Discount != *in.Discount || o.ShippingFee != *in.ShippingFee || o.Total != total
 		return a.logActivity(tx, a.reqMeta(r, LogEntry{
 			UserID: uid(admin), ActorLabel: actorOf(admin), Action: "order.pricing_update",
 			EntityType: "order", EntityID: o.OrderNo,
@@ -320,6 +323,9 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.respondTxError(w, err, "ubah harga pesanan")
 		return
+	}
+	if amountsChanged {
+		a.pushCustomer(db, push.KindCustomerPricing, id)
 	}
 	a.respondAdminOrder(w, db, id)
 }
@@ -441,8 +447,12 @@ func (a *App) AdminUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	switch in.To {
 	case StatusPaid:
 		a.notifyOrder(db, notify.KindPaid, id)
+		a.pushCustomer(db, push.KindCustomerPaid, id)
+	case StatusCompleted:
+		a.pushCustomer(db, push.KindCustomerCompleted, id)
 	case StatusCancelled:
 		a.notifyOrder(db, notify.KindCancelled, id)
+		a.pushCustomer(db, push.KindCustomerCancelled, id)
 	}
 	a.respondAdminOrder(w, db, id)
 }

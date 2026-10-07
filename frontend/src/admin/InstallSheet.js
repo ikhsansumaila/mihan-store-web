@@ -71,7 +71,11 @@ const ANDROID_STEPS = [
   </>,
 ];
 
-const InstallSheet = ({ open, onClose, platform, otherBrowser = false, canPrompt = false, onInstall, installing = false, onDismissForever, testId = 'install-sheet' }) => {
+// Satu baris manfaat yang jujur (tanpa klaim mode offline).
+export const ADMIN_BENEFIT = 'Buka toko dan panel admin lebih cepat dari layar utama, dan terima notifikasi pesanan.';
+export const CUSTOMER_BENEFIT = 'Buka Mihan Store lebih cepat dari layar utama, dan terima kabar status pesanan Anda.';
+
+const InstallSheet = ({ open, onClose, platform, otherBrowser = false, canPrompt = false, onInstall, installing = false, onDismissForever, testId = 'install-sheet', benefit = ADMIN_BENEFIT }) => {
   const steps = platform === 'ios' ? IOS_STEPS : ANDROID_STEPS;
   const promptMode = platform !== 'ios' && canPrompt;
   return (
@@ -107,7 +111,7 @@ const InstallSheet = ({ open, onClose, platform, otherBrowser = false, canPrompt
       {promptMode ? (
         <>
           <p className="mt-4 text-sm text-gray-600" data-testid="install-benefit">
-            Buka toko dan panel admin lebih cepat dari layar utama, dan terima notifikasi pesanan.
+            {benefit}
           </p>
           <button
             type="button"
