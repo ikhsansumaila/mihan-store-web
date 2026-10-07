@@ -165,3 +165,14 @@ test('push pelanggan: url /pesanan/<nomor> dipertahankan', async () => {
   expect(shown[0].options.data.url).toBe('/pesanan/MS-1');
   expect(shown[0].options.tag).toBe('pesanan-MS-1');
 });
+
+test('push admin: body multi-baris (dari/penerima/nomor) diteruskan apa adanya', async () => {
+  const { handlers, shown } = loadSW();
+  const body = 'dari Bu Siti Toko Maju\npenerima Siti Aminah\nMS-261007-0001';
+  const p = pushEvent({ title: 'Pesanan Baru', body, url: '/admin/orders/MS-261007-0001', tag: 'pesanan-MS-261007-0001' });
+  handlers.push(p.ev);
+  await p.done();
+  expect(shown[0].title).toBe('Pesanan Baru');
+  expect(shown[0].options.body).toBe(body);
+  expect(shown[0].options.body.split('\n')).toHaveLength(3);
+});

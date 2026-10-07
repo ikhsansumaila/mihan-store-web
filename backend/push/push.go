@@ -4,7 +4,9 @@
 //   - Dipanggil SETELAH transaksi commit, asinkron (goroutine), timeout per kiriman.
 //     Kegagalan tidak pernah menggagalkan pesanan; hanya dicatat di log TANPA endpoint
 //     langganan maupun kunci (hanya id langganan dan host layanan push).
-//   - Isi MINIMAL: judul + nomor pesanan + path admin. Tanpa nominal, nama, alamat, telepon.
+//   - Isi terbatas. Admin: judul + "dari <alias/nama pemesan>" + "penerima <nama penerima>" + nomor
+//     pesanan (nama dibersihkan & dipotong). Pelanggan: judul + nomor pesanan + kalimat pendek.
+//     Tidak pernah memuat nominal, alamat, telepon, atau email. Payload terenkripsi end-to-end (RFC 8291).
 //   - Layanan push menjawab 404/410 -> langganan sudah tidak berlaku dan dihapus.
 //   - Endpoint hanya https ke host layanan push yang dikenal (anti-SSRF), koneksi keluar
 //     ditolak bila host me-resolve ke alamat privat/loopback, redirect tidak diikuti.
@@ -26,6 +28,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
@@ -49,10 +53,13 @@ const (
 	DefaultTTL     = 3600 // detik: notifikasi pesanan tidak berguna bila tertunda > 1 jam
 )
 
-// Event: data yang BOLEH dikirim. Sengaja tanpa field nominal/nama/alamat/telepon.
+// Event: data yang BOLEH dikirim. Sengaja tanpa field nominal/alamat/telepon/email.
+// Customer/Recipient hanya dipakai notifikasi ADMIN (pesanan baru / dibatalkan pelanggan).
 type Event struct {
-	Kind    string
-	OrderNo string
+	Kind      string
+	OrderNo   string
+	Customer  string // alias pelanggan bila ada, selain itu nama akun pemesan
+	Recipient string // nama penerima pada pesanan
 }
 
 // Payload JSON yang dibaca service worker (frontend/public/sw.js).
@@ -227,7 +234,43 @@ func NormalizeSubject(s string) string {
 	return ""
 }
 
-// BuildPayload menyusun isi notifikasi minimal.
+// MaxNameRunes: batas panjang nama/alias pada isi notifikasi admin.
+const MaxNameRunes = 40
+
+// CleanName merapikan nama/alias (input pengguna) untuk isi notifikasi: karakter kontrol/format
+// (termasuk newline, tab, bidi) dibuang atau dijadikan spasi, spasi dirapikan, dipotong ke MaxNameRunes
+// dengan "…". Kosong -> "-". Newline di body hanya berasal dari format BuildPayload.
+func CleanName(s string) string {
+	var b strings.Builder
+	space := false
+	for _, r := range s {
+		switch {
+		case r == utf8.RuneError:
+			continue
+		case unicode.IsSpace(r) || unicode.IsControl(r):
+			space = true
+			continue
+		case unicode.Is(unicode.Cf, r):
+			continue
+		}
+		if space && b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		space = false
+		b.WriteRune(r)
+	}
+	out := b.String()
+	if out == "" {
+		return "-"
+	}
+	if utf8.RuneCountInString(out) > MaxNameRunes {
+		rs := []rune(out)
+		out = strings.TrimRight(string(rs[:MaxNameRunes]), " ") + "…"
+	}
+	return out
+}
+
+// BuildPayload menyusun isi notifikasi (lihat aturan isi di komentar paket).
 func BuildPayload(e Event) ([]byte, error) {
 	no := strings.TrimSpace(e.OrderNo)
 	if e.Kind == KindTest {
@@ -244,10 +287,12 @@ func BuildPayload(e Event) ([]byte, error) {
 	esc := url.PathEscape(no)
 	p := Payload{Body: no, URL: "/admin/orders/" + esc, Tag: "pesanan-" + no}
 	switch e.Kind {
-	case KindCreated:
-		p.Title = "Pesanan baru"
-	case KindCancelled:
-		p.Title = "Pesanan dibatalkan"
+	case KindCreated, KindCancelled:
+		p.Title = "Pesanan Baru"
+		if e.Kind == KindCancelled {
+			p.Title = "Pesanan Dibatalkan"
+		}
+		p.Body = "dari " + CleanName(e.Customer) + "\npenerima " + CleanName(e.Recipient) + "\n" + no
 	default:
 		// Pelanggan: tautan ke halaman pesanan miliknya; isi tanpa nominal/alamat/telepon.
 		p.URL = "/pesanan/" + esc

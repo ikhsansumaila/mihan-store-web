@@ -128,17 +128,25 @@ func endpointHash(endpoint string) string {
 // ---------- Pengiriman dari alur pesanan ----------
 
 // pushOrder dipanggil SETELAH commit (di titik yang sama dengan notifyOrder untuk pesanan baru dan
-// pembatalan oleh pelanggan). Hanya membaca nomor pesanan; pengiriman asinkron di paket push.
+// pembatalan oleh pelanggan). Membaca nomor pesanan, nama pemesan (alias bila ada — logika sama dengan
+// notifikasi Discord & daftar admin, displayCustomerName) dan nama penerima; pengiriman asinkron di paket push.
 func (a *App) pushOrder(db *gorm.DB, kind string, orderID uint64) {
 	if a.pusher == nil || !a.pusher.Enabled() {
 		return
 	}
-	var no string
-	if err := db.Raw(`SELECT order_no FROM orders WHERE id = ?`, orderID).Scan(&no).Error; err != nil || no == "" {
-		log.Printf("web push pesanan %d: gagal membaca nomor pesanan: %v", orderID, err)
+	var row struct {
+		OrderNo   string  `gorm:"column:order_no"`
+		Recipient string  `gorm:"column:recipient_name"`
+		Name      string  `gorm:"column:name"`
+		Alias     *string `gorm:"column:alias"`
+	}
+	if err := db.Raw(`SELECT o.order_no, o.recipient_name, u.name, u.alias
+		FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = ?`, orderID).Scan(&row).Error; err != nil || row.OrderNo == "" {
+		log.Printf("web push pesanan %d: gagal membaca pesanan: %v", orderID, err)
 		return
 	}
-	a.pusher.OrderEvent(push.Event{Kind: kind, OrderNo: no})
+	a.pusher.OrderEvent(push.Event{Kind: kind, OrderNo: row.OrderNo,
+		Customer: displayCustomerName(row.Name, row.Alias), Recipient: row.Recipient})
 }
 
 // pushCustomer dipanggil SETELAH commit perubahan oleh admin (harga/ongkir, dibayar, selesai, dibatalkan

@@ -227,18 +227,18 @@ func TestNewNoopWhenUnconfigured(t *testing.T) {
 }
 
 func TestBuildPayloadMinimal(t *testing.T) {
-	b, err := BuildPayload(Event{Kind: KindCreated, OrderNo: "MS-261002-0001"})
+	b, err := BuildPayload(Event{Kind: KindCreated, OrderNo: "MS-261002-0001", Customer: "Bu Siti Toko Maju", Recipient: "Siti Aminah"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var p map[string]string
 	json.Unmarshal(b, &p)
-	if p["title"] != "Pesanan baru" || p["body"] != "MS-261002-0001" || p["url"] != "/admin/orders/MS-261002-0001" || p["tag"] != "pesanan-MS-261002-0001" || len(p) != 4 {
+	if p["title"] != "Pesanan Baru" || p["body"] != "dari Bu Siti Toko Maju\npenerima Siti Aminah\nMS-261002-0001" || p["url"] != "/admin/orders/MS-261002-0001" || p["tag"] != "pesanan-MS-261002-0001" || len(p) != 4 {
 		t.Fatalf("payload: %v", p)
 	}
-	b, _ = BuildPayload(Event{Kind: KindCancelled, OrderNo: "MS-261002-0002"})
+	b, _ = BuildPayload(Event{Kind: KindCancelled, OrderNo: "MS-261002-0002", Customer: "Budi"})
 	json.Unmarshal(b, &p)
-	if p["title"] != "Pesanan dibatalkan" || p["tag"] != "pesanan-MS-261002-0002" {
+	if p["title"] != "Pesanan Dibatalkan" || p["tag"] != "pesanan-MS-261002-0002" || p["body"] != "dari Budi\npenerima -\nMS-261002-0002" {
 		t.Fatalf("payload batal: %v", p)
 	}
 	for _, e := range []Event{{Kind: "paid", OrderNo: "MS-1"}, {Kind: KindCreated}, {Kind: KindCreated, OrderNo: "../x"}} {
@@ -339,7 +339,7 @@ func TestPayloadDecryptable(t *testing.T) {
 		P256dh: base64.RawURLEncoding.EncodeToString(ck.PublicKey().Bytes()), Auth: base64.RawURLEncoding.EncodeToString(auth)}}}
 	fc := &fakeClient{}
 	s := New(pub, priv, "https://store.mihan.web.id", st, WithHTTPClient(fc)).(*WebPush)
-	s.OrderEvent(Event{Kind: KindCancelled, OrderNo: "MS-261007-0001"})
+	s.OrderEvent(Event{Kind: KindCancelled, OrderNo: "MS-261007-0001", Customer: "Ani", Recipient: "Ani"})
 	s.Wait()
 	plain, err := decryptAES128GCM(fc.bodies[0], ck, auth)
 	if err != nil {
@@ -349,7 +349,7 @@ func TestPayloadDecryptable(t *testing.T) {
 	if err := json.Unmarshal(plain, &p); err != nil {
 		t.Fatalf("plaintext bukan JSON: %q", plain)
 	}
-	if p["title"] != "Pesanan dibatalkan" || p["body"] != "MS-261007-0001" || p["url"] != "/admin/orders/MS-261007-0001" {
+	if p["title"] != "Pesanan Dibatalkan" || p["body"] != "dari Ani\npenerima Ani\nMS-261007-0001" || p["url"] != "/admin/orders/MS-261007-0001" {
 		t.Fatalf("isi: %v", p)
 	}
 }
@@ -407,5 +407,44 @@ func TestAudienceSeparation(t *testing.T) {
 	s.Wait()
 	if len(fc.reqs) != 2 {
 		t.Fatalf("kejadian salah audiens tidak boleh terkirim: %d", len(fc.reqs))
+	}
+}
+
+func TestCleanName(t *testing.T) {
+	long := strings.Repeat("a", 60)
+	cases := map[string]string{
+		"Budi Santoso":                "Budi Santoso",
+		"  Bu   Siti\tToko  ":         "Bu Siti Toko",
+		"Ani\n\npenerima palsu\nMS-1": "Ani penerima palsu MS-1",
+		"Andi\x00\x07\x1b[31m":        "Andi [31m",
+		"a\u202eb\u200bc":             "abc",
+		"":                            "-",
+		"   \n\t ":                    "-",
+		long:                          strings.Repeat("a", MaxNameRunes) + "…",
+		strings.Repeat("é", 45):       strings.Repeat("é", MaxNameRunes) + "…",
+		"Nama Panjang Sekali Dengan Spasi Di Ujung X": "Nama Panjang Sekali Dengan Spasi Di Ujun…",
+		"bad\xffutf8": "badutf8",
+	}
+	for in, want := range cases {
+		if got := CleanName(in); got != want {
+			t.Errorf("CleanName(%q) = %q, mau %q", in, got, want)
+		}
+	}
+}
+
+func TestAdminBodyNamesSafe(t *testing.T) {
+	// Alias kosong -> pemanggil sudah memilih nama akun; penerima kosong -> "-"; newline hanya dari format.
+	b, err := BuildPayload(Event{Kind: KindCreated, OrderNo: "MS-261007-0003", Customer: "Eve\nPesanan Dibatalkan", Recipient: strings.Repeat("R", 80)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p map[string]string
+	json.Unmarshal(b, &p)
+	lines := strings.Split(p["body"], "\n")
+	if len(lines) != 3 || lines[0] != "dari Eve Pesanan Dibatalkan" || lines[1] != "penerima "+strings.Repeat("R", MaxNameRunes)+"…" || lines[2] != "MS-261007-0003" {
+		t.Fatalf("body: %q", p["body"])
+	}
+	if len(p["body"]) > 200 {
+		t.Fatalf("body terlalu panjang untuk sw.js (dipotong 200): %d", len(p["body"]))
 	}
 }

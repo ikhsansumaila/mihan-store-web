@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
@@ -492,4 +493,54 @@ func TestIntegrationCustomerPushEvents(t *testing.T) {
 	}
 	_ = uidA
 	db.Exec("DELETE FROM push_subscriptions WHERE endpoint_hash IN ?", []string{endpointHash(epA), endpointHash(epB), endpointHash(epAdm), endpointHash(epAdmCust)})
+}
+
+// recSender merekam kejadian push (tanpa enkripsi) untuk memeriksa nama pemesan/penerima.
+type recSender struct {
+	mu sync.Mutex
+	ev []push.Event
+}
+
+func (s *recSender) Enabled() bool     { return true }
+func (s *recSender) PublicKey() string { return "x" }
+func (s *recSender) OrderEvent(e push.Event) {
+	s.mu.Lock()
+	s.ev = append(s.ev, e)
+	s.mu.Unlock()
+}
+func (s *recSender) CustomerOrderEvent(uint64, push.Event) {}
+func (s *recSender) SendTest(context.Context, uint64) (int, int, error) {
+	return 0, 0, nil
+}
+
+func TestIntegrationAdminPushNames(t *testing.T) {
+	app, h, db, _ := setupOrders(t)
+	rs := &recSender{}
+	app.pusher = rs
+	h = newRouter(app)
+	tok, uid := aliasCustomer(t, h, db, "Siti Aminah", "081277770000")
+	// Tanpa alias: nama akun pemesan; penerima dari pesanan (checkoutBody: "Budi Penerima").
+	no1 := createOrderFor(t, h, tok, 4)
+	// Alias diatur admin -> dipakai (logika sama dengan daftar admin & Discord).
+	if err := db.Exec("UPDATE users SET alias = ? WHERE id = ?", "Bu Siti\nToko Maju", uid).Error; err != nil {
+		t.Fatal(err)
+	}
+	if r := call(t, h, "POST", "/api/orders/"+no1+"/cancel", tok, map[string]any{"reason": "uji"}); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if len(rs.ev) != 2 {
+		t.Fatalf("kejadian: %+v", rs.ev)
+	}
+	if rs.ev[0].Kind != push.KindCreated || rs.ev[0].Customer != "Siti Aminah" || rs.ev[0].Recipient != "Budi Penerima" || rs.ev[0].OrderNo != no1 {
+		t.Fatalf("pesanan baru: %+v", rs.ev[0])
+	}
+	if rs.ev[1].Kind != push.KindCancelled || rs.ev[1].Customer != "Bu Siti\nToko Maju" {
+		t.Fatalf("batal: %+v", rs.ev[1])
+	}
+	b, _ := push.BuildPayload(rs.ev[1])
+	if !strings.Contains(string(b), `"body":"dari Bu Siti Toko Maju\npenerima Budi Penerima\n`+no1+`"`) {
+		t.Fatalf("payload: %s", b)
+	}
 }
