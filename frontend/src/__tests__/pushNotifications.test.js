@@ -467,3 +467,151 @@ describe('tombol Pasang aplikasi & bottom sheet', () => {
     expect(sheet().querySelector('[data-icon="menu"]')).not.toBeNull();
   });
 });
+
+// ---------- Sheet otomatis setelah admin baru masuk ----------
+// eslint-disable-next-line import/first
+import AutoInstallSheet, { AUTO_SHEET_SESSION_KEY } from '../admin/AutoInstallSheet';
+// eslint-disable-next-line import/first
+import AdminLayout from '../admin/AdminLayout';
+// eslint-disable-next-line import/first
+import { MemoryRouter, Route, Routes, Link } from 'react-router-dom';
+
+const autoSheet = () => document.querySelector('[data-testid="auto-install-sheet"]');
+const renderNode = async (node) => {
+  container = document.createElement('div');
+  document.body.appendChild(container);
+  root = createRoot(container);
+  await act(async () => root.render(node));
+  await flush();
+};
+const remount = async (node) => {
+  act(() => root.unmount());
+  container.remove();
+  await renderNode(node);
+};
+const waitDelay = async (ms = 5) => {
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, ms));
+  });
+  await flush();
+};
+
+describe('sheet Pasang otomatis setelah login admin', () => {
+  beforeEach(() => {
+    try {
+      window.sessionStorage.clear();
+    } catch {
+      /* abaikan */
+    }
+  });
+
+  test('iPhone Safari: muncul sekali per sesi tab (langkah iOS), tidak muncul lagi setelah muat ulang', async () => {
+    setNav('userAgent', UA.iphoneSafari);
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).not.toBeNull();
+    expect(autoSheet().querySelector('[data-testid="install-steps"]').getAttribute('data-platform')).toBe('ios');
+    expect(window.sessionStorage.getItem(AUTO_SHEET_SESSION_KEY)).toBe('1');
+    // Tutup (X) hanya untuk sesi ini: tidak menyimpan "jangan tampilkan lagi".
+    await click(autoSheet().querySelector('button[aria-label="Tutup"]'));
+    expect(autoSheet()).toBeNull();
+    expect(window.localStorage.getItem(push.IOS_GUIDE_DISMISS_KEY)).toBeNull();
+    await remount(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).toBeNull();
+  });
+
+  test('sesi baru (sessionStorage kosong) memunculkannya lagi; "Jangan tampilkan lagi" menghentikannya', async () => {
+    setNav('userAgent', UA.iphoneChrome);
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet().querySelector('[data-testid="install-open-safari"]')).not.toBeNull();
+    await click([...autoSheet().querySelectorAll('button')].find((b) => b.textContent.trim() === 'Jangan tampilkan lagi'));
+    expect(window.localStorage.getItem(push.IOS_GUIDE_DISMISS_KEY)).toBe('1');
+    window.sessionStorage.clear();
+    await remount(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).toBeNull();
+  });
+
+  test.each([
+    ['standalone iPhone', () => { setNav('userAgent', UA.iphoneSafari); setNav('standalone', true); }],
+    ['standalone Android', () => { setNav('userAgent', UA.android); standaloneMedia = true; }],
+    ['sudah pilih Jangan tampilkan lagi', () => { setNav('userAgent', UA.iphoneSafari); window.localStorage.setItem(push.IOS_GUIDE_DISMISS_KEY, '1'); }],
+    ['desktop', () => {}],
+    ['Mac (bukan iPad)', () => { setNav('userAgent', UA.ipadOS); setNav('platform', 'MacIntel'); }],
+  ])('tidak muncul: %s', async (_, arrange) => {
+    arrange();
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).toBeNull();
+    expect(window.sessionStorage.getItem(AUTO_SHEET_SESSION_KEY)).toBeNull();
+  });
+
+  test('desktop dengan beforeinstallprompt pun tidak otomatis', async () => {
+    await fireBIP();
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).toBeNull();
+  });
+
+  test('Android: tanpa prompt = langkah manual; dengan prompt = Pasang Sekarang / Nanti', async () => {
+    setNav('userAgent', UA.android);
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet().querySelector('[data-testid="install-steps"]').getAttribute('data-platform')).toBe('android');
+    // Event datang setelah sheet terbuka -> berganti ke mode prompt.
+    const ev = await fireBIP();
+    const btn = (l) => [...autoSheet().querySelectorAll('button')].find((b) => b.textContent.trim() === l);
+    expect(btn('Pasang Sekarang')).toBeDefined();
+    await click(btn('Pasang Sekarang'));
+    expect(ev.prompt).toHaveBeenCalledTimes(1);
+    expect(autoSheet()).toBeNull();
+  });
+
+  test('tidak menimpa dialog lain yang sedang terbuka', async () => {
+    setNav('userAgent', UA.iphoneSafari);
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    other.setAttribute('aria-modal', 'true');
+    document.body.appendChild(other);
+    await renderNode(<AutoInstallSheet delayMs={0} />);
+    await waitDelay();
+    expect(autoSheet()).toBeNull();
+    expect(window.sessionStorage.getItem(AUTO_SHEET_SESSION_KEY)).toBeNull(); // dicoba lagi lain kali
+    other.remove();
+  });
+
+  test('di AdminLayout: muncul setelah jeda, tidak muncul ulang saat pindah halaman', async () => {
+    setNav('userAgent', UA.iphoneSafari);
+    jest.useFakeTimers();
+    try {
+      await renderNode(
+        <MemoryRouter initialEntries={['/admin']}>
+          <AdminLayout me={{ email: 'pemilik@example.com' }}>
+            <Routes>
+              <Route path="/admin" element={<Link to="/admin/orders">ke pesanan</Link>} />
+              <Route path="/admin/orders" element={<p>Halaman pesanan</p>} />
+            </Routes>
+          </AdminLayout>
+        </MemoryRouter>
+      );
+      expect(autoSheet()).toBeNull(); // tidak langsung menangkap fokus sebelum halaman siap
+      await act(async () => {
+        jest.advanceTimersByTime(900);
+      });
+      expect(autoSheet()).not.toBeNull();
+      expect(document.activeElement).toBe(autoSheet().querySelector('[role="dialog"]'));
+      await act(async () => autoSheet().querySelector('button[aria-label="Tutup"]').click());
+      expect(autoSheet()).toBeNull();
+      await act(async () => [...container.querySelectorAll('a')].find((a) => a.textContent === 'ke pesanan').click());
+      await act(async () => {
+        jest.advanceTimersByTime(2000);
+      });
+      expect(container.textContent).toContain('Halaman pesanan');
+      expect(autoSheet()).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

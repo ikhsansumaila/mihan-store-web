@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { adminFetch } from './api';
 import { Icon } from './icons';
+import AutoInstallSheet from './AutoInstallSheet';
 
 // Layout admin bergaya cPanel: sidebar kiri tetap 260px (>= 1024px) / bilah ikon 64px yang selalu
 // terlihat (layar sempit), topbar dengan breadcrumb, konten mengisi sisa lebar di kanan. Navigasi antar
@@ -330,6 +331,9 @@ const AdminLayout = ({ me, children }) => (
           {children}
         </main>
       </div>
+      {/* Sheet "Pasang Mihan Store" otomatis sekali per sesi tab setelah admin terverifikasi (AdminLayout hanya
+          dirender setelah /api/admin/me sukses). */}
+      <AutoInstallSheet />
     </div>
   </SummaryProvider>
 );

@@ -4,6 +4,8 @@ import { adminFetch } from './api';
 
 export const SW_URL = '/sw.js';
 export const IOS_GUIDE_DISMISS_KEY = 'mihan.iosInstallGuide.dismissed';
+// Dikirim ke window saat "Jangan tampilkan lagi" dipilih, agar semua tombol/sheet pasang ikut tersembunyi.
+export const INSTALL_DISMISSED_EVENT = 'mihan-install-dismissed';
 
 const nav = () => (typeof navigator !== 'undefined' ? navigator : {});
 
@@ -54,6 +56,22 @@ export const storageSet = (k, v) => {
     window.localStorage.setItem(k, v);
   } catch {
     /* mode privat / penyimpanan diblokir: abaikan */
+  }
+};
+
+export const sessionGet = (k) => {
+  try {
+    return window.sessionStorage.getItem(k);
+  } catch {
+    return null;
+  }
+};
+
+export const sessionSet = (k, v) => {
+  try {
+    window.sessionStorage.setItem(k, v);
+  } catch {
+    /* penyimpanan diblokir: abaikan */
   }
 };
 

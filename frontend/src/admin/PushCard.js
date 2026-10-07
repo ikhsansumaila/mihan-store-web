@@ -3,6 +3,7 @@ import { btnPrimary, btnSecondary, cardClass } from './ui';
 import InstallSheet from './InstallSheet';
 import {
   IOS_GUIDE_DISMISS_KEY,
+  INSTALL_DISMISSED_EVENT,
   currentSubscription,
   fetchPushConfig,
   installAvailable,
@@ -58,6 +59,13 @@ const PushCard = () => {
   }, []);
 
   useEffect(() => onInstallAvailable(setCanInstall), []);
+
+  // "Jangan tampilkan lagi" dari sheet otomatis (AutoInstallSheet) ikut menyembunyikan tombol di kartu ini.
+  useEffect(() => {
+    const onDismissed = () => setGuideHidden(true);
+    window.addEventListener(INSTALL_DISMISSED_EVENT, onDismissed);
+    return () => window.removeEventListener(INSTALL_DISMISSED_EVENT, onDismissed);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!supported) return;

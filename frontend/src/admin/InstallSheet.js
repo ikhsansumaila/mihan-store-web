@@ -71,11 +71,11 @@ const ANDROID_STEPS = [
   </>,
 ];
 
-const InstallSheet = ({ open, onClose, platform, otherBrowser = false, canPrompt = false, onInstall, installing = false, onDismissForever }) => {
+const InstallSheet = ({ open, onClose, platform, otherBrowser = false, canPrompt = false, onInstall, installing = false, onDismissForever, testId = 'install-sheet' }) => {
   const steps = platform === 'ios' ? IOS_STEPS : ANDROID_STEPS;
   const promptMode = platform !== 'ios' && canPrompt;
   return (
-    <BottomSheet open={open} onClose={onClose} labelledBy="install-sheet-title" testId="install-sheet">
+    <BottomSheet open={open} onClose={onClose} labelledBy="install-sheet-title" testId={testId}>
       <div className="flex items-start gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-300 shadow-sm">
           <img src="/icon-192.png" alt="" className="h-12 w-12" />
