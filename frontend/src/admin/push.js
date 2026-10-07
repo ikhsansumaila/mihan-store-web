@@ -22,6 +22,8 @@ export const notificationPermission = () =>
 export const isIOS = (ua = nav().userAgent || '', platform = nav().platform || '', touch = nav().maxTouchPoints || 0) =>
   /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && touch > 1) || (/Macintosh/.test(ua) && touch > 1);
 
+export const isAndroid = (ua = nav().userAgent || '') => /Android/i.test(ua);
+
 // Browser lain di iOS (Chrome, Firefox, Edge, Opera). Panduan menyarankan Safari.
 export const isIOSOtherBrowser = (ua = nav().userAgent || '') => /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
 

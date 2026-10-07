@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { btnPrimary, btnSecondary, cardClass } from './ui';
+import InstallSheet from './InstallSheet';
 import {
   IOS_GUIDE_DISMISS_KEY,
   currentSubscription,
   fetchPushConfig,
   installAvailable,
+  isAndroid,
+  isIOS,
   isIOSOtherBrowser,
+  isStandalone,
   isPushSupported,
   needsIOSInstall,
   notificationPermission,
@@ -20,8 +24,9 @@ import {
 } from './push';
 
 // Kartu "Notifikasi" di Dashboard admin: status dukungan/izin/langganan perangkat ini, tombol
-// Aktifkan / Matikan / Kirim tes, panduan "Pasang ke layar utama" untuk iPhone, dan tombol
-// "Pasang aplikasi" (Android, bila browser menawarkan beforeinstallprompt).
+// Aktifkan / Matikan / Kirim tes, dan tombol "Pasang aplikasi" (iPhone/iPad dan Android yang belum
+// memasang) yang membuka bottom sheet: iOS = langkah Safari; Android dengan beforeinstallprompt =
+// "Pasang Sekarang" (prompt native) / "Nanti"; tanpa prompt = langkah manual. Tidak ada popup otomatis.
 
 const PERMISSION_LABEL = {
   default: 'Belum diminta',
@@ -30,55 +35,14 @@ const PERMISSION_LABEL = {
   unsupported: 'Tidak tersedia',
 };
 
-// Ikon "Bagikan" Safari (kotak dengan panah ke atas).
-const ShareIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="inline h-5 w-5 align-text-bottom text-sky-600" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0-12L8 7m4-4l4 4M7 11H5.5A1.5 1.5 0 004 12.5v7A1.5 1.5 0 005.5 21h13a1.5 1.5 0 001.5-1.5v-7a1.5 1.5 0 00-1.5-1.5H17" />
-  </svg>
-);
-
-const AddIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="inline h-5 w-5 align-text-bottom text-gray-700" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <rect x="4" y="4" width="16" height="16" rx="3" />
-    <path strokeLinecap="round" d="M12 8v8M8 12h8" />
-  </svg>
-);
-
-export const IOSInstallGuide = ({ onDismiss }) => {
-  const otherBrowser = isIOSOtherBrowser();
-  return (
-    <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" data-testid="ios-install-guide">
-      <p className="font-semibold">Pasang ke layar utama</p>
-      <p className="mt-1">Di iPhone/iPad, notifikasi hanya bisa diaktifkan dari aplikasi yang dipasang ke Layar Utama (iOS 16.4 atau lebih baru).</p>
-      {otherBrowser && (
-        <p className="mt-2 rounded bg-amber-100 px-2 py-1 text-amber-900" data-testid="ios-open-safari">
-          Buka halaman ini lewat <strong>Safari</strong> terlebih dahulu, lalu ikuti langkah di bawah.
-        </p>
-      )}
-      <ol className="mt-2 list-decimal space-y-1.5 pl-5">
-        <li>
-          Ketuk ikon <strong>Bagikan</strong> <ShareIcon /> di bilah Safari.
-        </li>
-        <li>
-          Pilih <strong>Tambah ke Layar Utama</strong> <AddIcon />.
-        </li>
-        <li>
-          Ketuk <strong>Tambah</strong>, lalu buka <strong>Mihan Store</strong> dari Layar Utama.
-        </li>
-        <li>Masuk ke halaman Admin, lalu ketuk <strong>Aktifkan notifikasi</strong>.</li>
-      </ol>
-      <button type="button" className="mt-3 text-xs font-medium text-sky-800 underline" onClick={onDismiss}>
-        Jangan tampilkan lagi
-      </button>
-    </div>
-  );
-};
-
 const PushCard = () => {
   const supported = isPushSupported();
   const iosInstall = needsIOSInstall();
   const [guideHidden, setGuideHidden] = useState(() => storageGet(IOS_GUIDE_DISMISS_KEY) === '1');
   const [canInstall, setCanInstall] = useState(installAvailable());
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [installedNow, setInstalledNow] = useState(false);
   const [permission, setPermission] = useState(notificationPermission());
   const [config, setConfig] = useState(null); // {enabled, publicKey}
   const [subscribed, setSubscribed] = useState(false);
@@ -172,16 +136,31 @@ const PushCard = () => {
     }
   };
 
-  const install = async () => {
-    await promptInstall();
+  // "Pasang aplikasi" selalu membuka sheet; prompt native hanya dari tombol "Pasang Sekarang" di dalamnya.
+  const openInstall = () => setSheetOpen(true);
+  const installNow = async () => {
+    setInstalling(true);
+    try {
+      const outcome = await promptInstall();
+      if (outcome === 'accepted') setInstalledNow(true);
+    } finally {
+      if (mounted.current) {
+        setInstalling(false);
+        setSheetOpen(false);
+      }
+    }
   };
 
   const dismissGuide = () => {
     storageSet(IOS_GUIDE_DISMISS_KEY, '1');
     setGuideHidden(true);
+    setSheetOpen(false);
   };
 
-  const showGuide = iosInstall && !guideHidden;
+  const standalone = isStandalone();
+  const ios = isIOS();
+  const platform = ios ? 'ios' : isAndroid() ? 'android' : null;
+  const showInstall = !standalone && !installedNow && !guideHidden && (canInstall || platform !== null);
   // iOS di tab Safari + panduan disembunyikan + tidak didukung: kartu tidak perlu tampil sama sekali.
   if (iosInstall && guideHidden && !supported) return null;
 
@@ -201,17 +180,18 @@ const PushCard = () => {
           </h2>
           <p className="mt-0.5 text-sm text-gray-600">Notifikasi di perangkat ini saat ada pesanan baru atau pesanan dibatalkan pelanggan.</p>
         </div>
-        {canInstall && (
-          <button type="button" className={btnSecondary} onClick={install}>
+        {showInstall && (
+          <button type="button" className={btnSecondary} onClick={openInstall} data-testid="install-button">
             Pasang aplikasi
           </button>
         )}
       </div>
 
-      {showGuide && (
-        <div className="mt-3">
-          <IOSInstallGuide onDismiss={dismissGuide} />
-        </div>
+      {iosInstall && !guideHidden && (
+        <p className="mt-2 text-sm text-gray-600" data-testid="ios-install-hint">
+          Di iPhone/iPad, notifikasi hanya bisa diaktifkan dari aplikasi yang dibuka dari Layar Utama. Ketuk <strong>Pasang aplikasi</strong> untuk
+          melihat caranya.
+        </p>
       )}
 
       <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-3" data-testid="push-status">
@@ -261,6 +241,16 @@ const PushCard = () => {
           {message.text}
         </p>
       )}
+      <InstallSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        platform={platform || 'android'}
+        otherBrowser={ios && isIOSOtherBrowser()}
+        canPrompt={canInstall}
+        onInstall={installNow}
+        installing={installing}
+        onDismissForever={dismissGuide}
+      />
     </section>
   );
 };

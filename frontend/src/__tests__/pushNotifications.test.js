@@ -277,62 +277,193 @@ describe('kartu Notifikasi', () => {
   });
 });
 
-describe('panduan iPhone & pemasangan', () => {
-  test('iPhone Safari belum dipasang: panduan bergambar, tanpa tombol Aktifkan', async () => {
+const sheet = () => document.querySelector('[data-testid="install-sheet"]');
+const sheetButton = (label) => [...(sheet()?.querySelectorAll('button') || [])].find((b) => b.textContent.trim() === label);
+const installBtn = () => container.querySelector('[data-testid="install-button"]');
+const openSheet = async () => {
+  await click(installBtn());
+  expect(sheet()).not.toBeNull();
+};
+const fireBIP = async () => {
+  const ev = new Event('beforeinstallprompt', { cancelable: true });
+  ev.prompt = jest.fn();
+  ev.userChoice = Promise.resolve({ outcome: 'accepted' });
+  await act(async () => {
+    window.dispatchEvent(ev);
+  });
+  return ev;
+};
+
+describe('tombol Pasang aplikasi & bottom sheet', () => {
+  test('iPhone Safari: tombol membuka sheet langkah iOS bernomor, tanpa tombol Aktifkan', async () => {
     setNav('userAgent', UA.iphoneSafari);
     await render();
-    const guide = container.querySelector('[data-testid="ios-install-guide"]');
-    expect(guide).not.toBeNull();
-    expect(guide.textContent).toContain('Pasang ke layar utama');
-    expect(guide.textContent).toContain('Bagikan');
-    expect(guide.textContent).toContain('Tambah ke Layar Utama');
-    expect(guide.textContent).toContain('Tambah');
-    expect(guide.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2);
-    expect(container.querySelector('[data-testid="ios-open-safari"]')).toBeNull();
+    expect(sheet()).toBeNull(); // tidak ada popup otomatis
+    expect(container.querySelector('[data-testid="ios-install-hint"]').textContent).toContain('Layar Utama');
     expect(button('Aktifkan notifikasi')).toBeUndefined();
+    await openSheet();
+    const dlg = sheet().querySelector('[role="dialog"]');
+    expect(dlg.getAttribute('aria-modal')).toBe('true');
+    expect(document.getElementById(dlg.getAttribute('aria-labelledby')).textContent).toBe('Pasang Mihan Store');
+    expect(sheet().textContent).toContain('Akses lebih cepat langsung dari layar utama');
+    const steps = sheet().querySelector('[data-testid="install-steps"]');
+    expect(steps.getAttribute('data-platform')).toBe('ios');
+    const items = [...steps.querySelectorAll('li')].map((li) => li.textContent);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toContain('Bagikan');
+    expect(items[1]).toContain('Tambah ke Layar Utama');
+    expect(items[2]).toContain('Tambah');
+    expect(steps.querySelector('[data-icon="share"]')).not.toBeNull();
+    expect(steps.querySelector('[data-icon="add"]')).not.toBeNull();
+    expect(steps.querySelector('strong').textContent).toBe('Bagikan');
+    expect(sheet().textContent).toContain('hanya bisa diaktifkan dari aplikasi yang dibuka dari Layar Utama');
+    expect(sheet().querySelector('[data-testid="install-open-safari"]')).toBeNull();
+    expect(sheetButton('Tutup')).toBeDefined();
+    expect(sheetButton('Pasang Sekarang')).toBeUndefined();
+    // Fokus pindah ke sheet, scroll body dikunci.
+    expect(document.activeElement).toBe(dlg);
+    expect(document.body.style.overflow).toBe('hidden');
   });
 
   test('Chrome/Firefox di iOS: catatan buka lewat Safari', async () => {
     setNav('userAgent', UA.iphoneChrome);
     await render();
-    expect(container.querySelector('[data-testid="ios-open-safari"]').textContent).toContain('Safari');
+    await openSheet();
+    expect(sheet().querySelector('[data-testid="install-open-safari"]').textContent).toContain('Safari');
   });
 
-  test('Jangan tampilkan lagi: disimpan di localStorage', async () => {
+  test.each([
+    ['tombol X', async () => click(sheet().querySelector('button[aria-label="Tutup"]'))],
+    ['tombol Tutup', async () => click(sheetButton('Tutup'))],
+    ['ketuk latar', async () => click(sheet().querySelector('[data-testid="install-sheet-backdrop"]'))],
+    [
+      'Escape',
+      async () => {
+        await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        await flush();
+      },
+    ],
+  ])('sheet ditutup lewat %s; fokus kembali ke pemicu, scroll dibuka', async (_, close) => {
     setNav('userAgent', UA.iphoneSafari);
     await render();
-    await click(button('Jangan tampilkan lagi'));
-    expect(container.querySelector('[data-testid="ios-install-guide"]')).toBeNull();
+    installBtn().focus();
+    await openSheet();
+    await close();
+    expect(sheet()).toBeNull();
+    expect(document.activeElement).toBe(installBtn());
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  test('ketuk di dalam sheet tidak menutup; Tab berputar di dalam sheet', async () => {
+    setNav('userAgent', UA.iphoneSafari);
+    await render();
+    await openSheet();
+    await click(sheet().querySelector('[data-testid="install-steps"]'));
+    expect(sheet()).not.toBeNull();
+    const btns = [...sheet().querySelectorAll('button')];
+    btns[btns.length - 1].focus();
+    await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })));
+    expect(document.activeElement).toBe(btns[0]);
+  });
+
+  test('Jangan tampilkan lagi: disimpan di localStorage, tombol hilang', async () => {
+    setNav('userAgent', UA.iphoneSafari);
+    installBrowser();
+    await render();
+    await openSheet();
+    await click(sheetButton('Jangan tampilkan lagi'));
+    expect(sheet()).toBeNull();
+    expect(installBtn()).toBeNull();
     expect(window.localStorage.getItem(push.IOS_GUIDE_DISMISS_KEY)).toBe('1');
     act(() => root.unmount());
     container.remove();
     await render();
-    expect(container.querySelector('[data-testid="ios-install-guide"]')).toBeNull();
+    expect(installBtn()).toBeNull();
   });
 
-  test('iPhone dari Layar Utama (standalone): tanpa panduan, tombol Aktifkan tampil', async () => {
+  test('sudah standalone (iPhone/Android): tidak ada tombol Pasang aplikasi; Aktifkan tampil', async () => {
     setNav('userAgent', UA.iphoneSafari);
     setNav('standalone', true);
     installBrowser();
     await render();
-    expect(container.querySelector('[data-testid="ios-install-guide"]')).toBeNull();
+    expect(installBtn()).toBeNull();
+    expect(container.querySelector('[data-testid="ios-install-hint"]')).toBeNull();
     expect(button('Aktifkan notifikasi')).toBeDefined();
+    act(() => root.unmount());
+    container.remove();
+    setNav('standalone', undefined);
+    setNav('userAgent', UA.android);
+    standaloneMedia = true;
+    await render();
+    await fireBIP();
+    expect(installBtn()).toBeNull();
   });
 
-  test('Android: beforeinstallprompt -> tombol Pasang aplikasi memanggil prompt', async () => {
+  test('desktop tanpa beforeinstallprompt: tidak ada tombol', async () => {
+    installBrowser();
+    await render();
+    expect(installBtn()).toBeNull();
+  });
+
+  test('Android dengan beforeinstallprompt: sheet "Pasang Sekarang" memanggil prompt, lalu tombol hilang', async () => {
     setNav('userAgent', UA.android);
     installBrowser();
     await render();
-    expect(button('Pasang aplikasi')).toBeUndefined();
-    const ev = new Event('beforeinstallprompt', { cancelable: true });
-    ev.prompt = jest.fn();
-    ev.userChoice = Promise.resolve({ outcome: 'accepted' });
-    await act(async () => {
-      window.dispatchEvent(ev);
-    });
+    const ev = await fireBIP();
     expect(ev.defaultPrevented).toBe(true);
-    await click(button('Pasang aplikasi'));
+    await openSheet();
+    expect(ev.prompt).not.toHaveBeenCalled(); // tombol kartu hanya membuka sheet
+    expect(sheet().querySelector('[data-testid="install-steps"]')).toBeNull();
+    expect(sheet().textContent).toContain('notifikasi pesanan');
+    expect(sheet().textContent).not.toMatch(/offline/i);
+    expect(sheetButton('Nanti')).toBeDefined();
+    await click(sheetButton('Pasang Sekarang'));
     expect(ev.prompt).toHaveBeenCalledTimes(1);
-    expect(button('Pasang aplikasi')).toBeUndefined();
+    expect(sheet()).toBeNull();
+    expect(installBtn()).toBeNull();
+  });
+
+  test('Android: Nanti menutup sheet tanpa prompt', async () => {
+    setNav('userAgent', UA.android);
+    installBrowser();
+    await render();
+    const ev = await fireBIP();
+    await openSheet();
+    await click(sheetButton('Nanti'));
+    expect(sheet()).toBeNull();
+    expect(ev.prompt).not.toHaveBeenCalled();
+    expect(installBtn()).not.toBeNull();
+  });
+
+  test('Android: prompt ditolak -> tombol tetap, sheet berikutnya berisi langkah manual', async () => {
+    setNav('userAgent', UA.android);
+    installBrowser();
+    await render();
+    const ev = await fireBIP();
+    ev.userChoice = Promise.resolve({ outcome: 'dismissed' });
+    await openSheet();
+    await click(sheetButton('Pasang Sekarang'));
+    expect(ev.prompt).toHaveBeenCalledTimes(1);
+    expect(installBtn()).not.toBeNull();
+    await openSheet();
+    const steps = sheet().querySelector('[data-testid="install-steps"]');
+    expect(steps.getAttribute('data-platform')).toBe('android');
+    const items = [...steps.querySelectorAll('li')].map((li) => li.textContent);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toContain('⋮');
+    expect(items[1]).toContain('Pasang aplikasi');
+    expect(items[1]).toContain('Tambahkan ke layar utama');
+    expect(items[2]).toMatch(/Pasang.*Tambahkan/);
+    expect(sheetButton('Tutup')).toBeDefined();
+    expect(sheetButton('Pasang Sekarang')).toBeUndefined();
+  });
+
+  test('Android tanpa beforeinstallprompt: sheet langkah manual', async () => {
+    setNav('userAgent', UA.android);
+    installBrowser();
+    await render();
+    await openSheet();
+    expect(sheet().querySelector('[data-testid="install-steps"]').getAttribute('data-platform')).toBe('android');
+    expect(sheet().querySelector('[data-icon="menu"]')).not.toBeNull();
   });
 });
