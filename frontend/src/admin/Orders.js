@@ -8,7 +8,7 @@ import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 import MoneyInput from '../components/MoneyInput';
 import BottomSheet from '../components/BottomSheet';
 import { AliasEditModal } from './AliasEditModal';
-import { useAdminSummary } from './AdminLayout';
+import { useAdminSummary, useSummaryPolling } from './AdminLayout';
 
 // Batas server (backend/order_logic.go): ongkir maks. Rp 10.000.000, subtotal maks. Rp 2.000.000.000.
 const SHIPPING_MAX = 10000000;
@@ -134,7 +134,7 @@ export const OrdersList = () => {
   // tab "Semua" = ?status=all.
   const [searchParams, setSearchParams] = useSearchParams();
   const status = tabFromSearch(searchParams);
-  const { summary } = useAdminSummary();
+  const { summary, refresh: refreshSummary } = useAdminSummary();
   // Kembali dari detail: filter pencarian/tanggal ikut dipulihkan dari snapshot daftar.
   const [initialFilters] = useState(() => peekListSnapshot(LIST_CACHE_ID)?.extra || emptyFilters);
   const [filters, setFilters] = useState(initialFilters);
@@ -142,6 +142,13 @@ export const OrdersList = () => {
   const topRef = useRef(null);
   // Gulir tanpa batas: ganti tab/pencarian/tanggal = mulai lagi dari halaman 1 (urutan parameter tetap).
   const list = useInfiniteList('/orders', { status, ...filters }, { cacheId: LIST_CACHE_ID, topRef });
+  // Angka tab & lencana ikut segar: saat daftar dibuka (termasuk kembali dari detail / daftar dipulihkan),
+  // saat tab atau filter berganti, dan polling ringan selama daftar terbuka & terlihat.
+  const filterKey = JSON.stringify(filters);
+  useEffect(() => {
+    refreshSummary();
+  }, [status, filterKey, refreshSummary]);
+  useSummaryPolling();
 
   const selectTab = (value) => {
     if (value === status) return;
@@ -777,6 +784,12 @@ export const AdminOrderDetail = () => {
     return `?status=${st || ALL_TAB_PARAM}`;
   })();
   const [order, setOrder] = useState(null);
+  const { refresh: refreshSummary } = useAdminSummary();
+  // Setiap perubahan pesanan yang berhasil (konfirmasi, harga, status, catatan) -> ringkasan disegarkan.
+  const savedOrder = (o) => {
+    setOrder(o);
+    refreshSummary();
+  };
   const [settings, setSettings] = useState({});
   const [error, setError] = useState(null);
   const [action, setAction] = useState(null);
@@ -937,7 +950,7 @@ export const AdminOrderDetail = () => {
             {order.pricingLocked ? (
               <p className="text-sm text-gray-600">Terkunci: diskon dan ongkir hanya bisa diubah saat pesanan menunggu pembayaran.</p>
             ) : (
-              <PricingForm key={order.updatedAt} order={order} onSaved={setOrder} />
+              <PricingForm key={order.updatedAt} order={order} onSaved={savedOrder} />
             )}
           </Card>
 
@@ -1017,7 +1030,7 @@ export const AdminOrderDetail = () => {
             </div>
           </Card>
           <Card title="Catatan admin">
-            <AdminNote key={order.id} order={order} onSaved={setOrder} />
+            <AdminNote key={order.id} order={order} onSaved={savedOrder} />
           </Card>
         </div>
       </div>
@@ -1040,7 +1053,7 @@ export const AdminOrderDetail = () => {
           to={action}
           onClose={() => setAction(null)}
           onSaved={(o) => {
-            setOrder(o);
+            savedOrder(o);
             setAction(null);
           }}
         />

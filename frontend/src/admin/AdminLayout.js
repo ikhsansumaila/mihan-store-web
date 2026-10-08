@@ -77,16 +77,32 @@ export const filterMenu = (query) => {
   })).filter((g) => g.items.length > 0);
 };
 
-// Ringkasan (/api/admin/summary) dibagi antara sidebar (lencana Pesanan) dan Dashboard.
-const SummaryContext = createContext({ summary: null, error: null, refresh: () => Promise.resolve() });
+// Ringkasan (/api/admin/summary) dibagi antara sidebar (lencana Pesanan), Dashboard, dan angka tab Pesanan.
+// Disegarkan: saat mount, saat Dashboard/Daftar Pesanan dibuka atau tab/filter diganti, setelah setiap
+// perubahan pesanan di detail, saat aplikasi kembali terlihat/fokus (throttle), dan polling ringan selama
+// Daftar Pesanan terbuka & terlihat. Permintaan bersamaan digabung (inflight); nilai lama dipertahankan
+// sampai data baru datang (tidak berkedip).
+export const SUMMARY_THROTTLE_MS = 15000;
+export const SUMMARY_POLL_MS = 60000;
+
+const SummaryContext = createContext({
+  summary: null,
+  error: null,
+  refresh: () => Promise.resolve(),
+  refreshIfStale: () => Promise.resolve(),
+});
 export const useAdminSummary = () => useContext(SummaryContext);
+
+const pageVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
 const SummaryProvider = ({ children }) => {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const inflight = useRef(null);
+  const lastAt = useRef(0);
   const refresh = useCallback(() => {
     if (inflight.current) return inflight.current;
+    lastAt.current = Date.now();
     const p = adminFetch('/summary')
       .then((d) => {
         setSummary(d || {});
@@ -99,11 +115,38 @@ const SummaryProvider = ({ children }) => {
     inflight.current = p;
     return p;
   }, []);
+  // Untuk pemicu otomatis (fokus/terlihat/polling): paling sering sekali per SUMMARY_THROTTLE_MS.
+  const refreshIfStale = useCallback(() => {
+    if (Date.now() - lastAt.current < SUMMARY_THROTTLE_MS) return inflight.current || Promise.resolve();
+    return refresh();
+  }, [refresh]);
   useEffect(() => {
     refresh();
   }, [refresh]);
-  const value = useMemo(() => ({ summary, error, refresh }), [summary, error, refresh]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (pageVisible()) refreshIfStale();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [refreshIfStale]);
+  const value = useMemo(() => ({ summary, error, refresh, refreshIfStale }), [summary, error, refresh, refreshIfStale]);
   return <SummaryContext.Provider value={value}>{children}</SummaryContext.Provider>;
+};
+
+// Polling ringan ringkasan selama komponen pemanggil terpasang dan halaman terlihat.
+export const useSummaryPolling = (intervalMs = SUMMARY_POLL_MS) => {
+  const { refreshIfStale } = useAdminSummary();
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (pageVisible()) refreshIfStale();
+    }, intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs, refreshIfStale]);
 };
 
 // Teks yang hanya terlihat di mode penuh (>= 1024px); di bilah ikon tetap ada untuk pembaca layar.

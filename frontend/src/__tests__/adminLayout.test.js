@@ -26,7 +26,7 @@ jest.mock('../admin/api', () => {
         return Promise.resolve({
           products: { total: 20, active: 18, inactive: 2 },
           categories: 6,
-          orders: { pendingConfirmation: 3, pendingPayment: 4, paid: 2, last7Days: 9 },
+          orders: mockState.summaryOrders || { pendingConfirmation: 3, pendingPayment: 4, paid: 2, last7Days: 9 },
           customers: 12,
           recentActivity: [{ id: 1, action: 'product.update', summary: 'Ubah harga', userEmail: 'pemilik@example.com', createdAt: '2026-10-02T03:00:00Z' }],
         });
@@ -53,6 +53,7 @@ jest.mock('../admin/api', () => {
           createdAt: '2026-10-02T03:00:00Z',
           updatedAt: '2026-10-02T03:00:00Z',
         });
+      if (path === '/orders/5/status') return Promise.resolve(mockState.statusReply);
       if (path.startsWith('/orders')) return Promise.resolve({ items: [], total: 0, perPage: 20 });
       return Promise.resolve({});
     },
@@ -88,6 +89,7 @@ const renderAt = async (path) => {
 
 beforeEach(() => {
   mockState.calls = [];
+  mockState.summaryOrders = null;
 });
 
 afterEach(() => {
@@ -348,4 +350,113 @@ test('tab pesanan: jumlah dari ringkasan (konfirmasi, pembayaran, dibayar); menu
   await flush();
   expect(activeTab().getAttribute('data-status')).toBe('pending_confirmation');
   expect(mockState.calls.some((c) => c.startsWith('/orders?') && c.includes('status=pending_confirmation'))).toBe(true);
+});
+
+
+// ---------- Ringkasan (angka tab/lencana) selalu segar ----------
+describe('ringkasan admin disegarkan', () => {
+  const summaryCalls = () => mockState.calls.filter((c) => c === '/summary').length;
+  const tabCount = (st) => container.querySelector(`[role="tab"][data-status="${st}"] [data-testid="tab-count"]`)?.textContent ?? null;
+
+  test('membuka daftar & ganti tab memanggil ulang ringkasan; angka tab ikut berubah (0 tidak ditampilkan)', async () => {
+    await renderAt('/admin/orders');
+    expect(tabCount('pending_confirmation')).toBe('3');
+    const n0 = summaryCalls();
+    // Data di server berubah (pesanan dikonfirmasi admin lain): ganti tab -> angka segar.
+    mockState.summaryOrders = { pendingConfirmation: 0, pendingPayment: 5, paid: 2, last7Days: 9 };
+    await act(async () => container.querySelector('[role="tab"][data-status="pending_payment"]').click());
+    await flush();
+    expect(summaryCalls()).toBe(n0 + 1);
+    expect(tabCount('pending_confirmation')).toBe('0');
+    expect(tabCount('pending_payment')).toBe('5');
+    // Lencana sidebar 0 tidak ditampilkan.
+    expect(linkByLabel('Pesanan').querySelector('[data-badge]')).toBeNull();
+    expect(linkByLabel('Pesanan').getAttribute('aria-label')).toBe('Pesanan');
+  });
+
+  test('kembali dari detail ke daftar menyegarkan ringkasan', async () => {
+    await renderAt('/admin/orders/5');
+    const n0 = summaryCalls();
+    mockState.summaryOrders = { pendingConfirmation: 1, pendingPayment: 4, paid: 2, last7Days: 9 };
+    await act(async () => [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Semua pesanan')).click());
+    await flush();
+    expect(summaryCalls()).toBeGreaterThan(n0);
+    expect(tabCount('pending_confirmation')).toBe('1');
+  });
+
+  test('setelah mengubah status pesanan di detail, ringkasan disegarkan (lencana sidebar ikut)', async () => {
+    await renderAt('/admin/orders/5');
+    const n0 = summaryCalls();
+    mockState.summaryOrders = { pendingConfirmation: 7, pendingPayment: 3, paid: 3, last7Days: 9 };
+    mockState.statusReply = { id: 5, orderNo: 'MS-261002-0005', status: 'paid', subtotal: 10000, discount: 0, shippingFee: 0, total: 10000, pricingLocked: true, allowedNext: ['completed', 'cancelled'], recipient: { name: 'Budi', phone: '+6281311112222', address: 'Jl. Melati 9', city: 'Tangerang', postalCode: '15111' }, items: [], customer: { name: 'Budi' }, history: [], createdAt: '2026-10-02T03:00:00Z', updatedAt: '2026-10-02T04:00:00Z' };
+    const tandai = [...container.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Tandai Dibayar');
+    await act(async () => tandai.click());
+    const modalBtn = [...container.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === 'Tandai dibayar');
+    await act(async () => modalBtn.click());
+    await flush();
+    await flush();
+    expect(summaryCalls()).toBe(n0 + 1);
+    expect(linkByLabel('Pesanan').querySelector('[data-badge="icon"]').textContent).toBe('7');
+  });
+
+  test('aplikasi kembali terlihat / fokus: segarkan dengan throttle 15 detik', async () => {
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => now;
+    try {
+      await renderAt('/admin/products');
+      const n0 = summaryCalls();
+      // Baru saja dimuat: terlihat lagi tidak memicu permintaan baru.
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+      await act(async () => window.dispatchEvent(new Event('focus')));
+      await flush();
+      expect(summaryCalls()).toBe(n0);
+      now += 16000;
+      mockState.summaryOrders = { pendingConfirmation: 9, pendingPayment: 4, paid: 2, last7Days: 9 };
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+      await act(async () => window.dispatchEvent(new Event('focus'))); // dalam jendela throttle -> diabaikan
+      await flush();
+      expect(summaryCalls()).toBe(n0 + 1);
+      expect(linkByLabel('Pesanan').querySelector('[data-badge="icon"]').textContent).toBe('9');
+      // Halaman tersembunyi: tidak memicu.
+      now += 16000;
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+      await flush();
+      expect(summaryCalls()).toBe(n0 + 1);
+    } finally {
+      Date.now = realNow;
+      delete document.visibilityState;
+    }
+  });
+
+  test('polling ringan (60 dtk, throttle) hanya saat daftar pesanan terbuka', async () => {
+    const setSpy = jest.spyOn(window, 'setInterval');
+    const clearSpy = jest.spyOn(window, 'clearInterval');
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => now;
+    try {
+      await renderAt('/admin/orders');
+      const idx = setSpy.mock.calls.findIndex((c) => c[1] === 60000);
+      expect(idx).toBeGreaterThan(-1);
+      const tick = setSpy.mock.calls[idx][0];
+      const id = setSpy.mock.results[idx].value;
+      const n0 = summaryCalls();
+      await act(async () => tick()); // baru saja dimuat -> throttle
+      expect(summaryCalls()).toBe(n0);
+      now += 61000;
+      await act(async () => tick());
+      await flush();
+      expect(summaryCalls()).toBe(n0 + 1);
+      // Pindah ke halaman lain: interval dihentikan.
+      await act(async () => linkByLabel('Produk').click());
+      await flush();
+      expect(clearSpy.mock.calls.some((c) => c[0] === id)).toBe(true);
+    } finally {
+      Date.now = realNow;
+      setSpy.mockRestore();
+      clearSpy.mockRestore();
+    }
+  });
 });
