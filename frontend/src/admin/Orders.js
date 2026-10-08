@@ -6,6 +6,7 @@ import { InfiniteFooter, peekListSnapshot, useInfiniteList } from './infiniteLis
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
 import { generateInvoicePdf, orderToInvoice } from '../invoicePdf';
 import MoneyInput from '../components/MoneyInput';
+import BottomSheet from '../components/BottomSheet';
 import { AliasEditModal } from './AliasEditModal';
 import { useAdminSummary } from './AdminLayout';
 
@@ -282,29 +283,82 @@ export const OrdersList = () => {
 
 const digits = (v) => String(v ?? '').replace(/[^0-9]/g, '');
 
+// Ringkasan perubahan harga untuk dialog konfirmasi. amountsChanged mengikuti backend (admin_orders.go):
+// diskon/ongkir/total berubah nilainya -> pelanggan menerima notifikasi "Ongkir sudah dikonfirmasi".
+export const pricingChanges = (order, d, s, note) => {
+  const oldD = Number(order.discount || 0);
+  const oldS = Number(order.shippingFee || 0);
+  const oldNote = (order.discountNote || '').trim();
+  const newNote = (note || '').trim();
+  const total = order.subtotal - d + s;
+  const amountsChanged = oldD !== d || oldS !== s || Number(order.total) !== total;
+  const noteChanged = oldNote !== newNote;
+  return { oldD, oldS, total, amountsChanged, noteChanged, any: amountsChanged || noteChanged, newNote };
+};
+
+const ChangeRow = ({ label, from, to, testId }) => (
+  <div className="flex items-baseline justify-between gap-3 py-1.5" data-testid={testId}>
+    <span className="text-gray-600">{label}</span>
+    <span className="text-right font-medium text-gray-900">
+      {from === to ? (
+        rupiah(to)
+      ) : (
+        <>
+          <span className="text-gray-500 line-through decoration-gray-300">{rupiah(from)}</span>
+          <span aria-hidden="true"> → </span>
+          <span className="sr-only"> menjadi </span>
+          {rupiah(to)}
+        </>
+      )}
+    </span>
+  </div>
+);
+
 const PricingForm = ({ order, onSaved }) => {
   const [discount, setDiscount] = useState(String(order.discount || 0));
   const [note, setNote] = useState(order.discountNote || '');
   const [shipping, setShipping] = useState(String(order.shippingFee || 0));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [confirm, setConfirm] = useState(null); // ringkasan perubahan saat dialog konfirmasi terbuka
+  const [confirmError, setConfirmError] = useState(null);
+  const savingRef = useRef(false);
   const d = Number(digits(discount) || 0);
   const s = Number(digits(shipping) || 0);
   const preview = order.subtotal - d + s;
+
+  const doSave = async (inSheet) => {
+    if (savingRef.current) return; // cegah klik ganda
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const res = await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } });
+      setConfirm(null);
+      onSaved(res);
+    } catch (err) {
+      if (inSheet) setConfirmError(err);
+      else setError(err);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
     setError(null);
     if (d > order.subtotal) return setError(new Error('Diskon tidak boleh melebihi subtotal'));
     if (s > SHIPPING_MAX) return setError(new Error('Ongkir maksimal Rp 10.000.000'));
-    setSaving(true);
-    try {
-      onSaved(await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } }));
-    } catch (err) {
-      setError(err);
-    } finally {
-      setSaving(false);
-    }
+    const ch = pricingChanges(order, d, s, note);
+    if (!ch.any) return doSave(false); // tanpa perubahan: perilaku lama (langsung simpan)
+    setConfirmError(null);
+    setConfirm(ch);
+    return undefined;
+  };
+
+  const closeConfirm = () => {
+    if (savingRef.current) return;
+    setConfirm(null);
   };
 
   return (
@@ -332,6 +386,63 @@ const PricingForm = ({ order, onSaved }) => {
           {saving ? 'Menyimpan...' : 'Simpan diskon & ongkir'}
         </button>
       </div>
+
+      <BottomSheet open={!!confirm} onClose={closeConfirm} labelledBy="pricing-confirm-title" testId="pricing-confirm">
+        {confirm && (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <h2 id="pricing-confirm-title" className="text-lg font-bold text-gray-900">
+                Konfirmasi perubahan harga
+              </h2>
+              <button
+                type="button"
+                onClick={closeConfirm}
+                aria-label="Tutup"
+                className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-gray-700">
+              Anda akan mengubah harga pesanan <strong>{order.orderNo}</strong>:
+            </p>
+            <div className="mt-3 divide-y divide-gray-100 rounded-xl bg-purple-50 px-4 py-2 text-sm">
+              <ChangeRow label="Ongkir" from={confirm.oldS} to={s} testId="confirm-shipping" />
+              <ChangeRow label="Diskon" from={confirm.oldD} to={d} testId="confirm-discount" />
+              {(confirm.newNote || confirm.noteChanged) && (
+                <div className="flex items-baseline justify-between gap-3 py-1.5" data-testid="confirm-note">
+                  <span className="text-gray-600">Keterangan diskon</span>
+                  <span className="min-w-0 text-right font-medium text-gray-900 [overflow-wrap:anywhere]">{confirm.newNote || '(dikosongkan)'}</span>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between gap-3 py-2" data-testid="confirm-total">
+                <span className="font-semibold text-gray-900">Total baru</span>
+                <strong className="text-base text-purple-800">{rupiah(confirm.total)}</strong>
+              </div>
+            </div>
+            {confirm.amountsChanged && (
+              <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
+                Pelanggan akan menerima notifikasi.
+              </p>
+            )}
+            {confirmError && (
+              <div className="mt-3">
+                <ErrorBox error={confirmError} />
+              </div>
+            )}
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" className={btnSecondary} onClick={closeConfirm} disabled={saving}>
+                Batal
+              </button>
+              <button type="button" className={btnPrimary} onClick={() => doSave(true)} disabled={saving}>
+                {saving ? 'Menyimpan...' : 'Ya, simpan'}
+              </button>
+            </div>
+          </>
+        )}
+      </BottomSheet>
     </form>
   );
 };
