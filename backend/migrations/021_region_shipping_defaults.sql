@@ -1,6 +1,6 @@
 -- 021_region_shipping_defaults.sql
--- Default ongkir per kecamatan (diisi admin lewat checklist "Tetapkan sebagai default ongkir wilayah ini" di
--- dialog Konfirmasi pesanan; belum ada halaman pengelolaan). Dipakai sebagai saran pertama ongkir
+-- Default ongkir per kecamatan (diisi admin lewat popup "Jadikan default ongkir wilayah?" setelah
+-- Konfirmasi pesanan, POST /api/admin/orders/{id}/shipping-default; belum ada halaman pengelolaan). Saran pertama ongkir
 -- (GET /api/admin/orders/{id}/shipping-suggestions). shipping_fee 1..10.000.000 dijaga aplikasi (Rp 0 tidak
 -- disimpan sebagai default). Baris boleh dihapus (DELETE) bila kelak ada pengelolaan; tanpa soft delete.
 -- Indeks orders (district_code, created_at) & (regency_code, created_at) untuk mencari "ongkir terakhir" ke

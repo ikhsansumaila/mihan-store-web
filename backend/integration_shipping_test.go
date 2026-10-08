@@ -83,18 +83,49 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 		t.Fatalf("pesanan tidak ada: %d", r.Code)
 	}
 
-	// setRegionDefault dengan ongkir 0 -> 400, pesanan tetap menunggu konfirmasi.
+	// Field lama setRegionDefault sudah dihapus: /confirm dan /pricing menolaknya (field asing).
 	cpath := fmt.Sprintf("/api/admin/orders/%d/confirm", idOf(tgt))
-	if r := adminCall(t, h, "POST", cpath, integAdmin, map[string]any{"discount": 0, "shippingFee": 0, "setRegionDefault": true}); r.Code != 400 ||
-		!strings.Contains(fmt.Sprint(r.Body["error"]), "lebih dari Rp 0") {
-		t.Fatalf("default Rp 0: %d %v", r.Code, r.Body)
+	if r := adminCall(t, h, "POST", cpath, integAdmin, map[string]any{"discount": 0, "shippingFee": 11111, "setRegionDefault": true}); r.Code != 400 {
+		t.Fatalf("confirm + setRegionDefault harus 400: %d", r.Code)
 	}
-	// /pricing tidak menerima field ini.
 	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", idOf(s1)), integAdmin, map[string]any{"discount": 0, "shippingFee": 11111, "setRegionDefault": true}); r.Code != 400 {
 		t.Fatalf("pricing + setRegionDefault harus 400: %d", r.Code)
 	}
 
-	// Rollback: log gagal -> konfirmasi gagal -> default TIDAK tersimpan.
+	// POST /shipping-default: belum dikonfirmasi -> 409; non-admin 401/403.
+	dpath := func(no string) string { return fmt.Sprintf("/api/admin/orders/%d/shipping-default", idOf(no)) }
+	if r := adminCall(t, h, "POST", dpath(tgt), integAdmin, map[string]any{}); r.Code != 409 || !strings.Contains(fmt.Sprint(r.Body["error"]), "belum dikonfirmasi") {
+		t.Fatalf("default sebelum konfirmasi: %d %v", r.Code, r.Body)
+	}
+	if r := call(t, h, "POST", dpath(s1), tokX, map[string]any{}); r.Code != 401 {
+		t.Fatalf("pelanggan -> default: %d", r.Code)
+	}
+	if r := adminCall(t, h, "POST", dpath(s1), "bukan.admin@uji.test", map[string]any{}); r.Code != 403 {
+		t.Fatalf("bukan admin -> default: %d", r.Code)
+	}
+	if r := adminCall(t, h, "POST", "/api/admin/orders/99999999/shipping-default", integAdmin, map[string]any{}); r.Code != 404 {
+		t.Fatalf("pesanan tidak ada: %d", r.Code)
+	}
+	// Nominal dari klien tidak diterima (field asing -> 400).
+	if r := adminCall(t, h, "POST", dpath(s1), integAdmin, map[string]any{"shippingFee": 99999}); r.Code != 400 {
+		t.Fatalf("nominal dari klien harus ditolak: %d", r.Code)
+	}
+	// Dibatalkan -> 409; ongkir 0 -> 400.
+	if r := adminCall(t, h, "POST", dpath(s3), integAdmin, nil); r.Code != 409 {
+		t.Fatalf("default dari pesanan batal: %d", r.Code)
+	}
+	if r := adminCall(t, h, "POST", dpath(s6), integAdmin, nil); r.Code != 400 || !strings.Contains(fmt.Sprint(r.Body["error"]), "lebih dari Rp 0") {
+		t.Fatalf("default ongkir 0: %d %v", r.Code, r.Body)
+	}
+
+	// Konfirmasi tgt (11111) lalu jadikan default: insert + log; nominal dari baris pesanan.
+	confirmCall(t, h, idOf(tgt), 0, 11111)
+	var nDef int64
+	db.Raw("SELECT COUNT(*) FROM region_shipping_defaults WHERE district_code = '36.71.01'").Scan(&nDef)
+	if nDef != 0 {
+		t.Fatal("konfirmasi saja tidak boleh membuat default")
+	}
+	// Rollback: log gagal -> default TIDAK tersimpan.
 	var fail atomic.Bool
 	if err := db.Callback().Create().Before("gorm:create").Register("uji_gagal_log_default", func(tx *gorm.DB) {
 		if fail.Load() && tx.Statement.Table == "activity_logs" {
@@ -104,23 +135,18 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	fail.Store(true)
-	if r := adminCall(t, h, "POST", cpath, integAdmin, map[string]any{"discount": 0, "shippingFee": 11111, "setRegionDefault": true}); r.Code != 500 {
+	if r := adminCall(t, h, "POST", dpath(tgt), integAdmin, nil); r.Code != 500 {
 		t.Fatalf("log gagal harus 500: %d", r.Code)
 	}
 	fail.Store(false)
 	db.Callback().Create().Remove("uji_gagal_log_default")
-	var nDef int64
-	var st string
 	db.Raw("SELECT COUNT(*) FROM region_shipping_defaults WHERE district_code = '36.71.01'").Scan(&nDef)
-	db.Raw("SELECT status FROM orders WHERE id = ?", idOf(tgt)).Scan(&st)
-	if nDef != 0 || st != StatusPendingConfirmation {
-		t.Fatalf("rollback: default=%d status=%s", nDef, st)
+	if nDef != 0 {
+		t.Fatal("default harus di-rollback bila log gagal")
 	}
-
-	// Sukses: insert default + log.
-	r = adminCall(t, h, "POST", cpath, integAdmin, map[string]any{"discount": 0, "shippingFee": 11111, "setRegionDefault": true})
-	if r.Code != 200 || r.Body["status"] != StatusPending {
-		t.Fatalf("confirm + default: %d %v", r.Code, r.Body)
+	r = adminCall(t, h, "POST", dpath(tgt), integAdmin, nil)
+	if r.Code != 200 || r.Body["districtCode"] != "36.71.01" || r.Body["districtName"] != "Tangerang" || num(r.Body["shippingFee"]) != 11111 || r.Body["previousFee"] != nil {
+		t.Fatalf("default insert: %d %v", r.Code, r.Body)
 	}
 	var def struct {
 		Fee  int64   `gorm:"column:shipping_fee"`
@@ -136,8 +162,13 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 	if l == nil || !strings.Contains(det(l), `"ongkir":{"dari":null,"menjadi":11111}`) || !strings.Contains(det(l), tgt) {
 		t.Fatalf("log default: %v", det(l))
 	}
-	if l := lastLog(t, db, "order.confirm"); l == nil || !strings.Contains(det(l), `"defaultWilayah":true`) {
-		t.Fatalf("log confirm: %v", det(l))
+	// Klik ganda: idempoten (200, tanpa log baru).
+	nLog := countLogs(db, "action = ?", "region.shipping_default_set")
+	if r := adminCall(t, h, "POST", dpath(tgt), integAdmin, nil); r.Code != 200 || num(r.Body["previousFee"]) != 11111 {
+		t.Fatalf("klik ganda: %d %v", r.Code, r.Body)
+	}
+	if countLogs(db, "action = ?", "region.shipping_default_set") != nLog {
+		t.Fatal("klik ganda tidak boleh menulis log lagi")
 	}
 
 	// Pesanan baru di kecamatan sama: default + ongkir terakhir digabung (nominal sama).
@@ -149,9 +180,10 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 	if num(r.Body["currentDefault"].(map[string]any)["fee"]) != 11111 {
 		t.Fatalf("currentDefault: %v", r.Body["currentDefault"])
 	}
-	// Upsert (update) default.
-	confirmBody := map[string]any{"discount": 0, "shippingFee": 12121, "setRegionDefault": true}
-	if r := adminCall(t, h, "POST", fmt.Sprintf("/api/admin/orders/%d/confirm", idOf(t2)), integAdmin, confirmBody); r.Code != 200 {
+	// Update default dari pesanan lain (12121): previousFee 11111.
+	confirmCall(t, h, idOf(t2), 0, 12121)
+	r = adminCall(t, h, "POST", dpath(t2), integAdmin, nil)
+	if r.Code != 200 || num(r.Body["previousFee"]) != 11111 || num(r.Body["shippingFee"]) != 12121 {
 		t.Fatalf("update default: %d %v", r.Code, r.Body)
 	}
 	var nRows int64
@@ -163,15 +195,20 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 	if l := lastLog(t, db, "region.shipping_default_set"); l == nil || !strings.Contains(det(l), `"ongkir":{"dari":11111,"menjadi":12121}`) {
 		t.Fatalf("log update default: %v", det(l))
 	}
-	// Konfirmasi tanpa setRegionDefault tidak mengubah default.
+	// Status dibayar juga boleh (sudah dikonfirmasi).
+	adminSetStatus(t, h, idOf(t2), StatusPending, StatusPaid)
+	if r := adminCall(t, h, "POST", dpath(t2), integAdmin, nil); r.Code != 200 {
+		t.Fatalf("default dari pesanan dibayar: %d", r.Code)
+	}
+	// Konfirmasi tanpa menjadikan default tidak mengubah default.
 	t3 := createOrderFor(t, h, tokY, 4)
 	confirmCall(t, h, idOf(t3), 0, 30000)
 	db.Raw("SELECT shipping_fee FROM region_shipping_defaults WHERE district_code = '36.71.01'").Scan(&def.Fee)
 	if def.Fee != 12121 {
-		t.Fatal("default tidak boleh berubah tanpa checklist")
+		t.Fatal("default tidak boleh berubah tanpa permintaan")
 	}
 
-	// Pesanan lama tanpa kecamatan: tanpa default/district, regency & pelanggan tetap; setRegionDefault -> 400.
+	// Pesanan lama tanpa kecamatan: tanpa default/district, regency & pelanggan tetap; default -> 400.
 	old := createOrderFor(t, h, tokX, 4)
 	db.Exec("UPDATE orders SET district_code = NULL, district_name = NULL, village_code = NULL WHERE id = ?", idOf(old))
 	r = adminCall(t, h, "GET", fmt.Sprintf("/api/admin/orders/%d/shipping-suggestions", idOf(old)), integAdmin, nil)
@@ -186,8 +223,8 @@ func TestIntegrationShippingSuggestionsAndDefault(t *testing.T) {
 	if got := sugSummary(suggestions(t, r)); !strings.Contains(got, "regency:") || !strings.Contains(got, "customer:") {
 		t.Fatalf("pesanan lama tetap dapat saran kota & pelanggan: %s", got)
 	}
-	if r := adminCall(t, h, "POST", fmt.Sprintf("/api/admin/orders/%d/confirm", idOf(old)), integAdmin, map[string]any{"discount": 0, "shippingFee": 9000, "setRegionDefault": true}); r.Code != 400 ||
-		!strings.Contains(fmt.Sprint(r.Body["error"]), "kecamatan") {
+	confirmCall(t, h, idOf(old), 0, 9000)
+	if r := adminCall(t, h, "POST", dpath(old), integAdmin, nil); r.Code != 400 || !strings.Contains(fmt.Sprint(r.Body["error"]), "kecamatan") {
 		t.Fatalf("default tanpa kecamatan: %d %v", r.Code, r.Body)
 	}
 	// Pesanan sendiri tidak pernah menjadi saran untuk dirinya.

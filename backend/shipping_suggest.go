@@ -3,7 +3,8 @@ package main
 // Saran ongkir saat admin mengonfirmasi pesanan (status pending_confirmation) dan default ongkir per
 // kecamatan (tabel region_shipping_defaults, migrasi 021/022).
 //
-// GET /api/admin/orders/{id}/shipping-suggestions — maks. 4 saran, urutan prioritas:
+// GET /api/admin/orders/{id}/shipping-suggestions — maks. 4 saran, urutan prioritas (default ditetapkan lewat
+// POST /api/admin/orders/{id}/shipping-default setelah pesanan dikonfirmasi):
 //   1. "default"  : default ongkir kecamatan pesanan (region_shipping_defaults)
 //   2. "district" : ongkir pesanan terakhir ke kecamatan yang sama
 //   3. "regency"  : ongkir pesanan terakhir ke kab/kota yang sama
@@ -27,8 +28,10 @@ import (
 const maxShippingSuggestions = 4
 
 var (
-	errDefaultNoDistrict = errors.New("Pesanan ini tidak memiliki data kecamatan, jadi default ongkir wilayah tidak bisa ditetapkan")
-	errDefaultZeroFee    = errors.New("Default ongkir wilayah harus lebih dari Rp 0")
+	errDefaultNoDistrict   = errors.New("Pesanan ini tidak memiliki data kecamatan, jadi default ongkir wilayah tidak bisa ditetapkan")
+	errDefaultZeroFee      = errors.New("Default ongkir wilayah harus lebih dari Rp 0")
+	errDefaultNotConfirmed = errors.New("Pesanan belum dikonfirmasi. Konfirmasi pesanan terlebih dahulu sebelum menjadikan ongkirnya default wilayah")
+	errDefaultCancelled    = errors.New("Ongkir pesanan yang dibatalkan tidak bisa dijadikan default wilayah")
 )
 
 type ShippingSuggestion struct {
@@ -203,18 +206,75 @@ func (a *App) AdminShippingSuggestions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// setRegionDefaultTx: upsert default ongkir kecamatan pesanan DALAM transaksi konfirmasi + log aktivitas.
-func (a *App) setRegionDefaultTx(tx *gorm.DB, r *http.Request, admin *User, o *orderRow, fee int64) error {
+// AdminSetShippingDefault: POST /api/admin/orders/{id}/shipping-default (body kosong / {}).
+// Menetapkan default ongkir kecamatan dari PESANAN itu: kecamatan & ongkir dibaca dari baris pesanan di DB
+// (nominal TIDAK diterima dari klien). Syarat: pesanan ada, punya kecamatan, ongkir > 0, sudah dikonfirmasi
+// (pending_payment/paid/completed). Upsert + log region.shipping_default_set dalam satu transaksi.
+// Klik ganda idempoten: nominal sama dengan default -> 200 tanpa menulis ulang/log.
+func (a *App) AdminSetShippingDefault(w http.ResponseWriter, r *http.Request) {
+	admin := adminFrom(r.Context())
+	id, ok := pathID(r)
+	if !ok {
+		writeError(w, http.StatusNotFound, msgOrderMissing)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
+	var in struct{}
+	if err := decodeJSON(w, r, &in, true); err != nil {
+		respondDecodeError(w, err)
+		return
+	}
+	var out map[string]any
+	db := a.db.Load().WithContext(r.Context())
+	err := db.Transaction(func(tx *gorm.DB) error {
+		o, err := lockOrderByID(tx, id)
+		if err != nil {
+			return err
+		}
+		district := strings.TrimSpace(strOr(o.DistrictCode, ""))
+		if district == "" {
+			return &httpError{http.StatusBadRequest, errDefaultNoDistrict.Error()}
+		}
+		switch o.Status {
+		case StatusPending, StatusPaid, StatusCompleted:
+		case StatusPendingConfirmation:
+			return &httpError{http.StatusConflict, errDefaultNotConfirmed.Error()}
+		default:
+			return &httpError{http.StatusConflict, errDefaultCancelled.Error()}
+		}
+		if o.ShippingFee <= 0 {
+			return &httpError{http.StatusBadRequest, errDefaultZeroFee.Error()}
+		}
+		prev, err := a.setRegionDefaultTx(tx, r, admin, o)
+		if err != nil {
+			return err
+		}
+		out = map[string]any{"districtCode": district, "districtName": strOr(o.DistrictName, district),
+			"shippingFee": o.ShippingFee, "previousFee": prev}
+		return nil
+	})
+	if err != nil {
+		a.respondTxError(w, err, "default ongkir wilayah")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// setRegionDefaultTx: upsert default ongkir kecamatan pesanan (ongkir dari baris pesanan) + log aktivitas,
+// di dalam transaksi pemanggil. Mengembalikan ongkir default sebelumnya (nil bila belum ada).
+func (a *App) setRegionDefaultTx(tx *gorm.DB, r *http.Request, admin *User, o *orderRow) (any, error) {
 	district := strings.TrimSpace(strOr(o.DistrictCode, ""))
-	if district == "" {
-		return &httpError{http.StatusBadRequest, errDefaultNoDistrict.Error()}
-	}
-	if fee <= 0 {
-		return &httpError{http.StatusBadRequest, errDefaultZeroFee.Error()}
-	}
+	fee := o.ShippingFee
 	var old []int64
 	if err := tx.Raw(`SELECT shipping_fee FROM region_shipping_defaults WHERE district_code = ? FOR UPDATE`, district).Scan(&old).Error; err != nil {
-		return err
+		return nil, err
+	}
+	var from any
+	if len(old) > 0 {
+		from = old[0]
+		if old[0] == fee {
+			return from, nil // sudah menjadi default (mis. klik ganda): tidak ada perubahan
+		}
 	}
 	districtName := strOr(o.DistrictName, district)
 	if err := tx.Exec(`INSERT INTO region_shipping_defaults (district_code, district_name, regency_code, regency_name, shipping_fee, updated_by)
@@ -222,13 +282,9 @@ func (a *App) setRegionDefaultTx(tx *gorm.DB, r *http.Request, admin *User, o *o
 		ON DUPLICATE KEY UPDATE district_name = new.district_name, regency_code = new.regency_code,
 			regency_name = new.regency_name, shipping_fee = new.shipping_fee, updated_by = new.updated_by`,
 		district, truncateUTF8(districtName, 100), o.RegencyCode, o.RegencyName, fee, admin.ID).Error; err != nil {
-		return err
+		return nil, err
 	}
-	var from any
-	if len(old) > 0 {
-		from = old[0]
-	}
-	return a.logActivity(tx, a.reqMeta(r, LogEntry{
+	return from, a.logActivity(tx, a.reqMeta(r, LogEntry{
 		UserID: uid(admin), ActorLabel: actorOf(admin), Action: "region.shipping_default_set",
 		EntityType: "region", EntityID: district,
 		Summary: "Default ongkir kecamatan " + districtName + " ditetapkan (pesanan " + o.OrderNo + ")",
