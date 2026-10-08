@@ -609,7 +609,7 @@ test('admin detail pesanan: diskon/ongkir, tombol status, invoice, WhatsApp pela
   expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/6281311112222\?text=/);
   // Tandai dibayar mengirim status lama (from) untuk deteksi konflik.
   await act(async () => btn('Tandai Dibayar').click());
-  const modalBtn = [...container.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === 'Tandai dibayar');
+  const modalBtn = [...container.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === 'Ya, tandai dibayar');
   mockState.admin['/orders/5/status'] = { ...adminOrder, status: 'paid', allowedNext: ['completed', 'cancelled'], pricingLocked: true };
   await act(async () => modalBtn.click());
   await flush();

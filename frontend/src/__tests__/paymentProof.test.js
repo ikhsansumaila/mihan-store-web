@@ -85,8 +85,12 @@ jest.mock('../admin/api', () => {
   const actual = jest.requireActual('../admin/api');
   return {
     ...actual,
-    adminFetch: (path) => {
-      mockState.calls.push({ method: 'admin', url: path });
+    adminFetch: (path, opts) => {
+      mockState.calls.push({ method: 'admin', url: path, opts });
+      if (path.endsWith('/status')) {
+        if (mockState.statusHold) return new Promise((res, rej) => mockState.statusHold.push({ res, rej }));
+        if (mockState.statusError) return Promise.reject(Object.assign(new Error(mockState.statusError), { status: 409 }));
+      }
       if (path === '/me') return Promise.resolve({ user: { email: 'admin@example.com' } });
       if (path === '/summary') return Promise.resolve({ orders: {} });
       const key = Object.keys(mockState.admin)
@@ -165,6 +169,8 @@ beforeEach(() => {
   mockState.deleteError = null;
   mockState.prep = 'ok';
   mockState.admin = {};
+  mockState.statusHold = null;
+  mockState.statusError = null;
   created.length = 0;
   revoked.length = 0;
   global.URL.createObjectURL = jest.fn(() => {
@@ -427,5 +433,97 @@ describe('admin', () => {
     await renderAt('/admin/orders?status=all');
     // Tabel + kartu HP masing-masing satu penanda.
     expect(container.querySelectorAll('[data-testid="admin-proof-badge"]')).toHaveLength(2);
+  });
+
+  describe('konfirmasi "Tandai Dibayar"', () => {
+    const paidSheet = () => sheet('paid-confirm');
+    const statusCalls = () => mockState.calls.filter((c) => c.method === 'admin' && c.url === '/orders/5/status');
+    const paidReply = { ...adminOrder, status: 'paid', allowedNext: ['completed', 'cancelled'], pricingLocked: true };
+    const open = async (order) => {
+      mockState.admin = { '/orders/5': order, '/settings': { settings: {} } };
+      mockState.admin['/orders/5/status'] = paidReply;
+      await renderAt('/admin/orders/5');
+      await click(btn('Tandai Dibayar'));
+      expect(paidSheet()).not.toBeNull();
+    };
+
+    test('tanpa bukti: teks "belum melampirkan"; Batal tidak memanggil API; Ya memanggil sekali dengan catatan', async () => {
+      await open(adminOrder);
+      const sh = paidSheet();
+      expect(document.getElementById(sh.querySelector('[role="dialog"]').getAttribute('aria-labelledby')).textContent).toBe('Tandai sebagai dibayar?');
+      expect(sh.querySelector('[data-testid="paid-confirm-text"]').textContent).toBe('Pelanggan belum melampirkan bukti pembayaran, yakin?');
+      expect(sh.querySelector('[data-testid="paid-confirm-proof"]')).toBeNull();
+      await click(btn('Batal', sh));
+      expect(paidSheet()).toBeNull();
+      expect(statusCalls()).toHaveLength(0);
+      await click(btn('Tandai Dibayar'));
+      const input = paidSheet().querySelector('input');
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, 'BCA 9 Okt');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await click(btn('Ya, tandai dibayar', paidSheet()));
+      expect(statusCalls()).toHaveLength(1);
+      expect(statusCalls()[0].opts.body).toEqual({ from: 'pending_payment', to: 'paid', paymentNote: 'BCA 9 Okt' });
+      expect(paidSheet()).toBeNull();
+      expect(container.textContent).toContain('Terkunci');
+    });
+
+    test('dengan bukti: "Bukti transfer sudah benar?" + thumbnail; "Belum" menutup; "Ya, sudah benar" memanggil API', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, headers: { get: () => 'image/jpeg' }, blob: () => Promise.resolve(new Blob(['j'])) }));
+      await open({ ...adminOrder, paymentProof: { uploadedAt: '2026-10-09T03:00:00Z', sizeBytes: 1, mime: 'image/jpeg' } });
+      const sh = paidSheet();
+      expect(sh.querySelector('[data-testid="paid-confirm-text"]').textContent).toBe('Bukti transfer sudah benar?');
+      expect(sh.querySelector('[data-testid="paid-confirm-img"]').getAttribute('src')).toMatch(/^blob:/);
+      await click(btn('Belum', sh));
+      expect(statusCalls()).toHaveLength(0);
+      await click(btn('Tandai Dibayar'));
+      await click(btn('Ya, sudah benar', paidSheet()));
+      expect(statusCalls()).toHaveLength(1);
+    });
+
+    test('thumbnail gagal dimuat tidak menghalangi konfirmasi', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: false, headers: { get: () => 'application/json' } }));
+      await open({ ...adminOrder, paymentProof: { uploadedAt: '2026-10-09T03:00:00Z', sizeBytes: 1, mime: 'image/jpeg' } });
+      expect(paidSheet().textContent).toContain('Gagal memuat bukti');
+      expect(btn('Ya, sudah benar', paidSheet()).disabled).toBe(false);
+      await click(btn('Ya, sudah benar', paidSheet()));
+      expect(statusCalls()).toHaveLength(1);
+    });
+
+    test('klik ganda: sekali; galat server tampil di sheet; X/latar/Escape menutup tanpa API', async () => {
+      await open(adminOrder);
+      mockState.statusHold = [];
+      const yes = btn('Ya, tandai dibayar', paidSheet());
+      await act(async () => {
+        yes.click();
+        yes.click();
+      });
+      await flush();
+      expect(statusCalls()).toHaveLength(1);
+      expect(btn('Menyimpan...', paidSheet()).disabled).toBe(true);
+      await act(async () => mockState.statusHold[0].rej(Object.assign(new Error('Status pesanan sudah berubah'), { status: 409 })));
+      await flush();
+      expect(paidSheet().textContent).toContain('Status pesanan sudah berubah');
+      expect(btn('Ya, tandai dibayar', paidSheet()).disabled).toBe(false);
+      await click(paidSheet().querySelector('button[aria-label="Tutup"]'));
+      expect(paidSheet()).toBeNull();
+      await click(btn('Tandai Dibayar'));
+      await click(paidSheet().querySelector('[data-testid="paid-confirm-backdrop"]'));
+      expect(paidSheet()).toBeNull();
+      await click(btn('Tandai Dibayar'));
+      await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+      await flush();
+      expect(paidSheet()).toBeNull();
+      expect(statusCalls()).toHaveLength(1);
+    });
+
+    test('transisi lain tetap dialog lama (Batalkan)', async () => {
+      mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: {} } };
+      await renderAt('/admin/orders/5');
+      await click(btn('Batalkan'));
+      expect(paidSheet()).toBeNull();
+      expect(container.querySelector('[role="dialog"]').textContent).toContain('Batalkan pesanan');
+    });
   });
 });

@@ -864,7 +864,98 @@ export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
   );
 };
 
+// Konfirmasi "Tandai Dibayar" (satu sheet: konfirmasi bukti + catatan pembayaran opsional yang sudah ada).
+// Tanpa bukti: "Pelanggan belum melampirkan bukti pembayaran, yakin?". Dengan bukti: "Bukti transfer sudah benar?"
+// + thumbnail bukti (fetch admin -> blob; gagal memuat tidak menghalangi konfirmasi).
+const PaidConfirmSheet = ({ order, onClose, onSaved }) => {
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const savingRef = useRef(false);
+  const hasProof = !!order.paymentProof;
+  const { url, error: imgError } = useAdminProofImage(order.id, order.paymentProof?.uploadedAt || '');
+
+  const submit = async (e) => {
+    e?.preventDefault();
+    if (savingRef.current) return; // cegah klik ganda
+    savingRef.current = true;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await adminFetch(`/orders/${order.id}/status`, { method: 'PATCH', body: { from: order.status, to: 'paid', paymentNote: note.trim() } });
+      savingRef.current = false;
+      onSaved(res);
+    } catch (err) {
+      savingRef.current = false;
+      setError(err);
+      setSaving(false);
+    }
+  };
+  const close = () => {
+    if (!savingRef.current) onClose();
+  };
+
+  return (
+    <BottomSheet open onClose={close} labelledBy="paid-confirm-title" testId="paid-confirm">
+      <form onSubmit={submit} noValidate>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="paid-confirm-title" className="text-lg font-bold text-gray-900">
+              Tandai sebagai dibayar?
+            </h2>
+            <p className="text-sm text-gray-500">Pesanan {order.orderNo}</p>
+          </div>
+          <CloseX onClick={close} />
+        </div>
+        {hasProof ? (
+          <div className="mt-3 flex items-center gap-3 rounded-xl bg-blue-50 p-3" data-testid="paid-confirm-proof">
+            {url ? (
+              <img src={url} alt="Bukti pembayaran" className="h-24 w-24 shrink-0 rounded-lg border border-gray-200 bg-white object-contain" data-testid="paid-confirm-img" />
+            ) : (
+              <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 text-center text-xs text-gray-400">
+                {imgError ? 'Gagal memuat bukti' : 'Memuat...'}
+              </span>
+            )}
+            <p className="text-sm font-semibold text-blue-900" data-testid="paid-confirm-text">
+              Bukti transfer sudah benar?
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900" data-testid="paid-confirm-text">
+            Pelanggan belum melampirkan bukti pembayaran, yakin?
+          </p>
+        )}
+        <p className="mt-3 text-sm text-gray-700">
+          Status: <strong>{statusLabel(order.status)}</strong> → <strong>{statusLabel('paid')}</strong> (diskon & ongkir akan terkunci)
+        </p>
+        <label className="mt-3 block">
+          <span className="mb-1 block text-xs font-semibold text-gray-600">Catatan pembayaran (opsional)</span>
+          <input className={`${inputClass} text-base`} maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        {error && (
+          <div className="mt-3">
+            <ErrorBox error={error} />
+          </div>
+        )}
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className={btnSecondary} onClick={close} disabled={saving}>
+            {hasProof ? 'Belum' : 'Batal'}
+          </button>
+          <button type="submit" className={btnPrimary} disabled={saving}>
+            {saving ? 'Menyimpan...' : hasProof ? 'Ya, sudah benar' : 'Ya, tandai dibayar'}
+          </button>
+        </div>
+      </form>
+    </BottomSheet>
+  );
+};
+
 const StatusAction = ({ order, to, onClose, onSaved }) => {
+  if (to === 'paid') return <PaidConfirmSheet order={order} onClose={onClose} onSaved={onSaved} />;
+  return <StatusActionModal order={order} to={to} onClose={onClose} onSaved={onSaved} />;
+};
+
+const StatusActionModal = ({ order, to, onClose, onSaved }) => {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);

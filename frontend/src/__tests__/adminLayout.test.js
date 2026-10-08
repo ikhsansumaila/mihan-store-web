@@ -391,7 +391,7 @@ describe('ringkasan admin disegarkan', () => {
     mockState.statusReply = { id: 5, orderNo: 'MS-261002-0005', status: 'paid', subtotal: 10000, discount: 0, shippingFee: 0, total: 10000, pricingLocked: true, allowedNext: ['completed', 'cancelled'], recipient: { name: 'Budi', phone: '+6281311112222', address: 'Jl. Melati 9', city: 'Tangerang', postalCode: '15111' }, items: [], customer: { name: 'Budi' }, history: [], createdAt: '2026-10-02T03:00:00Z', updatedAt: '2026-10-02T04:00:00Z' };
     const tandai = [...container.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Tandai Dibayar');
     await act(async () => tandai.click());
-    const modalBtn = [...container.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === 'Tandai dibayar');
+    const modalBtn = [...container.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === 'Ya, tandai dibayar');
     await act(async () => modalBtn.click());
     await flush();
     await flush();
