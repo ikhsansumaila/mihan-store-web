@@ -35,3 +35,5 @@ backend/tmp/
 
 # Foto produk yang diunggah (disk VPS; ikut backup harian terenkripsi, bukan git)
 uploads/
+# Bukti transfer pelanggan (privat; ikut backup terenkripsi, bukan git)
+private-uploads/

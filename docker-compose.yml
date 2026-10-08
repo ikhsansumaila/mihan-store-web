@@ -36,9 +36,13 @@ services:
       - IMAGE_STORE=${IMAGE_STORE:-local}
       - UPLOADS_DIR=/data/uploads
       - MAX_UPLOADS_MB=${MAX_UPLOADS_MB:-2048}
+      # Bukti transfer pelanggan: folder PRIVAT (bukan /uploads, TIDAK di-mount ke frontend/nginx).
+      - PAYMENT_PROOF_DIR=/data/private-uploads/payment-proofs
     volumes:
       # Folder host (pemilik uid 10001 = user "app" backend, grup 101 = nginx frontend, mode 2750).
       - ./uploads:/data/uploads
+      # Folder host privat (pemilik 10001:10001, mode 0700; berkas 0600). Hanya backend.
+      - ./private-uploads:/data/private-uploads
     networks:
       mihanstore-net: {}
       nginx-proxy-manager-network:

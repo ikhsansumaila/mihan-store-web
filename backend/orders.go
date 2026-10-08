@@ -141,10 +141,13 @@ type CustomerOrderDTO struct {
 	Items         []OrderItemDTO `json:"items"`
 	History       []HistoryDTO   `json:"history"`
 	CanCancel     bool           `json:"canCancel"`
-	CreatedAt     time.Time      `json:"createdAt"`
-	PaidAt        *time.Time     `json:"paidAt"`
-	CompletedAt   *time.Time     `json:"completedAt"`
-	CancelledAt   *time.Time     `json:"cancelledAt"`
+	// Bukti transfer (null bila belum ada); boleh diunggah/diganti/dihapus hanya saat pending_payment.
+	PaymentProof   *PaymentProofDTO `json:"paymentProof"`
+	CanUploadProof bool             `json:"canUploadProof"`
+	CreatedAt      time.Time        `json:"createdAt"`
+	PaidAt         *time.Time       `json:"paidAt"`
+	CompletedAt    *time.Time       `json:"completedAt"`
+	CancelledAt    *time.Time       `json:"cancelledAt"`
 }
 
 func loadOrderItems(db *gorm.DB, orderID uint64) ([]OrderItemDTO, error) {
@@ -240,6 +243,7 @@ func (a *App) customerOrderDTO(db *gorm.DB, o *orderRow) (*CustomerOrderDTO, err
 		Subtotal: o.Subtotal, Discount: o.Discount, DiscountNote: o.DiscountNote, ShippingFee: o.ShippingFee, Total: o.Total,
 		PaymentMethod: o.PaymentMethod, Recipient: recipientOf(o), Note: o.CustomerNote, CancelReason: o.CancelReason,
 		ItemCount: sumQty(items), Items: items, History: h, CanCancel: canOwnerCancel(o.Status),
+		PaymentProof: paymentProofDTOFor(db, o.ID), CanUploadProof: o.Status == StatusPending,
 		CreatedAt: o.CreatedAt, PaidAt: o.PaidAt, CompletedAt: o.CompletedAt, CancelledAt: o.CancelledAt,
 	}, nil
 }
@@ -550,6 +554,8 @@ type CustomerOrderSummary struct {
 	ItemCount   int64     `json:"itemCount" gorm:"column:item_count"`
 	FirstItem   *string   `json:"firstItem" gorm:"column:first_item"`
 	CreatedAt   time.Time `json:"createdAt" gorm:"column:created_at"`
+	// Penanda "Bukti terkirim" di daftar Pesanan Saya.
+	HasPaymentProof bool `json:"hasPaymentProof" gorm:"column:has_payment_proof"`
 }
 
 func (a *App) ListMyOrders(w http.ResponseWriter, r *http.Request) {
@@ -567,6 +573,7 @@ func (a *App) ListMyOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	items := []CustomerOrderSummary{}
 	if err := db.Raw(`SELECT o.order_no, o.status, o.total, o.created_at,
+		EXISTS (SELECT 1 FROM order_payment_proofs pp WHERE pp.order_id = o.id) AS has_payment_proof,
 		(SELECT COALESCE(SUM(qty), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
 		(SELECT product_name FROM order_items oi WHERE oi.order_id = o.id ORDER BY oi.id LIMIT 1) AS first_item
 		FROM orders o WHERE o.user_id = ? AND o.deleted_at IS NULL AND o.order_no IS NOT NULL

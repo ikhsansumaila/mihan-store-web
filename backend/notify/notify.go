@@ -31,6 +31,9 @@ const (
 	KindCreated   = "created"
 	KindPaid      = "paid"
 	KindCancelled = "cancelled"
+	// KindPaymentProof: pelanggan mengunggah/mengganti bukti transfer. Isi minimal: nomor, pemesan, status
+	// (tanpa nominal dan tanpa tautan admin).
+	KindPaymentProof = "payment_proof"
 )
 
 // OrderEvent adalah data yang BOLEH dikirim ke Discord. Sengaja tidak ada field
@@ -224,15 +227,17 @@ func StatusLabel(s string) string {
 }
 
 var titles = map[string]string{
-	KindCreated:   "Pesanan baru",
-	KindPaid:      "Pesanan dibayar",
-	KindCancelled: "Pesanan dibatalkan",
+	KindCreated:      "Pesanan baru",
+	KindPaid:         "Pesanan dibayar",
+	KindCancelled:    "Pesanan dibatalkan",
+	KindPaymentProof: "Bukti pembayaran",
 }
 
 var colors = map[string]int{
-	KindCreated:   0x7E22CE, // ungu
-	KindPaid:      0x16A34A, // hijau
-	KindCancelled: 0xDC2626, // merah
+	KindCreated:      0x7E22CE, // ungu
+	KindPaid:         0x16A34A, // hijau
+	KindCancelled:    0xDC2626, // merah
+	KindPaymentProof: 0x2563EB, // biru
 }
 
 // FormatRupiah: 1234567 -> "Rp 1.234.567".
@@ -339,6 +344,15 @@ func BuildPayload(e OrderEvent) ([]byte, error) {
 			{Name: "Total", Value: FormatRupiah(e.Total), Inline: true},
 			{Name: "Status", Value: StatusLabel(e.Status), Inline: true},
 		},
+	}
+	if e.Kind == KindPaymentProof {
+		em.URL = ""
+		em.Fields = []embedField{
+			{Name: "Nomor pesanan", Value: orderNo, Inline: true},
+			{Name: "Pemesan", Value: name, Inline: true},
+			{Name: "Status", Value: StatusLabel(e.Status), Inline: true},
+		}
+		link = ""
 	}
 	if link != "" {
 		em.Description = "Detail: " + link

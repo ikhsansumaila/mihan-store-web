@@ -71,14 +71,20 @@ func imageErrorStatus(err error) (int, string) {
 
 // readUploadFile membaca isi field "file" dari body multipart (maks. maxUploadBytes).
 func readUploadFile(w http.ResponseWriter, r *http.Request) ([]byte, int, string) {
+	return readUploadFileLimit(w, r, maxUploadBytes, errImageTooLarge.Error())
+}
+
+// readUploadFileLimit seperti readUploadFile dengan batas isi berkas & pesan "terlalu besar" sendiri.
+func readUploadFileLimit(w http.ResponseWriter, r *http.Request, maxBytes int, tooLarge string) ([]byte, int, string) {
+	maxBody := int64(maxBytes) + 256<<10 // isi berkas + overhead multipart
 	mt, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mt != "multipart/form-data" || params["boundary"] == "" {
 		return nil, http.StatusBadRequest, "Unggahan harus berupa multipart/form-data dengan field \"file\"."
 	}
-	if r.ContentLength > maxUploadBodyBytes {
-		return nil, http.StatusRequestEntityTooLarge, errImageTooLarge.Error()
+	if r.ContentLength > maxBody {
+		return nil, http.StatusRequestEntityTooLarge, tooLarge
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	mr, err := r.MultipartReader()
 	if err != nil {
 		return nil, http.StatusBadRequest, "Format unggahan tidak valid."
@@ -91,7 +97,7 @@ func readUploadFile(w http.ResponseWriter, r *http.Request) ([]byte, int, string
 		if err != nil {
 			var mbe *http.MaxBytesError
 			if errors.As(err, &mbe) {
-				return nil, http.StatusRequestEntityTooLarge, errImageTooLarge.Error()
+				return nil, http.StatusRequestEntityTooLarge, tooLarge
 			}
 			return nil, http.StatusBadRequest, "Format unggahan tidak valid."
 		}
@@ -101,17 +107,17 @@ func readUploadFile(w http.ResponseWriter, r *http.Request) ([]byte, int, string
 			continue
 		}
 		// Nama berkas dan Content-Type dari klien sengaja diabaikan.
-		data, err := io.ReadAll(io.LimitReader(p, maxUploadBytes+1))
+		data, err := io.ReadAll(io.LimitReader(p, int64(maxBytes)+1))
 		p.Close()
 		if err != nil {
 			var mbe *http.MaxBytesError
 			if errors.As(err, &mbe) {
-				return nil, http.StatusRequestEntityTooLarge, errImageTooLarge.Error()
+				return nil, http.StatusRequestEntityTooLarge, tooLarge
 			}
 			return nil, http.StatusBadRequest, "Unggahan terputus. Coba lagi."
 		}
-		if len(data) > maxUploadBytes {
-			return nil, http.StatusRequestEntityTooLarge, errImageTooLarge.Error()
+		if len(data) > maxBytes {
+			return nil, http.StatusRequestEntityTooLarge, tooLarge
 		}
 		if len(data) == 0 {
 			return nil, http.StatusBadRequest, msgImageNoFile

@@ -67,6 +67,9 @@ type Config struct {
 	ImageStore   string
 	UploadsDir   string
 	MaxUploadsMB int64
+
+	// Bukti transfer pelanggan: folder PRIVAT (di luar UploadsDir/uploads publik, tidak disajikan nginx).
+	PaymentProofDir string
 }
 
 // IsTestDB: true bila memakai database uji (*_test).
@@ -164,6 +167,7 @@ func LoadConfig() Config {
 		cfg.ImageStore = "local"
 	}
 	cfg.UploadsDir = getenv("UPLOADS_DIR", "/data/uploads")
+	cfg.PaymentProofDir = getenv("PAYMENT_PROOF_DIR", "/data/private-uploads/payment-proofs")
 	cfg.MaxUploadsMB = 2048
 	if v := strings.TrimSpace(os.Getenv("MAX_UPLOADS_MB")); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 && n <= 1<<20 {

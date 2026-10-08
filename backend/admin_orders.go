@@ -30,6 +30,8 @@ type AdminOrderSummary struct {
 	CustomerName  string    `json:"customerName" gorm:"column:customer_name"`
 	Username      string    `json:"username" gorm:"column:username"`
 	CreatedAt     time.Time `json:"createdAt" gorm:"column:created_at"`
+	// Pesanan punya bukti transfer (penanda "Bukti" di daftar admin).
+	HasPaymentProof bool `json:"hasPaymentProof" gorm:"column:has_payment_proof"`
 	// Akun pemesan (khusus admin): id users dan alias internal.
 	CustomerID    uint64             `json:"-" gorm:"column:customer_id"`
 	CustomerAlias *string            `json:"-" gorm:"column:customer_alias"`
@@ -78,6 +80,10 @@ func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		where += ` AND (` + cond + `)`
 	}
+	// ?proof=1: hanya pesanan yang punya bukti transfer.
+	if q.Get("proof") == "1" {
+		where += ` AND EXISTS (SELECT 1 FROM order_payment_proofs pp WHERE pp.order_id = o.id)`
+	}
 	page, perPage := pageParams(r)
 	db := a.db.Load().WithContext(r.Context())
 	from_ := ` FROM orders o JOIN users u ON u.id = o.user_id`
@@ -91,6 +97,7 @@ func (a *App) AdminListOrders(w http.ResponseWriter, r *http.Request) {
 	qargs := append(append([]any{}, args...), perPage, (page-1)*perPage)
 	if err := db.Raw(`SELECT o.id, o.order_no, o.status, o.total, o.recipient_name, o.city, o.created_at,
 		u.name AS customer_name, u.username, u.id AS customer_id, u.alias AS customer_alias,
+		EXISTS (SELECT 1 FROM order_payment_proofs pp WHERE pp.order_id = o.id) AS has_payment_proof,
 		(SELECT COALESCE(SUM(qty), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count`+from_+where+
 		` ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?`, qargs...).Scan(&items).Error; err != nil {
 		log.Printf("admin pesanan: %v", err)
@@ -134,7 +141,8 @@ type AdminOrderDTO struct {
 	Items         []OrderItemDTO    `json:"items"`
 	History       []AdminHistoryDTO `json:"history"`
 	PricingLocked bool              `json:"pricingLocked"`
-	CanConfirm    bool              `json:"canConfirm"` // pending_confirmation: tombol "Konfirmasi pesanan" (POST /confirm)
+	PaymentProof  *PaymentProofDTO  `json:"paymentProof"` // bukti transfer pelanggan (null bila belum ada)
+	CanConfirm    bool              `json:"canConfirm"`   // pending_confirmation: tombol "Konfirmasi pesanan" (POST /confirm)
 	AllowedNext   []string          `json:"allowedNext"`
 	CreatedAt     time.Time         `json:"createdAt"`
 	UpdatedAt     time.Time         `json:"updatedAt"`
@@ -196,7 +204,7 @@ func (a *App) adminOrderDTO(db *gorm.DB, o *orderRow) (*AdminOrderDTO, error) {
 		Subtotal: o.Subtotal, Discount: o.Discount, DiscountNote: o.DiscountNote, ShippingFee: o.ShippingFee, Total: o.Total,
 		PaymentMethod: o.PaymentMethod, Recipient: recipientOf(o), CustomerNote: o.CustomerNote, AdminNote: o.AdminNote,
 		PaymentNote: o.PaymentNote, CancelReason: o.CancelReason, Customer: customer,
-		ItemCount: sumQty(items), Items: items, History: h,
+		ItemCount: sumQty(items), Items: items, History: h, PaymentProof: paymentProofDTOFor(db, o.ID),
 		// Diskon/ongkir bisa diisi saat menunggu konfirmasi (disimpan lewat /confirm) dan saat menunggu pembayaran (/pricing).
 		PricingLocked: o.Status != StatusPending && o.Status != StatusPendingConfirmation,
 		CanConfirm:    o.Status == StatusPendingConfirmation, AllowedNext: allowedNext(o.Status, actorAdmin),

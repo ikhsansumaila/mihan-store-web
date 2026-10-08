@@ -183,7 +183,7 @@ func TestNormalizeName(t *testing.T) {
 		"  Budi   Santoso ":        "Budi Santoso",
 		"Budi\x00\x07Santoso":      "BudiSantoso",
 		"Siti\tAminah\n":           "Siti Aminah",
-		"Ana‮evil":            "Anaevil",
+		"Ana‮evil":                 "Anaevil",
 		strings.Repeat("é", 100):   strings.Repeat("é", 100),
 		"Ny. Dewi (Toko Berkah) 👍": "Ny. Dewi (Toko Berkah) 👍",
 	}

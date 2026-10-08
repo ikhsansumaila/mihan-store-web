@@ -54,6 +54,9 @@ type App struct {
 	pusher           push.Sender  // Web Push admin (Noop bila VAPID belum dikonfigurasi)
 	pushLimiter      *RateLimiter // per admin: langganan/tes push
 	pushCustLimiter  *RateLimiter // per pelanggan: langganan push
+	proofLimiter     *RateLimiter // per pelanggan: unggah/hapus bukti transfer
+	proofViewLimiter *RateLimiter // per pelanggan: lihat bukti transfer
+	proofs           *ProofStore  // penyimpanan PRIVAT bukti transfer (PAYMENT_PROOF_DIR)
 	now              func() time.Time
 
 	// Data wilayah (regions*.go).
@@ -91,6 +94,8 @@ func NewApp(cfg Config) *App {
 		aliasLimiter:     NewRateLimiter(60, time.Minute),
 		pushLimiter:      NewRateLimiter(20, time.Minute),
 		pushCustLimiter:  NewRateLimiter(20, time.Minute),
+		proofLimiter:     NewRateLimiter(10, 10*time.Minute),
+		proofViewLimiter: NewRateLimiter(120, time.Minute),
 		// Server tiruan (http, host bebas) hanya diizinkan untuk database uji.
 		notifier: notify.New(cfg.DiscordOrderWebhookURL, cfg.IsTestDB()),
 		now:      func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
@@ -104,6 +109,9 @@ func NewApp(cfg Config) *App {
 
 		imageLimiter: NewRateLimiter(20, time.Minute),
 		imageSem:     make(chan struct{}, 2),
+	}
+	if cfg.PaymentProofDir != "" {
+		a.proofs = NewProofStore(cfg.PaymentProofDir)
 	}
 	a.pusher = push.New(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, &pushStore{app: a})
 	a.setImageStore(NewLocalStore(cfg.UploadsDir, "/uploads/"), cfg.MaxUploadsMB)

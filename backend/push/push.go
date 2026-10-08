@@ -41,6 +41,8 @@ const (
 	KindCreated   = "created"
 	KindCancelled = "cancelled"
 	KindTest      = "test"
+	// KindPaymentProof: notifikasi ADMIN saat pelanggan mengunggah/mengganti bukti transfer.
+	KindPaymentProof = "payment_proof"
 
 	// Kejadian untuk PELANGGAN pemilik pesanan (diubah oleh admin).
 	KindCustomerPricing   = "customer.pricing"   // diskon/ongkir/total ditetapkan atau diubah admin
@@ -282,7 +284,7 @@ func BuildPayload(e Event) ([]byte, error) {
 		return json.Marshal(Payload{Title: "Tes notifikasi", Body: "Notifikasi Mihan Store berfungsi di perangkat ini.", URL: "/admin", Tag: "tes-notifikasi"})
 	}
 	switch e.Kind {
-	case KindCreated, KindCancelled, KindCustomerPricing, KindCustomerPaid, KindCustomerCompleted, KindCustomerCancelled:
+	case KindCreated, KindCancelled, KindPaymentProof, KindCustomerPricing, KindCustomerPaid, KindCustomerCompleted, KindCustomerCancelled:
 	default:
 		return nil, fmt.Errorf("jenis kejadian tidak dikenal: %q", e.Kind)
 	}
@@ -292,10 +294,12 @@ func BuildPayload(e Event) ([]byte, error) {
 	esc := url.PathEscape(no)
 	p := Payload{Body: no, URL: "/admin/orders/" + esc, Tag: "pesanan-" + no}
 	switch e.Kind {
-	case KindCreated, KindCancelled:
+	case KindCreated, KindCancelled, KindPaymentProof:
 		p.Title = "Pesanan Baru"
 		if e.Kind == KindCancelled {
 			p.Title = "Pesanan Dibatalkan"
+		} else if e.Kind == KindPaymentProof {
+			p.Title = "Bukti Pembayaran"
 		}
 		p.Body = "dari " + CleanName(e.Customer) + "\npenerima " + CleanName(e.Recipient) + "\n" + no
 	default:

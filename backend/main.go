@@ -55,6 +55,9 @@ func newRouter(app *App) http.Handler {
 	api.Handle("/orders", app.customer(app.CreateOrder)).Methods("POST")
 	api.Handle("/orders/{orderNo}", app.customer(app.GetMyOrder)).Methods("GET")
 	api.Handle("/orders/{orderNo}/cancel", app.customer(app.CancelMyOrder)).Methods("POST")
+	api.Handle("/orders/{orderNo}/payment-proof", app.customer(app.CustomerUploadPaymentProof)).Methods("POST")
+	api.Handle("/orders/{orderNo}/payment-proof", app.customer(app.CustomerGetPaymentProof)).Methods("GET")
+	api.Handle("/orders/{orderNo}/payment-proof", app.customer(app.CustomerDeletePaymentProof)).Methods("DELETE")
 	api.Handle("/store-info", app.customer(app.StoreInfo)).Methods("GET")
 	// Notifikasi push pelanggan (status pesanan miliknya sendiri).
 	api.Handle("/push/public-key", app.customer(app.PushPublicKey)).Methods("GET")
@@ -86,6 +89,7 @@ func newRouter(app *App) http.Handler {
 	admin.HandleFunc("/orders/{id:[0-9]+}/confirm", app.AdminConfirmOrder).Methods("POST")
 	admin.HandleFunc("/orders/{id:[0-9]+}/shipping-suggestions", app.AdminShippingSuggestions).Methods("GET")
 	admin.HandleFunc("/orders/{id:[0-9]+}/shipping-default", app.AdminSetShippingDefault).Methods("POST")
+	admin.HandleFunc("/orders/{id:[0-9]+}/payment-proof", app.AdminGetPaymentProof).Methods("GET")
 	admin.HandleFunc("/orders/{id:[0-9]+}/status", app.AdminUpdateStatus).Methods("PATCH")
 	admin.HandleFunc("/orders/{id:[0-9]+}/note", app.AdminUpdateNote).Methods("PATCH")
 	admin.HandleFunc("/customers", app.AdminListCustomers).Methods("GET")
@@ -131,6 +135,14 @@ func main() {
 	app.bgCtx = bgCtx
 	// Run wilayah yang tertinggal 'running' dari proses sebelumnya -> failed.
 	app.afterConnect = app.sweepRegionRuns
+	if app.proofs != nil {
+		if err := app.proofs.Writable(); err != nil {
+			log.Printf("PERINGATAN: folder bukti transfer tidak dapat ditulis (%v); unggah bukti akan gagal", err)
+		} else {
+			log.Println("folder bukti transfer (privat) dapat ditulis")
+		}
+		app.startProofPurger(bgCtx)
+	}
 	log.Printf("sumber data wilayah: %s", app.regionFetchCfg.Base)
 	go app.connectWithRetry(cfg)
 
