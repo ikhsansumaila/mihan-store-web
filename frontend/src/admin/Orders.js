@@ -384,7 +384,6 @@ const PricingForm = ({ order, onSaved }) => {
   const [sugg, setSugg] = useState(null); // respons /shipping-suggestions atau null
   const [sheet, setSheet] = useState(null); // { list, choice } saat sheet "Ongkir untuk pesanan ini" terbuka
   const [preparing, setPreparing] = useState(false);
-  const [setDefault, setSetDefault] = useState(false);
   const suggPromise = useRef(null);
   const shippingRef = useRef(null);
   const alive = useRef(true);
@@ -416,13 +415,20 @@ const PricingForm = ({ order, onSaved }) => {
     savingRef.current = true;
     setSaving(true);
     try {
-      const confirmBody = { discount: d, discountNote: note, shippingFee: s };
-      if (confirmMode && setDefault && defaultInfo.eligible) confirmBody.setRegionDefault = true;
+      const body = { discount: d, discountNote: note, shippingFee: s };
       const res = confirmMode
-        ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body: confirmBody })
-        : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } });
+        ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body })
+        : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body });
       setConfirm(null);
-      onSaved(res);
+      // Setelah KONFIRMASI sukses: tawarkan "jadikan default ongkir wilayah" (popup di detail) bila pesanan punya
+      // kecamatan, ongkir > 0, dan berbeda dari default yang berlaku. Info dari saran yang sudah diambil.
+      const fee = Number(res?.shippingFee ?? s);
+      const current = sugg?.currentDefault?.fee ?? null;
+      const offer =
+        confirmMode && sugg?.canSetDefault && fee > 0 && (current === null || Number(current) !== fee)
+          ? { orderId: order.id, orderNo: order.orderNo, fee, districtName: sugg.region?.districtName || '', current: current === null ? null : Number(current) }
+          : null;
+      onSaved(res, offer ? { defaultOffer: offer } : undefined);
     } catch (err) {
       if (inSheet) setConfirmError(err);
       else setError(err);
@@ -458,7 +464,6 @@ const PricingForm = ({ order, onSaved }) => {
 
   const openConfirm = (ch) => {
     setConfirmError(null);
-    setSetDefault(false);
     setConfirm(ch);
   };
 
@@ -477,13 +482,6 @@ const PricingForm = ({ order, onSaved }) => {
     openConfirm(pricingChanges(order, d, fee, note));
   };
 
-  // Checklist "default ongkir wilayah ini" di dialog konfirmasi.
-  const defaultInfo = (() => {
-    const can = confirmMode && !!sugg?.canSetDefault;
-    const current = sugg?.currentDefault?.fee ?? null;
-    const name = sugg?.region?.districtName || '';
-    return { show: can, name, current, same: can && current !== null && Number(current) === s && s > 0, eligible: can && s > 0 && !(current !== null && Number(current) === s) };
-  })();
 
   const closeConfirm = () => {
     if (savingRef.current) return;
@@ -623,35 +621,6 @@ const PricingForm = ({ order, onSaved }) => {
                 <strong className="text-base text-purple-800">{rupiah(confirm.total)}</strong>
               </div>
             </div>
-            {confirmMode && defaultInfo.show && (
-              <div className="mt-3 rounded-lg border border-gray-200 px-3 py-2 text-sm" data-testid="confirm-default">
-                {defaultInfo.same ? (
-                  <p className="text-gray-600">
-                    {rupiah(s)} sudah menjadi default ongkir kecamatan {defaultInfo.name}.
-                  </p>
-                ) : (
-                  <label className={`flex items-start gap-2 ${s > 0 ? 'cursor-pointer' : 'opacity-60'}`}>
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 accent-purple-700"
-                      checked={setDefault && s > 0}
-                      disabled={s <= 0 || saving}
-                      onChange={(e) => setSetDefault(e.target.checked)}
-                    />
-                    <span>
-                      {s > 0 ? (
-                        <>
-                          Tetapkan {rupiah(s)} sebagai default ongkir wilayah ini (Kec. {defaultInfo.name})
-                          {defaultInfo.current !== null && <> — mengganti default {rupiah(defaultInfo.current)}</>}
-                        </>
-                      ) : (
-                        <>Default ongkir wilayah hanya untuk ongkir lebih dari Rp 0.</>
-                      )}
-                    </span>
-                  </label>
-                )}
-              </div>
-            )}
             {confirmMode ? (
               <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
                 Pelanggan akan dinotifikasi dan diminta membayar.
@@ -680,6 +649,74 @@ const PricingForm = ({ order, onSaved }) => {
         )}
       </BottomSheet>
     </form>
+  );
+};
+
+// Popup setelah "Konfirmasi pesanan" sukses: jadikan ongkir pesanan ini default kecamatannya?
+// Nominal TIDAK dikirim: backend membaca ongkir & kecamatan dari pesanan (POST /shipping-default).
+export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const busyRef = useRef(false);
+  const accept = async () => {
+    if (busyRef.current) return; // cegah klik ganda
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await adminFetch(`/orders/${offer.orderId}/shipping-default`, { method: 'POST', body: {} });
+      onDone(r || {});
+    } catch (err) {
+      setError(err);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+  const close = () => {
+    if (!busyRef.current) onClose();
+  };
+  const kec = offer.districtName ? `Kec. ${offer.districtName}` : 'kecamatan ini';
+  return (
+    <BottomSheet open onClose={close} labelledBy="default-offer-title" testId="default-offer">
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="default-offer-title" className="text-lg font-bold text-gray-900">
+          Jadikan default ongkir wilayah?
+        </h2>
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Tutup"
+          className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <p className="mt-2 text-sm text-gray-700">
+        Ongkir <strong>{rupiah(offer.fee)}</strong> untuk {kec} baru saja dikonfirmasi. Jadikan <strong>{rupiah(offer.fee)}</strong> sebagai default
+        ongkir untuk kecamatan ini? Pesanan berikutnya ke kecamatan ini akan mendapat saran ongkir ini.
+      </p>
+      {offer.current !== null && (
+        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="default-offer-replace">
+          Ini akan mengganti default sekarang ({rupiah(offer.current)}).
+        </p>
+      )}
+      {error && (
+        <div className="mt-3">
+          <ErrorBox error={error} />
+        </div>
+      )}
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" className={btnSecondary} onClick={close} disabled={busy}>
+          {error ? 'Tutup' : 'Tidak'}
+        </button>
+        <button type="button" className={btnPrimary} onClick={accept} disabled={busy}>
+          {busy ? 'Menyimpan...' : error ? 'Coba lagi' : 'Ya, jadikan default'}
+        </button>
+      </div>
+    </BottomSheet>
   );
 };
 
@@ -786,9 +823,17 @@ export const AdminOrderDetail = () => {
   const [order, setOrder] = useState(null);
   const { refresh: refreshSummary } = useAdminSummary();
   // Setiap perubahan pesanan yang berhasil (konfirmasi, harga, status, catatan) -> ringkasan disegarkan.
-  const savedOrder = (o) => {
+  const [defaultOffer, setDefaultOffer] = useState(null); // popup sekali per konfirmasi (tidak disimpan)
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!notice) return undefined;
+    const t = setTimeout(() => setNotice(''), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+  const savedOrder = (o, meta) => {
     setOrder(o);
     refreshSummary();
+    if (meta?.defaultOffer) setDefaultOffer(meta.defaultOffer);
   };
   const [settings, setSettings] = useState({});
   const [error, setError] = useState(null);
@@ -1047,6 +1092,29 @@ export const AdminOrderDetail = () => {
         />
       )}
 
+      {defaultOffer && (
+        <DefaultOfferSheet
+          offer={defaultOffer}
+          onClose={() => setDefaultOffer(null)}
+          onDone={(r) => {
+            const name = r.districtName || defaultOffer.districtName;
+            setDefaultOffer(null);
+            setNotice(`Default ongkir ${name ? `Kec. ${name}` : 'kecamatan'} disimpan: ${rupiah(r.shippingFee ?? defaultOffer.fee)}`);
+          }}
+        />
+      )}
+      {notice && (
+        <div
+          role="status"
+          data-testid="default-offer-notice"
+          className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-md items-start justify-between gap-3 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-lg"
+        >
+          <span>{notice}</span>
+          <button type="button" className="text-xs underline" onClick={() => setNotice('')}>
+            Tutup
+          </button>
+        </div>
+      )}
       {action && (
         <StatusAction
           order={order}
