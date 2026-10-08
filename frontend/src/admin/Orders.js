@@ -322,6 +322,45 @@ const ChangeRow = ({ label, from, to, testId }) => (
   </div>
 );
 
+// ---------- Saran ongkir (konfirmasi pesanan) ----------
+const SUGGEST_TIMEOUT_MS = 3000;
+
+export const relativeDays = (iso, now = new Date()) => {
+  if (!iso) return '';
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return '';
+  const day = (x) => Math.floor((x.getTime() + 7 * 3600 * 1000) / 86400000); // hari menurut WIB
+  const n = day(now) - day(t);
+  if (n <= 0) return 'hari ini';
+  if (n === 1) return 'kemarin';
+  if (n < 30) return `${n} hari lalu`;
+  return fmtTime(iso);
+};
+
+const SOURCE_SHORT = { default: 'default kecamatan', district: 'terakhir ke kecamatan', regency: 'terakhir ke kota/kab.', customer: 'terakhir pelanggan ini' };
+
+export const suggestionLabel = (sg) => {
+  switch (sg.source) {
+    case 'default':
+      return `Default kecamatan ${sg.regionLabel || ''}`.trim();
+    case 'district':
+      return `Ongkir terakhir ke kecamatan ${sg.regionLabel || ''}`.trim();
+    case 'regency':
+      return `Ongkir terakhir ke ${sg.regionLabel || 'kota/kabupaten ini'}`;
+    default:
+      return 'Ongkir terakhir pelanggan ini';
+  }
+};
+
+const suggestionDetail = (sg) => {
+  const parts = [];
+  if (sg.orderNo) parts.push(sg.orderNo);
+  if (sg.orderNo && sg.date) parts.push(relativeDays(sg.date));
+  const extra = (sg.sources || []).filter((x) => x !== sg.source).map((x) => SOURCE_SHORT[x] || x);
+  if (extra.length) parts.push(`sama dengan ${extra.join(', ')}`);
+  return parts.join(' · ');
+};
+
 // Mode form: "confirm" (pending_confirmation, POST /confirm, dialog SELALU tampil) atau "edit"
 // (pending_payment, PATCH /pricing, dialog bila ada perubahan).
 const PricingForm = ({ order, onSaved }) => {
@@ -334,6 +373,33 @@ const PricingForm = ({ order, onSaved }) => {
   const [confirm, setConfirm] = useState(null); // ringkasan perubahan saat dialog konfirmasi terbuka
   const [confirmError, setConfirmError] = useState(null);
   const savingRef = useRef(false);
+  // Saran ongkir (hanya mode konfirmasi): diambil saat form dibuka, dipakai saat tombol ditekan.
+  const [sugg, setSugg] = useState(null); // respons /shipping-suggestions atau null
+  const [sheet, setSheet] = useState(null); // { list, choice } saat sheet "Ongkir untuk pesanan ini" terbuka
+  const [preparing, setPreparing] = useState(false);
+  const [setDefault, setSetDefault] = useState(false);
+  const suggPromise = useRef(null);
+  const shippingRef = useRef(null);
+  const alive = useRef(true);
+
+  useEffect(() => {
+    alive.current = true;
+    if (confirmMode) {
+      const orderId = order.id;
+      suggPromise.current = adminFetch(`/orders/${orderId}/shipping-suggestions`)
+        .then((r) => (alive.current && r && Array.isArray(r.suggestions) ? r : null))
+        .catch(() => null);
+      suggPromise.current.then((r) => {
+        if (alive.current && r) setSugg(r);
+      });
+    }
+    return () => {
+      alive.current = false; // respons basi (pindah pesanan / form dibuka ulang) diabaikan
+    };
+  }, [confirmMode, order.id]);
+
+  const waitSuggestions = () =>
+    Promise.race([suggPromise.current || Promise.resolve(null), new Promise((res) => setTimeout(() => res(null), SUGGEST_TIMEOUT_MS))]);
   const d = Number(digits(discount) || 0);
   const s = Number(digits(shipping) || 0);
   const preview = order.subtotal - d + s;
@@ -343,8 +409,10 @@ const PricingForm = ({ order, onSaved }) => {
     savingRef.current = true;
     setSaving(true);
     try {
+      const confirmBody = { discount: d, discountNote: note, shippingFee: s };
+      if (confirmMode && setDefault && defaultInfo.eligible) confirmBody.setRegionDefault = true;
       const res = confirmMode
-        ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body: { discount: d, discountNote: note, shippingFee: s } })
+        ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body: confirmBody })
         : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } });
       setConfirm(null);
       onSaved(res);
@@ -364,10 +432,51 @@ const PricingForm = ({ order, onSaved }) => {
     if (s > SHIPPING_MAX) return setError(new Error('Ongkir maksimal Rp 10.000.000'));
     const ch = pricingChanges(order, d, s, note);
     if (!ch.any && !confirmMode) return doSave(false); // tanpa perubahan: perilaku lama (langsung simpan)
-    setConfirmError(null);
-    setConfirm(ch);
+    if (confirmMode && s === 0) {
+      // Ongkir belum diisi: tawarkan saran (otomatis). Gagal/timeout/tanpa saran -> dialog konfirmasi biasa.
+      if (preparing) return undefined; // cegah klik ganda
+      setPreparing(true);
+      const r = await waitSuggestions();
+      if (!alive.current) return undefined;
+      setPreparing(false);
+      if (r) setSugg(r);
+      if (r && r.suggestions.length > 0) {
+        setSheet({ list: r.suggestions, choice: 0 });
+        return undefined;
+      }
+    }
+    openConfirm(ch);
     return undefined;
   };
+
+  const openConfirm = (ch) => {
+    setConfirmError(null);
+    setSetDefault(false);
+    setConfirm(ch);
+  };
+
+  // Sheet saran: pilihan hanya mengisi kolom ongkir lalu lanjut ke dialog konfirmasi (tidak menyimpan).
+  const useSuggestion = () => {
+    if (!sheet) return;
+    const { choice, list } = sheet;
+    if (choice === 'manual') {
+      setSheet(null);
+      setTimeout(() => shippingRef.current?.focus(), 0);
+      return;
+    }
+    const fee = choice === 'zero' ? 0 : Number(list[choice]?.fee || 0);
+    setSheet(null);
+    setShipping(String(fee));
+    openConfirm(pricingChanges(order, d, fee, note));
+  };
+
+  // Checklist "default ongkir wilayah ini" di dialog konfirmasi.
+  const defaultInfo = (() => {
+    const can = confirmMode && !!sugg?.canSetDefault;
+    const current = sugg?.currentDefault?.fee ?? null;
+    const name = sugg?.region?.districtName || '';
+    return { show: can, name, current, same: can && current !== null && Number(current) === s && s > 0, eligible: can && s > 0 && !(current !== null && Number(current) === s) };
+  })();
 
   const closeConfirm = () => {
     if (savingRef.current) return;
@@ -384,7 +493,7 @@ const PricingForm = ({ order, onSaved }) => {
         </label>
         <label className="block">
           <span className="block text-xs font-semibold text-gray-600 mb-1">Ongkir (Rp)</span>
-          <MoneyInput className={inputClass} value={shipping} onValueChange={(v) => setShipping(v)} maxDigits={AMOUNT_DIGITS} min={0} max={SHIPPING_MAX} />
+          <MoneyInput ref={shippingRef} className={inputClass} value={shipping} onValueChange={(v) => setShipping(v)} maxDigits={AMOUNT_DIGITS} min={0} max={SHIPPING_MAX} />
         </label>
       </div>
       <label className="block">
@@ -395,10 +504,81 @@ const PricingForm = ({ order, onSaved }) => {
         <span className="text-sm text-gray-600">
           Total baru: <strong className={preview < 0 ? 'text-red-600' : 'text-purple-700'}>{rupiah(Math.max(preview, 0))}</strong>
         </span>
-        <button type="submit" className={btnPrimary} disabled={saving}>
-          {saving ? 'Menyimpan...' : confirmMode ? 'Konfirmasi pesanan' : 'Ubah diskon & ongkir'}
+        <button type="submit" className={btnPrimary} disabled={saving || preparing}>
+          {saving ? 'Menyimpan...' : preparing ? 'Memuat saran ongkir...' : confirmMode ? 'Konfirmasi pesanan' : 'Ubah diskon & ongkir'}
         </button>
       </div>
+
+      <BottomSheet open={!!sheet} onClose={() => setSheet(null)} labelledBy="shipping-suggest-title" testId="shipping-suggest">
+        {sheet && (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="shipping-suggest-title" className="text-lg font-bold text-gray-900">
+                  Ongkir untuk pesanan ini
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {order.orderNo}
+                  {sugg?.region?.districtName ? ` · Kec. ${sugg.region.districtName}` : ''}
+                  {sugg?.region?.regencyName ? `, ${sugg.region.regencyName}` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheet(null)}
+                aria-label="Tutup"
+                className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <fieldset className="mt-3 space-y-2" data-testid="shipping-options">
+              <legend className="sr-only">Pilih ongkir</legend>
+              {[
+                ...sheet.list.map((sg, i) => ({ key: i, title: suggestionLabel(sg), fee: sg.fee, detail: suggestionDetail(sg), source: sg.source })),
+                { key: 'zero', title: 'Rp 0 (kurir dipesan pembeli)', fee: null, detail: '', source: 'zero' },
+                { key: 'manual', title: 'Isi manual', fee: null, detail: 'Tutup lalu ketik ongkir sendiri', source: 'manual' },
+              ].map((opt) => {
+                const checked = sheet.choice === opt.key;
+                return (
+                  <label
+                    key={opt.key}
+                    data-option={opt.source}
+                    className={`flex min-h-[3rem] cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+                      checked ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="shipping-choice"
+                      className="h-4 w-4 shrink-0 accent-purple-700"
+                      checked={checked}
+                      onChange={() => setSheet((x) => (x ? { ...x, choice: opt.key } : x))}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium text-gray-900">
+                        {opt.title}
+                        {opt.fee !== null && <span className="font-bold text-purple-800">: {rupiah(opt.fee)}</span>}
+                      </span>
+                      {opt.detail && <span className="block text-xs text-gray-500">{opt.detail}</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" className={btnSecondary} onClick={() => setSheet(null)}>
+                Batal
+              </button>
+              <button type="button" className={btnPrimary} onClick={useSuggestion}>
+                {sheet.choice === 'manual' ? 'Isi manual' : 'Pakai ongkir ini'}
+              </button>
+            </div>
+          </>
+        )}
+      </BottomSheet>
 
       <BottomSheet open={!!confirm} onClose={closeConfirm} labelledBy="pricing-confirm-title" testId="pricing-confirm">
         {confirm && (
@@ -436,6 +616,35 @@ const PricingForm = ({ order, onSaved }) => {
                 <strong className="text-base text-purple-800">{rupiah(confirm.total)}</strong>
               </div>
             </div>
+            {confirmMode && defaultInfo.show && (
+              <div className="mt-3 rounded-lg border border-gray-200 px-3 py-2 text-sm" data-testid="confirm-default">
+                {defaultInfo.same ? (
+                  <p className="text-gray-600">
+                    {rupiah(s)} sudah menjadi default ongkir kecamatan {defaultInfo.name}.
+                  </p>
+                ) : (
+                  <label className={`flex items-start gap-2 ${s > 0 ? 'cursor-pointer' : 'opacity-60'}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-purple-700"
+                      checked={setDefault && s > 0}
+                      disabled={s <= 0 || saving}
+                      onChange={(e) => setSetDefault(e.target.checked)}
+                    />
+                    <span>
+                      {s > 0 ? (
+                        <>
+                          Tetapkan {rupiah(s)} sebagai default ongkir wilayah ini (Kec. {defaultInfo.name})
+                          {defaultInfo.current !== null && <> — mengganti default {rupiah(defaultInfo.current)}</>}
+                        </>
+                      ) : (
+                        <>Default ongkir wilayah hanya untuk ongkir lebih dari Rp 0.</>
+                      )}
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
             {confirmMode ? (
               <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
                 Pelanggan akan dinotifikasi dan diminta membayar.

@@ -28,6 +28,12 @@ jest.mock('../admin/api', () => {
       mockState.calls.push({ method: opts?.method || 'GET', url: `admin${path}`, body: opts?.body });
       if (path === '/me') return Promise.resolve({ user: { email: 'admin@example.com' } });
       if (mockState.pricingHold && (path.endsWith('/pricing') || path.endsWith('/confirm'))) return new Promise((resolve, reject) => mockState.pricingHold.push({ resolve, reject }));
+      if (path.endsWith('/shipping-suggestions')) {
+        mockState.suggestCalls = (mockState.suggestCalls || 0) + 1;
+        if (mockState.suggest === 'fail') return Promise.reject(new Error('Layanan sedang tidak tersedia'));
+        if (mockState.suggest === 'hang') return new Promise(() => {});
+        return Promise.resolve(mockState.suggest || { suggestions: [], canSetDefault: false, region: {}, currentDefault: null });
+      }
       if (mockState.pricingError && path.endsWith('/pricing')) return Promise.reject(Object.assign(new Error(mockState.pricingError), { status: 409 }));
       const key = Object.keys(mockState.admin)
         .filter((k) => path.startsWith(k))
@@ -539,5 +545,170 @@ describe('konfirmasi pesanan (menunggu konfirmasi)', () => {
     await renderAt('/admin/orders/5');
     expect(btn('Ubah diskon & ongkir')).toBeUndefined();
     expect(container.textContent).toContain('Terkunci');
+  });
+});
+
+
+// ---------- Saran ongkir & default wilayah (konfirmasi pesanan) ----------
+const SUGG = {
+  region: { districtCode: '36.71.01', districtName: 'Tangerang', regencyName: 'Kota Tangerang' },
+  canSetDefault: true,
+  currentDefault: null,
+  suggestions: [
+    { source: 'district', sources: ['district', 'customer'], fee: 15000, orderNo: 'MS-261005-0003', date: new Date(Date.now() - 3 * 86400000).toISOString(), regionLabel: 'Tangerang' },
+    { source: 'regency', sources: ['regency'], fee: 20000, orderNo: 'MS-261001-0001', date: new Date().toISOString(), regionLabel: 'Kota Tangerang' },
+  ],
+};
+const suggestSheet = () => container.querySelector('[data-testid="shipping-suggest"]');
+const option = (src) => suggestSheet().querySelector(`[data-option="${src}"] input`);
+
+describe('saran ongkir saat konfirmasi pesanan', () => {
+  beforeEach(() => {
+    mockState.pricingError = null;
+    mockState.pricingHold = null;
+    mockState.suggest = SUGG;
+    mockState.suggestCalls = 0;
+  });
+
+  test('ongkir 0 + ada saran: sheet otomatis, saran teratas terpilih, pilihan mengisi ongkir lalu dialog konfirmasi', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    await click(btn('Konfirmasi pesanan'));
+    const sh = suggestSheet();
+    expect(sh).not.toBeNull();
+    expect(document.getElementById(sh.querySelector('[role="dialog"]').getAttribute('aria-labelledby')).textContent).toBe('Ongkir untuk pesanan ini');
+    const text = sh.textContent;
+    expect(text).toContain('Ongkir terakhir ke kecamatan Tangerang: Rp 15.000');
+    expect(text).toContain('MS-261005-0003 · 3 hari lalu · sama dengan terakhir pelanggan ini');
+    expect(text).toContain('Ongkir terakhir ke Kota Tangerang: Rp 20.000');
+    expect(text).toContain('Rp 0 (kurir dipesan pembeli)');
+    expect(text).toContain('Isi manual');
+    expect(option('district').checked).toBe(true);
+    expect(confirmSheet()).toBeNull();
+    await act(async () => option('regency').click());
+    await click(btn('Pakai ongkir ini'));
+    expect(suggestSheet()).toBeNull();
+    expect(inputInLabel('Ongkir (Rp)').value).toBe('20.000');
+    expect(confirmSheet().querySelector('[data-testid="confirm-shipping"]').textContent).toMatch(/Rp 0.*→.*Rp 20\.000/);
+    expect(confirmCalls()).toHaveLength(0); // pilihan saran tidak menyimpan
+    await click(btn('Ya, konfirmasi'));
+    expect(confirmCalls()[0].body).toEqual({ discount: 0, discountNote: '', shippingFee: 20000 });
+  });
+
+  test('pilih Rp 0: lanjut ke dialog dengan Rp 0; checklist default nonaktif', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    await click(btn('Konfirmasi pesanan'));
+    await act(async () => option('zero').click());
+    await click(btn('Pakai ongkir ini'));
+    expect(confirmSheet().querySelector('[data-testid="confirm-shipping"]').textContent).toBe('OngkirRp 0');
+    const box = confirmSheet().querySelector('[data-testid="confirm-default"] input[type="checkbox"]');
+    expect(box.disabled).toBe(true);
+    expect(confirmSheet().querySelector('[data-testid="confirm-default"]').textContent).toContain('hanya untuk ongkir lebih dari Rp 0');
+  });
+
+  test('Isi manual: sheet tertutup, fokus ke kolom ongkir, dialog konfirmasi TIDAK terbuka', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    await click(btn('Konfirmasi pesanan'));
+    await act(async () => option('manual').click());
+    await click(btn('Isi manual'));
+    await act(async () => new Promise((r) => setTimeout(r, 5)));
+    expect(suggestSheet()).toBeNull();
+    expect(confirmSheet()).toBeNull();
+    expect(document.activeElement).toBe(inputInLabel('Ongkir (Rp)'));
+  });
+
+  test('ongkir sudah diisi: sheet dilewati, langsung dialog; checklist default terkirim', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    typeInto(inputInLabel('Ongkir (Rp)'), '18000');
+    await click(btn('Konfirmasi pesanan'));
+    expect(suggestSheet()).toBeNull();
+    const def = confirmSheet().querySelector('[data-testid="confirm-default"]');
+    expect(def.textContent).toContain('Tetapkan Rp 18.000 sebagai default ongkir wilayah ini (Kec. Tangerang)');
+    expect(def.textContent).not.toContain('mengganti');
+    await act(async () => def.querySelector('input').click());
+    await click(btn('Ya, konfirmasi'));
+    expect(confirmCalls()[0].body).toEqual({ discount: 0, discountNote: '', shippingFee: 18000, setRegionDefault: true });
+  });
+
+  test('default sudah ada: teks "mengganti default"; nominal sama -> "sudah menjadi default" tanpa checkbox', async () => {
+    mockState.suggest = { ...SUGG, currentDefault: { fee: 15000 }, suggestions: [{ source: 'default', sources: ['default'], fee: 15000, orderNo: null, date: null, regionLabel: 'Tangerang' }] };
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    typeInto(inputInLabel('Ongkir (Rp)'), '17000');
+    await click(btn('Konfirmasi pesanan'));
+    expect(confirmSheet().querySelector('[data-testid="confirm-default"]').textContent).toContain('mengganti default Rp 15.000');
+    await click(btn('Batal'));
+    typeInto(inputInLabel('Ongkir (Rp)'), '15000');
+    await click(btn('Konfirmasi pesanan'));
+    const def = confirmSheet().querySelector('[data-testid="confirm-default"]');
+    expect(def.textContent).toContain('Rp 15.000 sudah menjadi default ongkir kecamatan Tangerang');
+    expect(def.querySelector('input')).toBeNull();
+    await click(btn('Ya, konfirmasi'));
+    expect(confirmCalls()[0].body.setRegionDefault).toBeUndefined();
+  });
+
+  test('pesanan tanpa kecamatan: checklist disembunyikan', async () => {
+    mockState.suggest = { ...SUGG, canSetDefault: false, region: { districtCode: null, districtName: null, regencyName: 'Kota Tangerang' } };
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    typeInto(inputInLabel('Ongkir (Rp)'), '18000');
+    await click(btn('Konfirmasi pesanan'));
+    expect(confirmSheet().querySelector('[data-testid="confirm-default"]')).toBeNull();
+  });
+
+  test('tanpa saran / fetch gagal: sheet dilewati, dialog konfirmasi biasa', async () => {
+    for (const sg of [{ ...SUGG, suggestions: [] }, 'fail']) {
+      mockState.suggest = sg;
+      mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+      // eslint-disable-next-line no-await-in-loop
+      await renderAt('/admin/orders/5');
+      // eslint-disable-next-line no-await-in-loop
+      await click(btn('Konfirmasi pesanan'));
+      expect(suggestSheet()).toBeNull();
+      expect(confirmSheet()).not.toBeNull();
+      act(() => root.unmount());
+      container.remove();
+    }
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+  });
+
+  test('fetch saran menggantung: setelah batas waktu dialog biasa tetap terbuka; klik ganda saat memuat diabaikan', async () => {
+    mockState.suggest = 'hang';
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    const b = btn('Konfirmasi pesanan');
+    await act(async () => {
+      b.click();
+      b.click();
+    });
+    expect(btn('Memuat saran ongkir...').disabled).toBe(true);
+    await act(async () => new Promise((r) => setTimeout(r, 3200)));
+    await flush();
+    expect(suggestSheet()).toBeNull();
+    expect(confirmSheet()).not.toBeNull();
+    expect(container.querySelectorAll('[data-testid="pricing-confirm"]')).toHaveLength(1);
+  }, 10000);
+
+  test('galat server saat konfirmasi dengan default: tampil di dialog, bisa dicoba lagi', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    mockState.pricingHold = [];
+    await renderAt('/admin/orders/5');
+    typeInto(inputInLabel('Ongkir (Rp)'), '18000');
+    await click(btn('Konfirmasi pesanan'));
+    await act(async () => confirmSheet().querySelector('[data-testid="confirm-default"] input').click());
+    const yes = btn('Ya, konfirmasi');
+    await act(async () => {
+      yes.click();
+      yes.click();
+    });
+    expect(confirmCalls()).toHaveLength(1);
+    await act(async () => mockState.pricingHold[0].reject(Object.assign(new Error('Default ongkir wilayah harus lebih dari Rp 0'), { status: 400 })));
+    await flush();
+    expect(confirmSheet().textContent).toContain('Default ongkir wilayah harus lebih dari Rp 0');
+    expect(btn('Ya, konfirmasi').disabled).toBe(false);
   });
 });
