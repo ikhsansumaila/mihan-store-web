@@ -1,19 +1,20 @@
 package main
 
 // Saran ongkir saat admin mengonfirmasi pesanan (status pending_confirmation) dan default ongkir per
-// kecamatan (tabel region_shipping_defaults, migrasi 021/022).
+// KELURAHAN/DESA (tabel region_shipping_defaults, migrasi 021/022 lalu 025: kunci village_code).
 //
 // GET /api/admin/orders/{id}/shipping-suggestions — maks. 4 saran, urutan prioritas (default ditetapkan lewat
 // POST /api/admin/orders/{id}/shipping-default setelah pesanan dikonfirmasi):
-//   1. "default"  : default ongkir kecamatan pesanan (region_shipping_defaults)
-//   2. "district" : ongkir pesanan terakhir ke kecamatan yang sama
-//   3. "regency"  : ongkir pesanan terakhir ke kab/kota yang sama
-//   4. "customer" : ongkir pesanan terakhir pelanggan ini
+//   1. "default"  : default ongkir kelurahan/desa pesanan (region_shipping_defaults)
+//   2. "village"  : ongkir pesanan terakhir ke kelurahan/desa yang sama
+//   3. "district" : ongkir pesanan terakhir ke kecamatan yang sama (cadangan)
+//   4. "regency"  : ongkir pesanan terakhir ke kab/kota yang sama
+//   5. "customer" : ongkir pesanan terakhir pelanggan ini
 // Pesanan sumber: bukan pesanan ini, sudah dikonfirmasi (pending_payment/paid/completed; bukan cancelled dan
 // bukan pending_confirmation), shipping_fee > 0 (ongkir 0 pada pesanan lama tidak bisa dibedakan dari
 // "gratis"; Rp 0 tetap tersedia sebagai opsi manual di UI), belum dihapus. Nominal yang sama digabung:
 // sumber prioritas tertinggi dipakai sebagai "source", semua sumber di "sources".
-// Pesanan lama tanpa district_code: lewati 1 & 2, tetap 3 (bila regency_code ada) dan 4.
+// Pesanan lama tanpa village_code: lewati 1 & 2, tetap 3/4 (bila kodenya ada) dan 5.
 
 import (
 	"errors"
@@ -28,7 +29,7 @@ import (
 const maxShippingSuggestions = 4
 
 var (
-	errDefaultNoDistrict   = errors.New("Pesanan ini tidak memiliki data kecamatan, jadi default ongkir wilayah tidak bisa ditetapkan")
+	errDefaultNoVillage    = errors.New("Pesanan ini tidak memiliki data kelurahan/desa, jadi default ongkir wilayah tidak bisa ditetapkan")
 	errDefaultZeroFee      = errors.New("Default ongkir wilayah harus lebih dari Rp 0")
 	errDefaultNotConfirmed = errors.New("Pesanan belum dikonfirmasi. Konfirmasi pesanan terlebih dahulu sebelum menjadikan ongkirnya default wilayah")
 	errDefaultCancelled    = errors.New("Ongkir pesanan yang dibatalkan tidak bisa dijadikan default wilayah")
@@ -73,6 +74,7 @@ type lastFeeRow struct {
 	Fee          int64     `gorm:"column:shipping_fee"`
 	OrderNo      string    `gorm:"column:order_no"`
 	CreatedAt    time.Time `gorm:"column:created_at"`
+	VillageName  *string   `gorm:"column:village_name"`
 	DistrictName *string   `gorm:"column:district_name"`
 	RegencyName  *string   `gorm:"column:regency_name"`
 	City         string    `gorm:"column:city"`
@@ -81,12 +83,12 @@ type lastFeeRow struct {
 // lastConfirmedFee: ongkir pesanan terakhir yang memenuhi kolom = nilai (kolom dari daftar putih).
 func lastConfirmedFee(db *gorm.DB, column string, value any, excludeID uint64) (*lastFeeRow, error) {
 	switch column {
-	case "district_code", "regency_code", "user_id":
+	case "village_code", "district_code", "regency_code", "user_id":
 	default:
 		return nil, errors.New("kolom tidak diizinkan")
 	}
 	var rows []lastFeeRow
-	err := db.Raw(`SELECT shipping_fee, order_no, created_at, district_name, regency_name, city FROM orders
+	err := db.Raw(`SELECT shipping_fee, order_no, created_at, village_name, district_name, regency_name, city FROM orders
 		WHERE `+column+` = ? AND id <> ? AND status IN ('pending_payment','paid','completed') AND shipping_fee > 0
 		AND deleted_at IS NULL AND order_no IS NOT NULL
 		ORDER BY created_at DESC, id DESC LIMIT 1`, value, excludeID).Scan(&rows).Error
@@ -108,9 +110,9 @@ type regionDefaultRow struct {
 	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-func loadRegionDefault(db *gorm.DB, districtCode string) (*regionDefaultRow, error) {
+func loadRegionDefault(db *gorm.DB, villageCode string) (*regionDefaultRow, error) {
 	var rows []regionDefaultRow
-	if err := db.Raw(`SELECT shipping_fee, updated_at FROM region_shipping_defaults WHERE district_code = ?`, districtCode).Scan(&rows).Error; err != nil {
+	if err := db.Raw(`SELECT shipping_fee, updated_at FROM region_shipping_defaults WHERE village_code = ?`, villageCode).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -138,8 +140,10 @@ func (a *App) AdminShippingSuggestions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o := rows[0]
+	village := strings.TrimSpace(strOr(o.VillageCode, ""))
 	district := strings.TrimSpace(strOr(o.DistrictCode, ""))
 	regency := strings.TrimSpace(strOr(o.RegencyCode, ""))
+	villageName := strOr(o.VillageName, "")
 	districtName := strOr(o.DistrictName, "")
 	regencyName := strOr(o.RegencyName, o.City)
 
@@ -149,8 +153,20 @@ func (a *App) AdminShippingSuggestions(w http.ResponseWriter, r *http.Request) {
 		log.Printf("saran ongkir pesanan %d: %v", id, err)
 		writeError(w, http.StatusServiceUnavailable, msgServiceDown)
 	}
-	if district != "" {
-		def, err := loadRegionDefault(db, district)
+	addLast := func(source, column string, value any, label func(*lastFeeRow) string) bool {
+		last, err := lastConfirmedFee(db, column, value, id)
+		if err != nil {
+			fail(err)
+			return false
+		}
+		if last != nil {
+			no, d := last.OrderNo, last.CreatedAt
+			cands = append(cands, ShippingSuggestion{Source: source, Fee: last.Fee, OrderNo: &no, Date: &d, RegionLabel: label(last)})
+		}
+		return true
+	}
+	if village != "" {
+		def, err := loadRegionDefault(db, village)
 		if err != nil {
 			fail(err)
 			return
@@ -158,49 +174,35 @@ func (a *App) AdminShippingSuggestions(w http.ResponseWriter, r *http.Request) {
 		if def != nil {
 			current = def
 			d := def.UpdatedAt
-			cands = append(cands, ShippingSuggestion{Source: "default", Fee: def.Fee, Date: &d, RegionLabel: districtName})
+			cands = append(cands, ShippingSuggestion{Source: "default", Fee: def.Fee, Date: &d, RegionLabel: villageName})
 		}
-		last, err := lastConfirmedFee(db, "district_code", district, id)
-		if err != nil {
-			fail(err)
+		if !addLast("village", "village_code", village, func(l *lastFeeRow) string { return strOr(l.VillageName, villageName) }) {
 			return
 		}
-		if last != nil {
-			no, d := last.OrderNo, last.CreatedAt
-			cands = append(cands, ShippingSuggestion{Source: "district", Fee: last.Fee, OrderNo: &no, Date: &d, RegionLabel: strOr(last.DistrictName, districtName)})
-		}
 	}
-	if regency != "" {
-		last, err := lastConfirmedFee(db, "regency_code", regency, id)
-		if err != nil {
-			fail(err)
-			return
-		}
-		if last != nil {
-			no, d := last.OrderNo, last.CreatedAt
-			cands = append(cands, ShippingSuggestion{Source: "regency", Fee: last.Fee, OrderNo: &no, Date: &d, RegionLabel: strOr(last.RegencyName, regencyName)})
-		}
-	}
-	if last, err := lastConfirmedFee(db, "user_id", o.UserID, id); err != nil {
-		fail(err)
+	if district != "" && !addLast("district", "district_code", district, func(l *lastFeeRow) string { return strOr(l.DistrictName, districtName) }) {
 		return
-	} else if last != nil {
-		no, d := last.OrderNo, last.CreatedAt
-		cands = append(cands, ShippingSuggestion{Source: "customer", Fee: last.Fee, OrderNo: &no, Date: &d,
-			RegionLabel: strOr(last.DistrictName, strOr(last.RegencyName, last.City))})
+	}
+	if regency != "" && !addLast("regency", "regency_code", regency, func(l *lastFeeRow) string { return strOr(l.RegencyName, regencyName) }) {
+		return
+	}
+	if !addLast("customer", "user_id", o.UserID, func(l *lastFeeRow) string {
+		return strOr(l.VillageName, strOr(l.DistrictName, strOr(l.RegencyName, l.City)))
+	}) {
+		return
 	}
 
 	var currentDefault any
 	if current != nil {
 		currentDefault = map[string]any{"fee": current.Fee, "updatedAt": current.UpdatedAt}
 	}
-	var dc, dn any
-	if district != "" {
-		dc, dn = district, districtName
+	var vc, vn any
+	if village != "" {
+		vc, vn = village, villageName
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"region":         map[string]any{"districtCode": dc, "districtName": dn, "regencyName": regencyName},
-		"canSetDefault":  district != "",
+		"region":         map[string]any{"villageCode": vc, "villageName": vn, "districtName": districtName, "regencyName": regencyName},
+		"canSetDefault":  village != "",
 		"currentDefault": currentDefault,
 		"suggestions":    mergeSuggestions(cands),
 	})
@@ -231,9 +233,9 @@ func (a *App) AdminSetShippingDefault(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		district := strings.TrimSpace(strOr(o.DistrictCode, ""))
-		if district == "" {
-			return &httpError{http.StatusBadRequest, errDefaultNoDistrict.Error()}
+		village := strings.TrimSpace(strOr(o.VillageCode, ""))
+		if village == "" {
+			return &httpError{http.StatusBadRequest, errDefaultNoVillage.Error()}
 		}
 		switch o.Status {
 		case StatusPending, StatusPaid, StatusCompleted:
@@ -249,7 +251,7 @@ func (a *App) AdminSetShippingDefault(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		out = map[string]any{"districtCode": district, "districtName": strOr(o.DistrictName, district),
+		out = map[string]any{"villageCode": village, "villageName": strOr(o.VillageName, village), "districtName": strOr(o.DistrictName, ""),
 			"shippingFee": o.ShippingFee, "previousFee": prev}
 		return nil
 	})
@@ -260,13 +262,13 @@ func (a *App) AdminSetShippingDefault(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// setRegionDefaultTx: upsert default ongkir kecamatan pesanan (ongkir dari baris pesanan) + log aktivitas,
+// setRegionDefaultTx: upsert default ongkir KELURAHAN pesanan (ongkir dari baris pesanan) + log aktivitas,
 // di dalam transaksi pemanggil. Mengembalikan ongkir default sebelumnya (nil bila belum ada).
 func (a *App) setRegionDefaultTx(tx *gorm.DB, r *http.Request, admin *User, o *orderRow) (any, error) {
-	district := strings.TrimSpace(strOr(o.DistrictCode, ""))
+	village := strings.TrimSpace(strOr(o.VillageCode, ""))
 	fee := o.ShippingFee
 	var old []int64
-	if err := tx.Raw(`SELECT shipping_fee FROM region_shipping_defaults WHERE district_code = ? FOR UPDATE`, district).Scan(&old).Error; err != nil {
+	if err := tx.Raw(`SELECT shipping_fee FROM region_shipping_defaults WHERE village_code = ? FOR UPDATE`, village).Scan(&old).Error; err != nil {
 		return nil, err
 	}
 	var from any
@@ -276,19 +278,24 @@ func (a *App) setRegionDefaultTx(tx *gorm.DB, r *http.Request, admin *User, o *o
 			return from, nil // sudah menjadi default (mis. klik ganda): tidak ada perubahan
 		}
 	}
-	districtName := strOr(o.DistrictName, district)
-	if err := tx.Exec(`INSERT INTO region_shipping_defaults (district_code, district_name, regency_code, regency_name, shipping_fee, updated_by)
-		VALUES (?, ?, ?, ?, ?, ?) AS new
-		ON DUPLICATE KEY UPDATE district_name = new.district_name, regency_code = new.regency_code,
-			regency_name = new.regency_name, shipping_fee = new.shipping_fee, updated_by = new.updated_by`,
-		district, truncateUTF8(districtName, 100), o.RegencyCode, o.RegencyName, fee, admin.ID).Error; err != nil {
+	villageName := strOr(o.VillageName, village)
+	districtName := strOr(o.DistrictName, "")
+	if err := tx.Exec(`INSERT INTO region_shipping_defaults (village_code, village_name, district_code, district_name, regency_code, regency_name, shipping_fee, updated_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) AS new
+		ON DUPLICATE KEY UPDATE village_name = new.village_name, district_code = new.district_code, district_name = new.district_name,
+			regency_code = new.regency_code, regency_name = new.regency_name, shipping_fee = new.shipping_fee, updated_by = new.updated_by`,
+		village, truncateUTF8(villageName, 100), o.DistrictCode, o.DistrictName, o.RegencyCode, o.RegencyName, fee, admin.ID).Error; err != nil {
 		return nil, err
+	}
+	summary := "Default ongkir kelurahan/desa " + villageName
+	if districtName != "" {
+		summary += " (Kec. " + districtName + ")"
 	}
 	return from, a.logActivity(tx, a.reqMeta(r, LogEntry{
 		UserID: uid(admin), ActorLabel: actorOf(admin), Action: "region.shipping_default_set",
-		EntityType: "region", EntityID: district,
-		Summary: "Default ongkir kecamatan " + districtName + " ditetapkan (pesanan " + o.OrderNo + ")",
-		Details: map[string]any{"kecamatan": districtName, "kodeKecamatan": district, "kabupatenKota": strOr(o.RegencyName, ""),
-			"ongkir": map[string]any{"dari": from, "menjadi": fee}, "orderNo": o.OrderNo},
+		EntityType: "region", EntityID: village,
+		Summary: truncateUTF8(summary+" ditetapkan (pesanan "+o.OrderNo+")", 255),
+		Details: map[string]any{"kelurahan": villageName, "kodeKelurahan": village, "kecamatan": districtName,
+			"kabupatenKota": strOr(o.RegencyName, ""), "ongkir": map[string]any{"dari": from, "menjadi": fee}, "orderNo": o.OrderNo},
 	}))
 }
