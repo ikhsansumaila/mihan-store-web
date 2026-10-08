@@ -32,7 +32,7 @@ jest.mock('../admin/api', () => {
         mockState.defaultCalls = (mockState.defaultCalls || []).concat([{ path, body: opts?.body }]);
         if (mockState.defaultFail) return Promise.reject(Object.assign(new Error(mockState.defaultFail), { status: 409 }));
         if (mockState.defaultHold) return new Promise((resolve) => mockState.defaultHold.push(resolve));
-        return Promise.resolve({ districtCode: '36.71.01', districtName: 'Tangerang', shippingFee: 18000, previousFee: null });
+        return Promise.resolve({ villageCode: '36.71.01.1001', villageName: 'Sukarasa', districtName: 'Tangerang', shippingFee: 18000, previousFee: null });
       }
       if (path.endsWith('/shipping-suggestions')) {
         mockState.suggestCalls = (mockState.suggestCalls || 0) + 1;
@@ -296,11 +296,13 @@ const inSheet = (label) => [...sheet().querySelectorAll('label')].find((l) => l.
 const sBtn = (label) => [...anySheet().querySelectorAll('button')].find((b) => b.textContent.trim() === label);
 const card = () => container.querySelector('[data-testid="pricing-summary"]');
 const SUGG = {
-  region: { districtCode: '36.71.01', districtName: 'Tangerang', regencyName: 'Kota Tangerang' },
+  region: { villageCode: '36.71.01.1001', villageName: 'Sukarasa', districtName: 'Tangerang', regencyName: 'Kota Tangerang' },
   canSetDefault: true,
   currentDefault: null,
   suggestions: [
-    { source: 'district', sources: ['district', 'customer'], fee: 15000, orderNo: 'MS-261005-0003', date: new Date(Date.now() - 3 * 86400000).toISOString(), regionLabel: 'Tangerang' },
+    { source: 'default', sources: ['default'], fee: 12000, orderNo: null, date: new Date().toISOString(), regionLabel: 'Sukarasa' },
+    { source: 'village', sources: ['village', 'customer'], fee: 15000, orderNo: 'MS-261005-0003', date: new Date(Date.now() - 3 * 86400000).toISOString(), regionLabel: 'Sukarasa' },
+    { source: 'district', sources: ['district'], fee: 17000, orderNo: 'MS-261005-0003', date: new Date(Date.now() - 3 * 86400000).toISOString(), regionLabel: 'Tangerang' },
     { source: 'regency', sources: ['regency'], fee: 20000, orderNo: 'MS-261001-0001', date: new Date().toISOString(), regionLabel: 'Kota Tangerang' },
   ],
 };
@@ -538,6 +540,8 @@ describe('konfirmasi pesanan (dua langkah)', () => {
     await renderAt('/admin/orders/5');
     await openSheet('Konfirmasi pesanan');
     const opts = sheet().querySelector('[data-testid="shipping-options"]');
+    expect(opts.textContent).toContain('Default kelurahan Sukarasa');
+    expect(opts.textContent).toContain('Terakhir ke kelurahan Sukarasa');
     expect(opts.textContent).toContain('Terakhir ke kecamatan Tangerang');
     expect(opts.textContent).toContain('MS-261005-0003 · 3 hari lalu · sama dengan terakhir pelanggan ini');
     expect(opts.textContent).toContain('Rp 0 (kurir dipesan pembeli)');
@@ -614,13 +618,15 @@ describe('popup default ongkir wilayah setelah konfirmasi', () => {
     expect(btn('Ubah diskon & ongkir')).toBeTruthy();
     const sh = offerSheet();
     expect(titleOf(sh)).toBe('Jadikan default ongkir wilayah?');
-    expect(sh.textContent).toContain('Ongkir Rp 18.000 untuk Kec. Tangerang baru saja dikonfirmasi');
+    expect(sh.textContent).toContain('Ongkir Rp 18.000 untuk Kel./Desa Sukarasa (Kec. Tangerang) baru saja dikonfirmasi');
+    expect(sh.textContent).toContain('Jadikan Rp 18.000 default ongkir untuk kelurahan/desa ini?');
+    expect(sh.textContent).not.toMatch(/untuk kecamatan ini/);
     expect(sh.querySelector('[data-testid="default-offer-replace"]')).toBeNull();
     await click(btn('Ya, jadikan default'));
     expect(mockState.defaultCalls).toHaveLength(1);
     expect(mockState.defaultCalls[0].body).toEqual({});
     expect(offerSheet()).toBeNull();
-    expect(container.querySelector('[data-testid="default-offer-notice"]').textContent).toContain('Default ongkir Kec. Tangerang disimpan: Rp 18.000');
+    expect(container.querySelector('[data-testid="default-offer-notice"]').textContent).toContain('Default ongkir Kel./Desa Sukarasa disimpan: Rp 18.000');
   });
 
   test('default lain ada: teks mengganti; "Tidak" hanya menutup; sekali per konfirmasi', async () => {
@@ -641,7 +647,7 @@ describe('popup default ongkir wilayah setelah konfirmasi', () => {
 
   test.each([
     ['ongkir sama dengan default', () => { mockState.suggest = { ...SUGG, currentDefault: { fee: 18000 } }; }, 18000],
-    ['tanpa kecamatan', () => { mockState.suggest = { ...SUGG, canSetDefault: false, region: { districtCode: null } }; }, 18000],
+    ['tanpa kelurahan', () => { mockState.suggest = { ...SUGG, canSetDefault: false, region: { villageCode: null, districtName: 'Tangerang' } }; }, 18000],
     ['info saran gagal', () => { mockState.suggest = 'fail'; }, 18000],
     ['ongkir Rp 0', () => { mockState.suggest = SUGG; }, 0],
   ])('popup tidak muncul: %s', async (_, arrange, fee) => {

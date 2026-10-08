@@ -362,12 +362,20 @@ export const relativeDays = (iso, now = new Date()) => {
   return fmtTime(iso);
 };
 
-const SOURCE_SHORT = { default: 'default kecamatan', district: 'terakhir ke kecamatan', regency: 'terakhir ke kota/kab.', customer: 'terakhir pelanggan ini' };
+const SOURCE_SHORT = {
+  default: 'default kelurahan',
+  village: 'terakhir ke kelurahan',
+  district: 'terakhir ke kecamatan',
+  regency: 'terakhir ke kota/kab.',
+  customer: 'terakhir pelanggan ini',
+};
 
 export const suggestionLabel = (sg) => {
   switch (sg.source) {
     case 'default':
-      return `Default kecamatan ${sg.regionLabel || ''}`.trim();
+      return `Default kelurahan ${sg.regionLabel || ''}`.trim();
+    case 'village':
+      return `Terakhir ke kelurahan ${sg.regionLabel || ''}`.trim();
     case 'district':
       return `Terakhir ke kecamatan ${sg.regionLabel || ''}`.trim();
     case 'regency':
@@ -509,13 +517,20 @@ const PricingPanel = ({ order, onSaved }) => {
         ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body })
         : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body });
       if (!mounted.current || flowRef.current !== flow) return;
-      // Setelah KONFIRMASI sukses: tawarkan "jadikan default ongkir wilayah" bila punya kecamatan, ongkir > 0,
+      // Setelah KONFIRMASI sukses: tawarkan "jadikan default ongkir wilayah" bila punya kelurahan/desa, ongkir > 0,
       // dan berbeda dari default yang berlaku (info dari saran yang sudah diambil).
       const fee = Number(res?.shippingFee ?? s);
       const current = sugg?.currentDefault?.fee ?? null;
       const offer =
         confirmMode && sugg?.canSetDefault && fee > 0 && (current === null || Number(current) !== fee)
-          ? { orderId: order.id, orderNo: order.orderNo, fee, districtName: sugg.region?.districtName || '', current: current === null ? null : Number(current) }
+          ? {
+              orderId: order.id,
+              orderNo: order.orderNo,
+              fee,
+              villageName: sugg.region?.villageName || '',
+              districtName: sugg.region?.districtName || '',
+              current: current === null ? null : Number(current),
+            }
           : null;
       savingRef.current = false;
       setStep(null);
@@ -796,8 +811,8 @@ const AdminProofCard = ({ order }) => {
   );
 };
 
-// Popup setelah "Konfirmasi pesanan" sukses: jadikan ongkir pesanan ini default kecamatannya?
-// Nominal TIDAK dikirim: backend membaca ongkir & kecamatan dari pesanan (POST /shipping-default).
+// Popup setelah "Konfirmasi pesanan" sukses: jadikan ongkir pesanan ini default kelurahan/desanya?
+// Nominal TIDAK dikirim: backend membaca ongkir & kelurahan dari pesanan (POST /shipping-default).
 export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -820,7 +835,7 @@ export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
   const close = () => {
     if (!busyRef.current) onClose();
   };
-  const kec = offer.districtName ? `Kec. ${offer.districtName}` : 'kecamatan ini';
+  const kel = offer.villageName ? `Kel./Desa ${offer.villageName}${offer.districtName ? ` (Kec. ${offer.districtName})` : ''}` : 'kelurahan/desa ini';
   return (
     <BottomSheet open onClose={close} labelledBy="default-offer-title" testId="default-offer">
       <div className="flex items-start justify-between gap-3">
@@ -839,8 +854,8 @@ export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
         </button>
       </div>
       <p className="mt-2 text-sm text-gray-700">
-        Ongkir <strong>{rupiah(offer.fee)}</strong> untuk {kec} baru saja dikonfirmasi. Jadikan <strong>{rupiah(offer.fee)}</strong> sebagai default
-        ongkir untuk kecamatan ini? Pesanan berikutnya ke kecamatan ini akan mendapat saran ongkir ini.
+        Ongkir <strong>{rupiah(offer.fee)}</strong> untuk {kel} baru saja dikonfirmasi. Jadikan <strong>{rupiah(offer.fee)}</strong> default ongkir
+        untuk kelurahan/desa ini? Pesanan berikutnya ke kelurahan/desa ini akan mendapat saran ongkir ini.
       </p>
       {offer.current !== null && (
         <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="default-offer-replace">
@@ -1337,9 +1352,9 @@ export const AdminOrderDetail = () => {
           offer={defaultOffer}
           onClose={() => setDefaultOffer(null)}
           onDone={(r) => {
-            const name = r.districtName || defaultOffer.districtName;
+            const name = r.villageName || defaultOffer.villageName;
             setDefaultOffer(null);
-            setNotice(`Default ongkir ${name ? `Kec. ${name}` : 'kecamatan'} disimpan: ${rupiah(r.shippingFee ?? defaultOffer.fee)}`);
+            setNotice(`Default ongkir ${name ? `Kel./Desa ${name}` : 'kelurahan/desa'} disimpan: ${rupiah(r.shippingFee ?? defaultOffer.fee)}`);
           }}
         />
       )}
