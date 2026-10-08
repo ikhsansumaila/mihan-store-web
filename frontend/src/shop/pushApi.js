@@ -2,7 +2,7 @@
 // Logika browser (service worker, subscribe) memakai ulang admin/push.js.
 import axios from 'axios';
 import { API_BASE_URL, authHeader } from '../auth';
-import { currentSubscription, isPushSupported, storageGet, storageSet, unsubscribeDevice } from '../admin/push';
+import { currentSubscription, isPushSupported, storageGet, storageSet, subscribeDevice, unsubscribeDevice } from '../admin/push';
 
 export const customerPushApi = {
   fetchConfig: () => axios.get(`${API_BASE_URL}/push/public-key`, { headers: authHeader() }).then((r) => r.data),
@@ -16,13 +16,39 @@ export const CUSTOMER_PUSH_FLAG = 'mihan.push.customer';
 
 export const customerFlagFor = (user) => (user && (user.id || user.username) ? String(user.id || user.username) : '');
 export const isCustomerFlagged = (user) => !!customerFlagFor(user) && storageGet(CUSTOMER_PUSH_FLAG) === customerFlagFor(user);
-export const setCustomerFlag = (user) => storageSet(CUSTOMER_PUSH_FLAG, customerFlagFor(user));
+// Dikirim ke window setiap status notifikasi pelanggan berubah (menu gear & sheet ajakan tetap sinkron).
+export const CUSTOMER_PUSH_EVENT = 'mihan-customer-push-changed';
+const announce = () => {
+  try {
+    window.dispatchEvent(new Event(CUSTOMER_PUSH_EVENT));
+  } catch {
+    /* abaikan */
+  }
+};
+export const setCustomerFlag = (user) => {
+  storageSet(CUSTOMER_PUSH_FLAG, customerFlagFor(user));
+  announce();
+};
 export const clearCustomerFlag = () => {
   try {
     window.localStorage.removeItem(CUSTOMER_PUSH_FLAG);
   } catch {
     /* abaikan */
   }
+  announce();
+};
+
+// enableCustomerPush: alur aktifkan yang sama untuk menu gear dan sheet ajakan. HARUS dipanggil langsung
+// dari ketukan pengguna (izin diminta pertama kali, sebelum await lain). Hasil:
+//   {ok: true} | {ok: false, permission: 'denied'|'default'} | {ok: false, disabled: true}; galat lain dilempar.
+export const enableCustomerPush = async (user, knownConfig) => {
+  const permission = await window.Notification.requestPermission();
+  if (permission !== 'granted') return { ok: false, permission };
+  const cfg = knownConfig?.publicKey ? knownConfig : await customerPushApi.fetchConfig();
+  if (!cfg?.enabled || !cfg.publicKey) return { ok: false, permission, disabled: true, config: cfg };
+  await subscribeDevice(cfg.publicKey, customerPushApi);
+  setCustomerFlag(user);
+  return { ok: true, permission };
 };
 
 const withTimeout = (p, ms) =>

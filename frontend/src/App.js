@@ -9,6 +9,7 @@ import AdminApp from './admin/AdminApp';
 import AutoInstallSheet from './admin/AutoInstallSheet';
 import { CUSTOMER_BENEFIT } from './admin/InstallSheet';
 import SettingsMenu from './shop/SettingsMenu';
+import AutoNotifySheet from './shop/AutoNotifySheet';
 import { cleanupCustomerPush } from './shop/pushApi';
 import { getStoredUser, verifySession, logoutRequest, clearSession, saveSession, setReturnTo, errorMessage } from './auth';
 import { CartProvider, useCart } from './shop/CartContext';
@@ -519,6 +520,9 @@ const Shell = ({ user, setUser, verified = false, setVerified = () => {} }) => {
       {/* Sheet "Pasang Mihan Store" otomatis sekali per sesi tab setelah pelanggan login (bukan di halaman
           login/daftar; penanda sesi sama dengan area admin sehingga tidak muncul dobel). */}
       {user && verified && !AUTH_PAGES.includes(pathname) && <AutoInstallSheet benefit={CUSTOMER_BENEFIT} />}
+      {/* Ajakan "Aktifkan notifikasi" (sekali per sesi tab) bila aplikasi sudah terpasang / push didukung;
+          sheet pasang aplikasi selalu didahulukan, tidak pernah dua sheet sekaligus. */}
+      {user && verified && !AUTH_PAGES.includes(pathname) && <AutoNotifySheet user={user} />}
 
       <main className="flex-1">
         <Routes>

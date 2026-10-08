@@ -14,10 +14,9 @@ import {
   onInstallAvailable,
   promptInstall,
   sendSubscription,
-  subscribeDevice,
   unsubscribeDevice,
 } from '../admin/push';
-import { customerPushApi, isCustomerFlagged, setCustomerFlag, clearCustomerFlag } from './pushApi';
+import { CUSTOMER_PUSH_EVENT, customerPushApi, enableCustomerPush, isCustomerFlagged, clearCustomerFlag } from './pushApi';
 
 // Ikon gear "Pengaturan" di navbar toko (pelanggan login). Membuka sheet Pengaturan berisi:
 // Notifikasi (status perangkat + Aktifkan/Matikan), Pasang aplikasi (InstallSheet yang sama dengan admin),
@@ -81,30 +80,31 @@ const SettingsMenu = ({ user, onLogout }) => {
     refresh();
   }, [refresh]);
 
+  // Status berubah dari tempat lain (sheet ajakan aktifkan notifikasi) -> segarkan titik & status.
+  useEffect(() => {
+    const onChange = () => refresh();
+    window.addEventListener(CUSTOMER_PUSH_EVENT, onChange);
+    return () => window.removeEventListener(CUSTOMER_PUSH_EVENT, onChange);
+  }, [refresh]);
+
   const enable = async () => {
     setMessage(null);
     setBusy(true);
     try {
-      // Izin diminta LANGSUNG dari ketukan pengguna (Safari mewajibkan ini).
-      const result = await window.Notification.requestPermission();
-      setPermission(result);
-      if (result !== 'granted') {
+      const r = await enableCustomerPush(user, config);
+      setPermission(notificationPermission());
+      if (r.ok) {
+        setSubscribed(true);
+        setMessage({ tone: 'ok', text: 'Notifikasi aktif. Anda akan menerima kabar status pesanan di perangkat ini.' });
+      } else if (r.disabled) {
+        if (r.config) setConfig(r.config);
+        setMessage({ tone: 'warn', text: 'Notifikasi belum tersedia saat ini.' });
+      } else {
         setMessage({
           tone: 'warn',
-          text: result === 'denied' ? 'Izin notifikasi ditolak. Ubah izin di pengaturan browser/perangkat untuk situs ini.' : 'Izin notifikasi belum diberikan.',
+          text: r.permission === 'denied' ? 'Izin notifikasi ditolak. Ubah izin di pengaturan browser/perangkat untuk situs ini.' : 'Izin notifikasi belum diberikan.',
         });
-        return;
       }
-      const cfg = config?.publicKey ? config : await customerPushApi.fetchConfig();
-      if (!cfg?.enabled || !cfg.publicKey) {
-        setConfig(cfg);
-        setMessage({ tone: 'warn', text: 'Notifikasi belum tersedia saat ini.' });
-        return;
-      }
-      await subscribeDevice(cfg.publicKey, customerPushApi);
-      setCustomerFlag(user);
-      setSubscribed(true);
-      setMessage({ tone: 'ok', text: 'Notifikasi aktif. Anda akan menerima kabar status pesanan di perangkat ini.' });
     } catch {
       setMessage({ tone: 'error', text: 'Gagal mengaktifkan notifikasi. Coba lagi.' });
     } finally {

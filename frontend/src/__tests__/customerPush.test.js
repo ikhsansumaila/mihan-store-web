@@ -3,7 +3,8 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const mockState = { calls: [], config: { enabled: true, publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' }, keep: false, failDelete: false, hangDelete: false, me: null };
+const TEST_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+const mockState = { calls: [], config: { enabled: true, publicKey: TEST_KEY }, keep: false, failDelete: false, hangDelete: false, me: null };
 
 jest.mock('axios', () => {
   const respond = (method, url, body, cfg) => {
@@ -133,7 +134,7 @@ beforeEach(() => {
   mockState.keep = false;
   mockState.failDelete = false;
   mockState.hangDelete = false;
-  mockState.config = { ...mockState.config, enabled: true };
+  mockState.config = { enabled: true, publicKey: TEST_KEY };
   standaloneMedia = false;
   window.matchMedia = (q) => ({ matches: q === '(display-mode: standalone)' ? standaloneMedia : false, addEventListener() {}, removeEventListener() {} });
   setNav('userAgent', UA.desktop);
@@ -374,5 +375,154 @@ describe('navbar & sheet otomatis pelanggan', () => {
       await new Promise((r) => setTimeout(r, 1000));
     });
     expect(sheet('auto-install-sheet')).toBeNull();
+  });
+});
+
+// ---------- Sheet ajakan "Aktifkan notifikasi" (pelanggan) ----------
+const AutoNotifySheet = require('../shop/AutoNotifySheet').default;
+const { NOTIFY_SHEET_SESSION_KEY, NOTIFY_SHEET_DISMISS_KEY } = require('../shop/AutoNotifySheet');
+
+const notifySheet = () => document.querySelector('[data-testid="auto-notify-sheet"]');
+const wait = async (ms = 20) => {
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, ms));
+  });
+  await flush();
+};
+// Tunggu sampai sheet muncul (maks. ~1 detik) — langkah asinkron (config + langganan) bisa lebih lambat.
+const waitSheet = async () => {
+  for (let i = 0; i < 50 && !notifySheet(); i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await wait(20);
+  }
+};
+const standaloneAndroid = () => {
+  setNav('userAgent', UA.android);
+  standaloneMedia = true;
+};
+
+describe('sheet ajakan Aktifkan notifikasi', () => {
+  test('aplikasi terpasang (standalone), belum berlangganan: muncul; Aktifkan -> izin setelah ketukan, simpan, tutup, toast', async () => {
+    standaloneAndroid();
+    const b = installBrowser();
+    localStorage.setItem('token', 'tes-token');
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await waitSheet();
+    const s = notifySheet();
+    expect(s).not.toBeNull();
+    expect(document.getElementById(s.querySelector('[role="dialog"]').getAttribute('aria-labelledby')).textContent).toBe('Aktifkan notifikasi');
+    expect(s.textContent).toContain('ongkir dikonfirmasi, pembayaran diterima, dan pesanan selesai');
+    expect(b.Notification.requestPermission).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(NOTIFY_SHEET_SESSION_KEY)).toBe('1');
+    await click([...s.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Aktifkan notifikasi'));
+    expect(b.Notification.requestPermission).toHaveBeenCalledTimes(1);
+    expect(b.pushManager.subscribe).toHaveBeenCalledTimes(1);
+    expect(pushCalls('post')[0].url).toBe('/api/push/subscribe');
+    expect(localStorage.getItem(pushApi.CUSTOMER_PUSH_FLAG)).toBe('pub-1');
+    expect(notifySheet()).toBeNull();
+    expect(container.querySelector('[data-testid="notify-toast"]').textContent).toContain('Notifikasi aktif');
+  });
+
+  test('izin ditolak saat diminta: pesan jelas di sheet, Nanti menutup tanpa menyimpan "jangan tampilkan"', async () => {
+    standaloneAndroid();
+    installBrowser({ grant: 'denied' });
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await waitSheet();
+    await click([...notifySheet().querySelectorAll('button')].find((x) => x.textContent.trim() === 'Aktifkan notifikasi'));
+    expect(notifySheet().querySelector('[data-testid="notify-sheet-message"]').textContent).toContain('ditolak');
+    await click([...notifySheet().querySelectorAll('button')].find((x) => x.textContent.trim() === 'Nanti'));
+    expect(notifySheet()).toBeNull();
+    expect(localStorage.getItem(NOTIFY_SHEET_DISMISS_KEY)).toBeNull();
+  });
+
+  test('Jangan tampilkan lagi: kunci terpisah dari sheet pasang; tidak muncul lagi walau sesi baru', async () => {
+    standaloneAndroid();
+    installBrowser();
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await waitSheet();
+    await click([...notifySheet().querySelectorAll('button')].find((x) => x.textContent.trim() === 'Jangan tampilkan lagi'));
+    expect(localStorage.getItem(NOTIFY_SHEET_DISMISS_KEY)).toBe('1');
+    expect(localStorage.getItem(push.IOS_GUIDE_DISMISS_KEY)).toBeNull();
+    sessionStorage.clear();
+    act(() => root.unmount());
+    container.remove();
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await wait();
+    expect(notifySheet()).toBeNull();
+  });
+
+  test('sekali per sesi tab: tidak muncul lagi setelah muat ulang', async () => {
+    standaloneAndroid();
+    installBrowser();
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await waitSheet();
+    await click([...notifySheet().querySelectorAll('button')].find((x) => x.textContent.trim() === 'Nanti'));
+    act(() => root.unmount());
+    container.remove();
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await wait();
+    expect(notifySheet()).toBeNull();
+  });
+
+  test.each([
+    ['push tidak didukung', () => standaloneAndroid()],
+    ['iPhone Safari belum dipasang (pasang didahulukan)', () => { setNav('userAgent', UA.iphoneSafari); installBrowser(); }],
+    ['Android belum dipasang (sheet pasang didahulukan)', () => { setNav('userAgent', UA.android); installBrowser(); }],
+    ['izin denied', () => { standaloneAndroid(); installBrowser({ permission: 'denied' }); }],
+    ['server push nonaktif', () => { standaloneAndroid(); installBrowser(); mockState.config = { enabled: false, publicKey: '' }; }],
+    ['sudah berlangganan sebagai pelanggan ini', () => { standaloneAndroid(); installBrowser({ permission: 'granted', existing: true }); localStorage.setItem(pushApi.CUSTOMER_PUSH_FLAG, 'pub-1'); }],
+    ['sheet pasang sudah tampil di sesi ini', () => { standaloneAndroid(); installBrowser(); sessionStorage.setItem(AUTO_SHEET_SESSION_KEY, '1'); }],
+  ])('tidak muncul: %s', async (_, arrange) => {
+    arrange();
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await wait();
+    expect(notifySheet()).toBeNull();
+  });
+
+  test('langganan browser milik akun lain/admin (tanpa penanda pelanggan ini): tetap mengajak', async () => {
+    standaloneAndroid();
+    installBrowser({ permission: 'granted', existing: true });
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await waitSheet();
+    expect(notifySheet()).not.toBeNull();
+  });
+
+  test('tidak menimpa dialog lain', async () => {
+    standaloneAndroid();
+    installBrowser();
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    other.setAttribute('aria-modal', 'true');
+    document.body.appendChild(other);
+    await renderEl(<AutoNotifySheet user={USER} delayMs={0} />);
+    await wait();
+    expect(notifySheet()).toBeNull();
+    expect(sessionStorage.getItem(NOTIFY_SHEET_SESSION_KEY)).toBeNull();
+    other.remove();
+  });
+
+  test('di App: standalone -> hanya sheet notifikasi; Aktifkan menghilangkan titik gear', async () => {
+    standaloneAndroid();
+    installBrowser();
+    await renderAppAt('/', USER);
+    await wait(900);
+    await waitSheet();
+    expect(document.querySelector('[data-testid="auto-install-sheet"]')).toBeNull();
+    expect(notifySheet()).not.toBeNull();
+    expect(container.querySelector('[data-testid="settings-dot"]')).not.toBeNull();
+    await click([...notifySheet().querySelectorAll('button')].find((x) => x.textContent.trim() === 'Aktifkan notifikasi'));
+    await wait();
+    expect(container.querySelector('[data-testid="settings-dot"]')).toBeNull();
+    expect(gear().getAttribute('aria-label')).toBe('Pengaturan');
+  });
+
+  test('di App: Android belum dipasang -> hanya sheet pasang (tidak dua sheet)', async () => {
+    setNav('userAgent', UA.android);
+    installBrowser();
+    await renderAppAt('/', USER);
+    await wait(1000);
+    expect(document.querySelector('[data-testid="auto-install-sheet"]')).not.toBeNull();
+    expect(notifySheet()).toBeNull();
+    expect(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).toHaveLength(1);
   });
 });
