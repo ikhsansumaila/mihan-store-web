@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
+import { ADMIN_HEADER, adminFetch, qs, rupiah, perUnit, fmtTime } from './api';
 import { ErrorBox, Modal, cardClass, inputClass, btnPrimary, btnSecondary, btnDanger } from './ui';
 import { InfiniteFooter, peekListSnapshot, useInfiniteList } from './infiniteList';
 import { STATUS, buildAdminSummaryText, formatFullAddress, statusLabel, waLink } from '../shop/format';
@@ -13,6 +13,18 @@ import { useAdminSummary, useSummaryPolling } from './AdminLayout';
 // Batas server (backend/order_logic.go): ongkir maks. Rp 10.000.000, subtotal maks. Rp 2.000.000.000.
 const SHIPPING_MAX = 10000000;
 const AMOUNT_DIGITS = 10;
+
+// Penanda "Bukti" di daftar: pesanan menunggu pembayaran yang sudah punya bukti transfer.
+export const ProofBadge = ({ o }) =>
+  o.status === 'pending_payment' && o.hasPaymentProof ? (
+    <span
+      className="inline-block whitespace-nowrap rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800"
+      data-testid="admin-proof-badge"
+      title="Pelanggan sudah mengunggah bukti transfer"
+    >
+      Bukti
+    </span>
+  ) : null;
 
 export const OrderStatusBadge = ({ status }) => (
   <span className={`inline-block text-xs font-semibold border rounded-full px-2.5 py-0.5 whitespace-nowrap ${STATUS[status]?.cls || 'bg-gray-100'}`}>
@@ -225,7 +237,10 @@ export const OrdersList = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-semibold text-purple-700 [overflow-wrap:anywhere]">{o.orderNo}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <span className="flex flex-wrap items-center gap-1">
+                      <ProofBadge o={o} />
+                      <OrderStatusBadge status={o.status} />
+                    </span>
                   </div>
                   <div className="mt-1 min-w-0 text-gray-800 [overflow-wrap:anywhere]">
                     <OrderParty o={o} />
@@ -281,7 +296,10 @@ export const OrdersList = () => {
                       <td className="p-3 text-right">{o.itemCount}</td>
                       <td className="p-3 text-right font-semibold whitespace-nowrap">{rupiah(o.total)}</td>
                       <td className="p-3">
-                        <OrderStatusBadge status={o.status} />
+                        <span className="flex flex-wrap items-center gap-1">
+                          <OrderStatusBadge status={o.status} />
+                          <ProofBadge o={o} />
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -710,6 +728,74 @@ const PricingPanel = ({ order, onSaved }) => {
   );
 };
 
+// ---------- Bukti pembayaran (admin) ----------
+// Gambar diambil dengan permintaan admin berotorisasi (cookie Cloudflare Access) -> blob URL; tidak ada URL
+// publik/unduhan statis. Blob URL dibebaskan saat kartu dilepas atau bukti berganti.
+export const useAdminProofImage = (orderId, version) => {
+  const [state, setState] = useState({ url: '', error: false });
+  useEffect(() => {
+    if (!version) {
+      setState({ url: '', error: false });
+      return undefined;
+    }
+    let alive = true;
+    let url = '';
+    fetch(`/api/admin/orders/${orderId}/payment-proof`, { credentials: 'same-origin', redirect: 'manual', headers: { ...ADMIN_HEADER } })
+      .then((res) => {
+        if (!res.ok || !(res.headers.get('content-type') || '').startsWith('image/')) throw new Error('gagal');
+        return res.blob();
+      })
+      .then((blob) => {
+        if (!alive) return;
+        url = URL.createObjectURL(blob);
+        setState({ url, error: false });
+      })
+      .catch(() => alive && setState({ url: '', error: true }));
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [orderId, version]);
+  return state;
+};
+
+const AdminProofCard = ({ order }) => {
+  const p = order.paymentProof;
+  const { url, error } = useAdminProofImage(order.id, p?.uploadedAt || '');
+  const [open, setOpen] = useState(false);
+  if (!p) return <p className="text-sm text-gray-500" data-testid="admin-proof-empty">Belum ada bukti.</p>;
+  const thumb = (cls) =>
+    url ? (
+      <img src={url} alt="Bukti pembayaran" className={`${cls} rounded-lg border border-gray-200 object-contain bg-gray-50`} data-testid="admin-proof-img" />
+    ) : (
+      <span className={`${cls} flex items-center justify-center rounded-lg border border-dashed border-gray-300 text-xs text-gray-400`}>
+        {error ? 'Gagal memuat bukti' : 'Memuat...'}
+      </span>
+    );
+  return (
+    <div className="flex items-center gap-3" data-testid="admin-proof">
+      <button type="button" onClick={() => setOpen(true)} aria-label="Perbesar bukti pembayaran" className="shrink-0">
+        {thumb('h-24 w-24')}
+      </button>
+      <div className="text-sm text-gray-700">
+        <div>Diunggah {fmtTime(p.uploadedAt)}</div>
+        <button type="button" className="mt-1 text-purple-700 underline" onClick={() => setOpen(true)}>
+          Lihat bukti
+        </button>
+      </div>
+      <BottomSheet open={open} onClose={() => setOpen(false)} labelledBy="admin-proof-title" testId="admin-proof-viewer">
+        <div className="flex items-start justify-between gap-3">
+          <h2 id="admin-proof-title" className="text-lg font-bold text-gray-900">
+            Bukti pembayaran {order.orderNo}
+          </h2>
+          <CloseX onClick={() => setOpen(false)} />
+        </div>
+        <div className="mt-3">{thumb('w-full max-h-[75vh] min-h-[8rem]')}</div>
+      </BottomSheet>
+    </div>
+  );
+};
+
 // Popup setelah "Konfirmasi pesanan" sukses: jadikan ongkir pesanan ini default kecamatannya?
 // Nominal TIDAK dikirim: backend membaca ongkir & kecamatan dari pesanan (POST /shipping-default).
 export const DefaultOfferSheet = ({ offer, onClose, onDone }) => {
@@ -1055,6 +1141,10 @@ export const AdminOrderDetail = () => {
             ) : (
               <PricingPanel key={order.updatedAt} order={order} onSaved={savedOrder} />
             )}
+          </Card>
+
+          <Card title="Bukti pembayaran">
+            <AdminProofCard order={order} />
           </Card>
 
           <Card title="Riwayat status">
