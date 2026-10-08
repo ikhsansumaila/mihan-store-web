@@ -393,56 +393,95 @@ const keepVisible = (e) => {
   }, 300);
 };
 
-const PriceSheet = ({ order, onClose, onSaved }) => {
+// Alur dua langkah dalam SATU BottomSheet (hanya satu sheet terbuka; konten berganti tanpa kedip):
+//   1. "edit"   — "Isi ongkir & diskon" / "Ubah diskon & ongkir": kolom Ongkir (+ saran inline saat konfirmasi),
+//                 Diskon, Keterangan, Subtotal/Total sementara pasif. Batal | Lanjut.
+//   2. "review" — "Konfirmasi pesanan <nomor>" / "Konfirmasi perubahan harga": ringkasan lama -> baru, Total baru,
+//                 kalimat notifikasi, galat server. Kembali (isian tetap) | Ya, konfirmasi / Ya, simpan.
+// Menutup lewat X / latar / Escape (di langkah mana pun) atau Batal = seluruh alur ditutup & draf dibuang.
+const PricingPanel = ({ order, onSaved }) => {
   const confirmMode = !!order.canConfirm;
-  const [discount, setDiscount] = useState(String(order.discount || 0));
-  const [note, setNote] = useState(order.discountNote || '');
-  const [shipping, setShipping] = useState(String(order.shippingFee || 0));
+  const [step, setStep] = useState(null); // null | 'edit' | 'review'
+  const [discount, setDiscount] = useState('');
+  const [note, setNote] = useState('');
+  const [shipping, setShipping] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [sugg, setSugg] = useState(null); // respons /shipping-suggestions (mode konfirmasi)
   const savingRef = useRef(false);
-  const alive = useRef(true);
+  const flowRef = useRef(0); // id alur; respons dari alur lama (basi) diabaikan
+  const mounted = useRef(true);
   const shippingRef = useRef(null);
   const discountRef = useRef(null);
+  const reviewTitleRef = useRef(null);
   const d = Number(digits(discount) || 0);
   const s = Number(digits(shipping) || 0);
   const ch = pricingChanges(order, d, s, note);
 
   useEffect(() => {
-    alive.current = true;
-    // Fokus awal: ongkir (konfirmasi) / diskon (ubah). Setelah BottomSheet memindahkan fokus ke panel.
-    const t = setTimeout(() => (confirmMode ? shippingRef : discountRef).current?.focus(), 60);
-    let timedOut = false;
-    let to;
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      flowRef.current += 1;
+    };
+  }, []);
+
+  // Fokus saat langkah berganti (setelah BottomSheet memindahkan fokus ke panel): judul sheet 2; saat
+  // pertama dibuka kolom ongkir (konfirmasi) / diskon (ubah); saat "Kembali" dari sheet 2 kolom ongkir.
+  const prevStep = useRef(null);
+  useEffect(() => {
+    const from = prevStep.current;
+    prevStep.current = step;
+    if (!step) return undefined;
+    const t = setTimeout(() => {
+      if (step === 'review') reviewTitleRef.current?.focus();
+      else (confirmMode || from === 'review' ? shippingRef : discountRef).current?.focus();
+    }, 60);
+    return () => clearTimeout(t);
+  }, [step, confirmMode]);
+
+  const open = () => {
+    const flow = flowRef.current + 1;
+    flowRef.current = flow;
+    setDiscount(String(order.discount || 0));
+    setNote(order.discountNote || '');
+    setShipping(String(order.shippingFee || 0));
+    setError(null);
+    setSugg(null);
+    setStep('edit');
     if (confirmMode) {
-      to = setTimeout(() => {
+      let timedOut = false;
+      setTimeout(() => {
         timedOut = true; // saran yang terlambat (> 3 dtk) diabaikan, tanpa galat
       }, SUGGEST_TIMEOUT_MS);
       adminFetch(`/orders/${order.id}/shipping-suggestions`)
         .then((r) => {
-          if (alive.current && !timedOut && r && Array.isArray(r.suggestions)) setSugg(r);
+          if (mounted.current && flowRef.current === flow && !timedOut && r && Array.isArray(r.suggestions)) setSugg(r);
         })
         .catch(() => {});
     }
-    return () => {
-      alive.current = false; // respons basi diabaikan
-      clearTimeout(t);
-      clearTimeout(to);
-    };
-  }, [confirmMode, order.id]);
+  };
+
+  const closeAll = () => {
+    if (savingRef.current) return;
+    flowRef.current += 1;
+    setStep(null); // draf dibuang (diisi ulang dari pesanan saat dibuka lagi)
+  };
 
   const invalid =
     d > order.subtotal ? 'Diskon tidak boleh melebihi subtotal' : s > SHIPPING_MAX ? 'Ongkir maksimal Rp 10.000.000' : null;
   const noChange = !confirmMode && !ch.any;
 
-  const close = () => {
-    if (!savingRef.current) onClose();
+  const next = (e) => {
+    e?.preventDefault();
+    if (invalid || noChange) return;
+    setError(null);
+    setStep('review');
   };
 
-  const submit = async (e) => {
-    e?.preventDefault();
+  const submit = async () => {
     if (invalid || noChange || savingRef.current) return; // cegah klik ganda / kirim tanpa perubahan
+    const flow = flowRef.current;
     savingRef.current = true;
     setSaving(true);
     setError(null);
@@ -451,6 +490,7 @@ const PriceSheet = ({ order, onClose, onSaved }) => {
       const res = confirmMode
         ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body })
         : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body });
+      if (!mounted.current || flowRef.current !== flow) return;
       // Setelah KONFIRMASI sukses: tawarkan "jadikan default ongkir wilayah" bila punya kecamatan, ongkir > 0,
       // dan berbeda dari default yang berlaku (info dari saran yang sudah diambil).
       const fee = Number(res?.shippingFee ?? s);
@@ -460,12 +500,13 @@ const PriceSheet = ({ order, onClose, onSaved }) => {
           ? { orderId: order.id, orderNo: order.orderNo, fee, districtName: sugg.region?.districtName || '', current: current === null ? null : Number(current) }
           : null;
       savingRef.current = false;
+      setStep(null);
       onSaved(res, offer ? { defaultOffer: offer } : undefined);
     } catch (err) {
-      if (alive.current) setError(err);
+      if (mounted.current && flowRef.current === flow) setError(err);
     } finally {
       savingRef.current = false;
-      if (alive.current) setSaving(false);
+      if (mounted.current) setSaving(false);
     }
   };
 
@@ -476,136 +517,162 @@ const PriceSheet = ({ order, onClose, onSaved }) => {
       ]
     : [];
   const inputCls = `${inputClass} text-base`;
+  const shippingText = confirmMode && !order.shippingFee ? 'belum diisi' : rupiah(order.shippingFee);
 
-  return (
-    <BottomSheet open onClose={close} labelledBy="price-sheet-title" testId="price-sheet">
-      <form onSubmit={submit} noValidate>
-        <div className="flex items-start justify-between gap-3">
-          <h2 id="price-sheet-title" className="text-lg font-bold text-gray-900">
-            {confirmMode ? `Konfirmasi pesanan ${order.orderNo}` : 'Ubah diskon & ongkir'}
-          </h2>
-          <CloseX onClick={close} />
+  const editStep = (
+    <form onSubmit={next} noValidate>
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="price-sheet-title" className="text-lg font-bold text-gray-900">
+          {confirmMode ? 'Isi ongkir & diskon' : 'Ubah diskon & ongkir'}
+        </h2>
+        <CloseX onClick={closeAll} />
+      </div>
+      {confirmMode && <p className="text-sm text-gray-500">Pesanan {order.orderNo}</p>}
+
+      <label className="mt-3 block">
+        <span className="mb-1 block text-xs font-semibold text-gray-600">Ongkir (Rp)</span>
+        <MoneyInput
+          ref={shippingRef}
+          className={inputCls}
+          value={shipping}
+          onValueChange={(v) => setShipping(v)}
+          onFocus={keepVisible}
+          maxDigits={AMOUNT_DIGITS}
+          min={0}
+          max={SHIPPING_MAX}
+        />
+      </label>
+      {options.length > 1 && (
+        <div className="mt-2" data-testid="shipping-options" role="group" aria-label="Saran ongkir">
+          <div className="flex flex-col gap-1.5">
+            {options.map((opt) => {
+              const active = s === opt.fee && digits(shipping) !== '';
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  data-option={opt.source}
+                  aria-pressed={active}
+                  onClick={() => setShipping(String(opt.fee))}
+                  className={`flex min-h-[2.75rem] w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                    active ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium text-gray-900">{opt.title}</span>
+                    {opt.detail && <span className="block text-xs text-gray-500">{opt.detail}</span>}
+                  </span>
+                  {opt.source !== 'zero' && <span className="shrink-0 font-bold text-purple-800">{rupiah(opt.fee)}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
+      )}
 
-        <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-semibold text-gray-600">Ongkir (Rp)</span>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-600">Diskon (Rp)</span>
           <MoneyInput
-            ref={shippingRef}
+            ref={discountRef}
             className={inputCls}
-            value={shipping}
-            onValueChange={(v) => setShipping(v)}
+            value={discount}
+            onValueChange={(v) => setDiscount(v)}
             onFocus={keepVisible}
             maxDigits={AMOUNT_DIGITS}
             min={0}
-            max={SHIPPING_MAX}
+            max={order.subtotal}
           />
         </label>
-        {options.length > 1 && (
-          <div className="mt-2" data-testid="shipping-options" role="group" aria-label="Saran ongkir">
-            <div className="flex flex-col gap-1.5">
-              {options.map((opt) => {
-                const active = s === opt.fee && digits(shipping) !== '';
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    data-option={opt.source}
-                    aria-pressed={active}
-                    onClick={() => setShipping(String(opt.fee))}
-                    className={`flex min-h-[2.75rem] w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
-                      active ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-medium text-gray-900">{opt.title}</span>
-                      {opt.detail && <span className="block text-xs text-gray-500">{opt.detail}</span>}
-                    </span>
-                    {opt.source !== 'zero' && <span className="shrink-0 font-bold text-purple-800">{rupiah(opt.fee)}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Diskon (Rp)</span>
-            <MoneyInput
-              ref={discountRef}
-              className={inputCls}
-              value={discount}
-              onValueChange={(v) => setDiscount(v)}
-              onFocus={keepVisible}
-              maxDigits={AMOUNT_DIGITS}
-              min={0}
-              max={order.subtotal}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Keterangan diskon (opsional)</span>
-            <input className={inputCls} maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} onFocus={keepVisible} />
-          </label>
-        </div>
-        {invalid && (
-          <p role="alert" className="mt-2 text-sm text-red-700" data-testid="price-invalid">
-            {invalid}
-          </p>
-        )}
-
-        <p className="mt-4 text-sm text-gray-700">
-          {confirmMode ? 'Anda akan mengonfirmasi pesanan ' : 'Anda akan mengubah harga pesanan '}
-          <strong>{order.orderNo}</strong>:
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-600">Keterangan diskon (opsional)</span>
+          <input className={inputCls} maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} onFocus={keepVisible} />
+        </label>
+      </div>
+      {invalid && (
+        <p role="alert" className="mt-2 text-sm text-red-700" data-testid="price-invalid">
+          {invalid}
         </p>
-        <div className="mt-2 divide-y divide-gray-100 rounded-xl bg-purple-50 px-4 py-2 text-sm" data-testid="price-summary">
-          <ChangeRow label="Ongkir" from={ch.oldS} to={s} testId="confirm-shipping" />
-          <ChangeRow label="Diskon" from={ch.oldD} to={d} testId="confirm-discount" />
-          {(ch.newNote || ch.noteChanged) && (
-            <div className="flex items-baseline justify-between gap-3 py-1.5" data-testid="confirm-note">
-              <span className="text-gray-600">Keterangan diskon</span>
-              <span className="min-w-0 text-right font-medium text-gray-900 [overflow-wrap:anywhere]">{ch.newNote || '(dikosongkan)'}</span>
-            </div>
-          )}
-          <div className="flex items-baseline justify-between gap-3 py-2" data-testid="confirm-total">
-            <span className="font-semibold text-gray-900">Total baru</span>
-            <strong className={`text-base ${ch.total < 0 ? 'text-red-600' : 'text-purple-800'}`}>{rupiah(Math.max(ch.total, 0))}</strong>
-          </div>
+      )}
+      <div className="mt-3 space-y-0.5 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700" data-testid="price-draft-total">
+        <div className="flex justify-between gap-3">
+          <span>Subtotal</span>
+          <span>{rupiah(order.subtotal)}</span>
         </div>
-        {confirmMode ? (
-          <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
-            Pelanggan akan dinotifikasi dan diminta membayar.
-          </p>
-        ) : ch.amountsChanged ? (
+        <div className="flex justify-between gap-3 font-semibold">
+          <span>Total sementara</span>
+          <span className={ch.total < 0 ? 'text-red-600' : 'text-purple-700'}>{rupiah(Math.max(ch.total, 0))}</span>
+        </div>
+      </div>
+      {noChange && !invalid && (
+        <p className="mt-2 text-sm text-gray-500" data-testid="price-nochange">
+          Belum ada perubahan.
+        </p>
+      )}
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" className={btnSecondary} onClick={closeAll}>
+          Batal
+        </button>
+        <button type="submit" className={btnPrimary} disabled={!!invalid || noChange}>
+          Lanjut
+        </button>
+      </div>
+    </form>
+  );
+
+  const reviewStep = (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="price-review-title" ref={reviewTitleRef} tabIndex={-1} className="text-lg font-bold text-gray-900 focus:outline-none">
+          {confirmMode ? `Konfirmasi pesanan ${order.orderNo}` : 'Konfirmasi perubahan harga'}
+        </h2>
+        <CloseX onClick={closeAll} />
+      </div>
+      <p className="mt-2 text-sm text-gray-700">
+        {confirmMode ? 'Anda akan mengonfirmasi pesanan ' : 'Anda akan mengubah harga pesanan '}
+        <strong>{order.orderNo}</strong>:
+      </p>
+      <div className="mt-3 divide-y divide-gray-100 rounded-xl bg-purple-50 px-4 py-2 text-sm" data-testid="price-summary">
+        <ChangeRow label="Ongkir" from={ch.oldS} to={s} testId="confirm-shipping" />
+        <ChangeRow label="Diskon" from={ch.oldD} to={d} testId="confirm-discount" />
+        {(ch.newNote || ch.noteChanged) && (
+          <div className="flex items-baseline justify-between gap-3 py-1.5" data-testid="confirm-note">
+            <span className="text-gray-600">Keterangan diskon</span>
+            <span className="min-w-0 text-right font-medium text-gray-900 [overflow-wrap:anywhere]">{ch.newNote || '(dikosongkan)'}</span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between gap-3 py-2" data-testid="confirm-total">
+          <span className="font-semibold text-gray-900">Total baru</span>
+          <strong className="text-base text-purple-800">{rupiah(ch.total)}</strong>
+        </div>
+      </div>
+      {confirmMode ? (
+        <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
+          Pelanggan akan dinotifikasi dan diminta membayar.
+        </p>
+      ) : (
+        ch.amountsChanged && (
           <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
             Pelanggan akan menerima notifikasi.
           </p>
-        ) : noChange ? (
-          <p className="mt-3 text-sm text-gray-500" data-testid="price-nochange">
-            Belum ada perubahan.
-          </p>
-        ) : null}
-        {error && (
-          <div className="mt-3">
-            <ErrorBox error={error} />
-          </div>
-        )}
-        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" className={btnSecondary} onClick={close} disabled={saving}>
-            Batal
-          </button>
-          <button type="submit" className={btnPrimary} disabled={saving || !!invalid || noChange}>
-            {saving ? 'Menyimpan...' : confirmMode ? 'Ya, konfirmasi' : 'Ya, simpan'}
-          </button>
+        )
+      )}
+      {error && (
+        <div className="mt-3">
+          <ErrorBox error={error} />
         </div>
-      </form>
-    </BottomSheet>
+      )}
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" className={btnSecondary} onClick={() => setStep('edit')} disabled={saving}>
+          Kembali
+        </button>
+        <button type="button" className={btnPrimary} onClick={submit} disabled={saving}>
+          {saving ? 'Menyimpan...' : confirmMode ? 'Ya, konfirmasi' : 'Ya, simpan'}
+        </button>
+      </div>
+    </div>
   );
-};
 
-const PricingPanel = ({ order, onSaved }) => {
-  const confirmMode = !!order.canConfirm;
-  const [open, setOpen] = useState(false); // sheet dipasang hanya saat terbuka: draf dibuang saat ditutup
-  const shippingText = confirmMode && !order.shippingFee ? 'belum diisi' : rupiah(order.shippingFee);
   return (
     <div>
       <div className="space-y-1 text-sm" data-testid="pricing-summary">
@@ -627,20 +694,18 @@ const PricingPanel = ({ order, onSaved }) => {
         </div>
       </div>
       <div className="mt-3 flex justify-end">
-        <button type="button" className={btnPrimary} onClick={() => setOpen(true)}>
+        <button type="button" className={btnPrimary} onClick={open}>
           {confirmMode ? 'Konfirmasi pesanan' : 'Ubah diskon & ongkir'}
         </button>
       </div>
-      {open && (
-        <PriceSheet
-          order={order}
-          onClose={() => setOpen(false)}
-          onSaved={(res, meta) => {
-            setOpen(false);
-            onSaved(res, meta);
-          }}
-        />
-      )}
+      <BottomSheet
+        open={!!step}
+        onClose={closeAll}
+        labelledBy={step === 'review' ? 'price-review-title' : 'price-sheet-title'}
+        testId={step === 'review' ? 'price-review' : 'price-sheet'}
+      >
+        {step === 'review' ? reviewStep : editStep}
+      </BottomSheet>
     </div>
   );
 };
