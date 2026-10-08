@@ -359,8 +359,8 @@ const Checkout = ({ user }) => {
             <textarea id="co-note" ref={refFor('note')} className={inputCls(errors.note)} rows={2} maxLength={500} value={form.note} onChange={set('note')} />
           </Field>
           <p className="text-xs text-gray-500">
-            Pembayaran dengan transfer bank manual. Ongkir ditetapkan admin setelah pesanan dibuat; total akhir terlihat di
-            halaman pesanan. Data penerima dipakai untuk pengiriman sesuai{' '}
+            Pembayaran dengan transfer bank manual. Setelah pesanan dibuat, admin mengonfirmasi ongkir dan total akhir; info
+            rekening tampil di halaman pesanan setelah dikonfirmasi. Data penerima dipakai untuk pengiriman sesuai{' '}
             <Link to="/privasi" className="underline">Kebijakan Privasi</Link>.
           </p>
           <button

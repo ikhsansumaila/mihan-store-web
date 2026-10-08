@@ -381,13 +381,14 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
   });
   afterEach(() => uninstallIntersectionObserver());
 
-  test('tab status menggantikan dropdown, default Semua, tab menempel di atas daftar dan bisa di-scroll horizontal', async () => {
+  test('tab status menggantikan dropdown, default Menunggu konfirmasi, tab menempel di atas daftar dan bisa di-scroll horizontal', async () => {
     mockState.admin = { '/orders': ADMIN_LIST };
     await renderAt('/admin/orders');
     expect(container.querySelector('select[aria-label="Filter status"]')).toBeNull();
-    expect(tabEls().map((t) => t.textContent)).toEqual(['Semua', 'Menunggu pembayaran', 'Dibayar', 'Selesai', 'Dibatalkan']);
-    expect(tabBy('all').getAttribute('aria-selected')).toBe('true');
-    expect(listCalls()).toEqual(['admin/orders?page=1&per_page=20']);
+    expect(tabEls().map((t) => t.textContent)).toEqual(['Semua', 'Menunggu konfirmasi', 'Menunggu pembayaran', 'Dibayar', 'Selesai', 'Dibatalkan']);
+    // Tanpa ?status = tab bawaan "Menunggu konfirmasi" (butuh tindakan admin).
+    expect(tabBy('pending_confirmation').getAttribute('aria-selected')).toBe('true');
+    expect(listCalls()).toEqual(['admin/orders?status=pending_confirmation&page=1&per_page=20']);
     const scroller = container.querySelector('[data-testid="order-status-tabs"]');
     expect(scroller.className).toContain('overflow-x-auto');
     expect(container.querySelector('[role="tablist"]').className).toContain('w-max');
@@ -405,7 +406,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
     expect(wide.firstElementChild.tagName).toBe('TABLE');
     const form = container.querySelector('form');
     expect(form.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(tabBy('all').className).toContain('bg-gray-50');
+    expect(tabBy('pending_confirmation').className).toContain('bg-gray-50');
     expect(panel.querySelector('thead').className).toContain('bg-gray-50');
     // Tanpa paginasi.
     expect(btn('Berikutnya ›')).toBeUndefined();
@@ -430,7 +431,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
 
   test('gulir ke bawah memuat halaman berikutnya, tanpa duplikat, satu permintaan per pemicu, lalu pesan akhir', async () => {
     mockState.admin = { '/orders': pagedOrders };
-    await renderAt('/admin/orders');
+    await renderAt('/admin/orders?status=all');
     expect(tableRows()).toHaveLength(20);
     expect(cards()).toHaveLength(20);
     expect(container.querySelector('[data-testid="infinite-sentinel"]').getAttribute('aria-hidden')).toBe('true');
@@ -459,7 +460,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
 
   test('sentinel tetap terlihat setelah halaman masuk (layar tinggi): halaman berikutnya dimuat otomatis sampai habis', async () => {
     mockState.admin = { '/orders': pagedOrders };
-    await renderAt('/admin/orders');
+    await renderAt('/admin/orders?status=all');
     await act(async () => intersect());
     await flush();
     await flush();
@@ -470,7 +471,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
   test('ganti tab saat permintaan lama berjalan: respons basi diabaikan', async () => {
     const slow = deferred();
     mockState.admin = { '/orders': (path) => (path.includes('status=') ? ADMIN_LIST : slow.promise) };
-    await renderAt('/admin/orders');
+    await renderAt('/admin/orders?status=all');
     expect(footerText()).toBe('Memuat pesanan...');
     await act(async () => tabBy('paid').click());
     await flush();
@@ -486,7 +487,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
     mockState.admin = {
       '/orders': (path) => (/[?&]page=2(&|$)/.test(path) && failPage2 ? Promise.reject(new Error('Layanan sedang tidak tersedia')) : pagedOrders(path)),
     };
-    await renderAt('/admin/orders');
+    await renderAt('/admin/orders?status=all');
     await scrollDown();
     expect(footerText()).toBe('Gagal memuat pesanan.');
     expect(container.textContent).toContain('Layanan sedang tidak tersedia');
@@ -504,7 +505,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
 
   test('klik tab menyimpan ?status di URL (replace), memuat ulang dari halaman 1, pencarian tetap berlaku', async () => {
     mockState.admin = { '/orders': pagedOrders };
-    await renderAt('/admin/orders');
+    await renderAt('/admin/orders?status=all');
     await typeInto(container.querySelector('form input[maxlength="100"]'), '  Budi ');
     await typeInto(container.querySelector('form input[type="date"]'), '2026-10-01');
     await act(async () => btn('Terapkan').click());
@@ -532,8 +533,13 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
 
     await act(async () => tabBy('all').click());
     await flush();
-    expect(window.location.search).toBe('');
+    expect(window.location.search).toBe('?status=all');
     expect(listCalls().at(-1)).toBe('admin/orders?page=1&per_page=20');
+    // Tab bawaan menghapus ?status dari URL.
+    await act(async () => tabBy('pending_confirmation').click());
+    await flush();
+    expect(window.location.search).toBe('');
+    expect(listCalls().at(-1)).toBe('admin/orders?status=pending_confirmation&page=1&per_page=20');
   });
 
   test('refresh di ?status=cancelled tetap di tab itu; panah kanan/kiri berpindah tab', async () => {
@@ -543,7 +549,7 @@ describe('admin daftar pesanan (tab, kartu, gulir tanpa batas)', () => {
     expect(listCalls()).toEqual(['admin/orders?status=cancelled&page=1&per_page=20']);
     await act(async () => tabBy('cancelled').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
     await flush();
-    expect(window.location.search).toBe('');
+    expect(window.location.search).toBe('?status=all');
     expect(document.activeElement).toBe(tabBy('all'));
     await act(async () => tabBy('all').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
     await flush();
@@ -598,7 +604,7 @@ test('admin detail pesanan: diskon/ongkir, tombol status, invoice, WhatsApp pela
   expect(btn('Tandai Dibayar')).toBeTruthy();
   expect(btn('Batalkan')).toBeTruthy();
   expect(btn('Tandai Selesai')).toBeUndefined();
-  expect(btn('Simpan diskon & ongkir')).toBeTruthy();
+  expect(btn('Ubah diskon & ongkir')).toBeTruthy();
   expect(btn('Cetak invoice')).toBeTruthy();
   const wa = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Kirim ringkasan ke WhatsApp pelanggan'));
   expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/6281311112222\?text=/);
@@ -716,4 +722,91 @@ test('detail pesanan pelanggan & admin: alamat tersusun (baru) dan alamat + kota
   const wa = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Kirim ringkasan ke WhatsApp'));
   const text = decodeURIComponent(wa.getAttribute('href').split('text=')[1]);
   expect(text).toContain(`Alamat pengiriman:\n${REGION_FULL}`);
+});
+
+// ---------- Alur konfirmasi pesanan (status pending_confirmation) ----------
+const awaitingOrder = {
+  ...sampleOrder,
+  status: 'pending_confirmation',
+  discount: 0,
+  discountNote: null,
+  shippingFee: 0,
+  total: 145000,
+  history: [{ from: null, to: 'pending_confirmation', toLabel: 'Menunggu konfirmasi', actor: 'Anda', createdAt: '2026-10-02T03:00:00Z' }],
+  canCancel: true,
+};
+const PAID_INFO = { storeWhatsapp: '+6281299998888', bankName: 'BCA', bankAccountNumber: '1234567', bankAccountHolder: 'Toko Mihan', paymentConfigured: true };
+
+describe('pelanggan: menunggu konfirmasi', () => {
+  test('teks pengganti, TANPA rekening, ongkir "menunggu admin", total sementara, tombol batal tersedia', async () => {
+    mockState.order = awaitingOrder;
+    mockState.storeInfo = PAID_INFO;
+    await renderAt('/pesanan/MS-261002-0001?baru=1', USER);
+    expect(container.textContent).toContain('Menunggu konfirmasi');
+    expect(container.querySelector('[data-testid="awaiting-confirmation"]').textContent).toContain(
+      'Admin akan mengonfirmasi ongkir. Mohon jangan melakukan pembayaran dulu.'
+    );
+    expect(container.textContent).not.toContain('Transfer ke rekening berikut');
+    expect(container.textContent).not.toContain('1234567');
+    expect(container.textContent).not.toContain('Silakan transfer');
+    expect(container.textContent).toContain('Pesanan berhasil dibuat');
+    expect(container.querySelector('[data-testid="order-shipping"]').textContent).toBe('menunggu admin');
+    expect(container.querySelector('[data-testid="order-total"]').textContent).toContain('Total sementara');
+    expect(container.querySelector('[data-testid="order-total"]').textContent).toContain('belum termasuk ongkir');
+    expect(btn('Batalkan pesanan')).toBeTruthy();
+    // Teks WhatsApp konfirmasi pelanggan tetap (tanpa nominal/rekening).
+    const wa = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Konfirmasi via WhatsApp'));
+    const text = decodeURIComponent(wa.getAttribute('href').split('text=')[1]);
+    expect(text).not.toContain('Rp');
+    expect(text).not.toContain('1234567');
+  });
+
+  test('batal dari menunggu konfirmasi', async () => {
+    mockState.order = awaitingOrder;
+    mockState.storeInfo = PAID_INFO;
+    await renderAt('/pesanan/MS-261002-0001', USER);
+    await act(async () => btn('Batalkan pesanan').click());
+    mockState.order = { ...awaitingOrder, status: 'cancelled', canCancel: false };
+    await act(async () => btn('Ya, batalkan').click());
+    await flush();
+    expect(mockState.calls.some((c) => c.method === 'post' && c.url.endsWith('/api/orders/MS-261002-0001/cancel'))).toBe(true);
+  });
+
+  test('setelah dikonfirmasi (menunggu pembayaran): rekening tampil, ongkir Rp 0 tertulis Rp 0, total final, batal tetap ada', async () => {
+    mockState.order = { ...awaitingOrder, status: 'pending_payment' };
+    mockState.storeInfo = PAID_INFO;
+    await renderAt('/pesanan/MS-261002-0001', USER);
+    expect(container.textContent).toContain('Transfer ke rekening berikut');
+    expect(container.textContent).toContain('1234567');
+    expect(container.querySelector('[data-testid="awaiting-confirmation"]')).toBeNull();
+    expect(container.querySelector('[data-testid="order-shipping"]').textContent).toBe('Rp 0');
+    expect(container.querySelector('[data-testid="order-total"]').textContent).not.toContain('sementara');
+    expect(btn('Batalkan pesanan')).toBeTruthy();
+  });
+
+  test('daftar Pesanan Saya menampilkan lencana Menunggu konfirmasi', async () => {
+    mockState.orders = {
+      items: [{ orderNo: 'MS-261002-0009', status: 'pending_confirmation', total: 145000, itemCount: 3, firstItem: 'Kerupuk', createdAt: '2026-10-02T03:00:00Z' }],
+      total: 1,
+      page: 1,
+      perPage: 10,
+    };
+    await renderAt('/pesanan', USER);
+    expect(container.textContent).toContain('Menunggu konfirmasi');
+  });
+});
+
+describe('ringkasan admin & invoice tanpa rekening saat menunggu konfirmasi', () => {
+  const store = { bank_name: 'BCA', bank_account_number: '1234567', bank_account_holder: 'Toko' };
+  test('buildAdminSummaryText: rekening hanya untuk pending_payment', () => {
+    const { buildAdminSummaryText } = require('../shop/format');
+    expect(buildAdminSummaryText({ ...awaitingOrder }, store)).not.toContain('1234567');
+    expect(buildAdminSummaryText({ ...awaitingOrder }, store)).toContain('Status: Menunggu konfirmasi');
+    expect(buildAdminSummaryText({ ...awaitingOrder, status: 'pending_payment' }, store)).toContain('BCA 1234567');
+  });
+  test('orderToInvoice: penanda menunggu konfirmasi (rekening tidak dicetak)', () => {
+    const { orderToInvoice } = require('../invoicePdf');
+    expect(orderToInvoice({ ...awaitingOrder }, store).awaitingConfirmation).toBe(true);
+    expect(orderToInvoice({ ...awaitingOrder, status: 'pending_payment' }, store).awaitingConfirmation).toBe(false);
+  });
 });

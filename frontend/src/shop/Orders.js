@@ -168,19 +168,32 @@ export const OrderDetail = ({ user }) => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
-      {isNew && (
-        <Notice kind="success">
-          <strong>Pesanan berhasil dibuat!</strong> Nomor pesanan Anda <strong>{order.orderNo}</strong>. Silakan transfer
-          sesuai total di bawah, lalu konfirmasi ke toko. Admin akan menambahkan ongkir (bila ada) dan memperbarui status.
-        </Notice>
-      )}
+      {isNew &&
+        (order.status === 'pending_confirmation' ? (
+          <Notice kind="success">
+            <strong>Pesanan berhasil dibuat!</strong> Nomor pesanan Anda <strong>{order.orderNo}</strong>. Admin akan
+            mengonfirmasi ongkir dan total akhir; Anda akan mendapat kabar setelahnya.
+          </Notice>
+        ) : (
+          <Notice kind="success">
+            <strong>Pesanan berhasil dibuat!</strong> Nomor pesanan Anda <strong>{order.orderNo}</strong>. Silakan transfer
+            sesuai total di bawah, lalu konfirmasi ke toko. Admin akan menambahkan ongkir (bila ada) dan memperbarui status.
+          </Notice>
+        ))}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-gray-800">{order.orderNo}</h1>
         <StatusBadge status={order.status} />
       </div>
       {error && <Notice kind="error">{error}</Notice>}
 
+      {/* Rekening HANYA setelah admin mengonfirmasi ongkir (menunggu pembayaran). */}
       {order.status === 'pending_payment' && <PaymentInfo info={info} />}
+      {order.status === 'pending_confirmation' && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900" data-testid="awaiting-confirmation">
+          <div className="font-semibold">Pesanan diterima</div>
+          <p className="mt-1">Admin akan mengonfirmasi ongkir. Mohon jangan melakukan pembayaran dulu.</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow p-4">
         <h2 className="font-semibold text-gray-800 mb-2">Item</h2>
@@ -215,10 +228,18 @@ export const OrderDetail = ({ user }) => {
           )}
           <div className="flex justify-between">
             <span>Ongkir</span>
-            <span>{order.shippingFee > 0 ? rupiah(order.shippingFee) : order.status === 'pending_payment' ? 'menunggu admin' : 'Rp 0'}</span>
+            <span data-testid="order-shipping">
+              {order.status === 'pending_confirmation' ? 'menunggu admin' : order.shippingFee > 0 ? rupiah(order.shippingFee) : 'Rp 0'}
+            </span>
           </div>
-          <div className="flex justify-between text-base font-bold text-purple-700 pt-1">
-            <span>Total</span>
+          <div className="flex justify-between text-base font-bold text-purple-700 pt-1" data-testid="order-total">
+            {order.status === 'pending_confirmation' ? (
+              <span>
+                Total sementara <span className="block text-xs font-normal text-gray-500 sm:inline">(belum termasuk ongkir)</span>
+              </span>
+            ) : (
+              <span>Total</span>
+            )}
             <span>{rupiah(order.total)}</span>
           </div>
         </div>
