@@ -999,7 +999,8 @@ export const AdminOrderDetail = () => {
 
   const r = order.recipient || {};
   const alias = order.customer?.alias || '';
-  const wa = waLink(r.phone, buildAdminSummaryText(order, settings));
+  // Pelanggan sudah mengirim bukti transfer: tombol "Kirim ringkasan ke WhatsApp pelanggan" tidak perlu lagi.
+  const wa = order.paymentProof ? '' : waLink(r.phone, buildAdminSummaryText(order, settings));
   const printInvoice = async () => {
     setPrinting(true);
     try {
@@ -1041,7 +1042,7 @@ export const AdminOrderDetail = () => {
               )}
             </div>
           )}
-          {wa ? (
+          {order.paymentProof ? null : wa ? (
             <a href={wa} target="_blank" rel="noopener noreferrer" className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-600">
               Kirim ringkasan ke WhatsApp pelanggan
             </a>

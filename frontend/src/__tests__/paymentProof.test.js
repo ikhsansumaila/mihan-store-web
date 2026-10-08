@@ -394,6 +394,22 @@ describe('admin', () => {
     expect(sheet('admin-proof-viewer').querySelector('img').getAttribute('src')).toMatch(/^blob:/);
   });
 
+  test('tombol "Kirim ringkasan ke WhatsApp pelanggan": disembunyikan bila ada bukti, tampil bila tidak', async () => {
+    const waBtn = () => [...container.querySelectorAll('a')].find((x) => x.textContent.includes('Kirim ringkasan ke WhatsApp pelanggan'));
+    for (const status of ['pending_payment', 'paid']) {
+      mockState.admin = { '/orders/5': { ...adminOrder, status, paymentProof: { uploadedAt: '2026-10-09T03:00:00Z', sizeBytes: 1, mime: 'image/jpeg' } }, '/settings': { settings: {} } };
+      // eslint-disable-next-line no-await-in-loop
+      await renderAt('/admin/orders/5');
+      expect(waBtn()).toBeUndefined();
+      expect(container.textContent).not.toContain('Nomor penerima tidak valid untuk WhatsApp');
+      act(() => root.unmount());
+      container.remove();
+    }
+    mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    expect(waBtn().getAttribute('href')).toMatch(/^https:\/\/wa\.me\/6281311112222\?text=/);
+  });
+
   test('detail tanpa bukti: "Belum ada bukti."; Tandai Dibayar tetap tanpa syarat bukti', async () => {
     mockState.admin = { '/orders/5': adminOrder, '/settings': { settings: {} } };
     await renderAt('/admin/orders/5');
