@@ -84,6 +84,7 @@ func newRouter(app *App) http.Handler {
 	admin.HandleFunc("/orders/{id:[0-9]+}", app.AdminGetOrder).Methods("GET")
 	admin.HandleFunc("/orders/{id:[0-9]+}/pricing", app.AdminUpdatePricing).Methods("PATCH")
 	admin.HandleFunc("/orders/{id:[0-9]+}/confirm", app.AdminConfirmOrder).Methods("POST")
+	admin.HandleFunc("/orders/{id:[0-9]+}/shipping-suggestions", app.AdminShippingSuggestions).Methods("GET")
 	admin.HandleFunc("/orders/{id:[0-9]+}/status", app.AdminUpdateStatus).Methods("PATCH")
 	admin.HandleFunc("/orders/{id:[0-9]+}/note", app.AdminUpdateNote).Methods("PATCH")
 	admin.HandleFunc("/customers", app.AdminListCustomers).Methods("GET")

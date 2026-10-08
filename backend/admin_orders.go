@@ -248,14 +248,21 @@ type pricingInput struct {
 	Discount     *int64  `json:"discount"`
 	DiscountNote *string `json:"discountNote"`
 	ShippingFee  *int64  `json:"shippingFee"`
+	// Hanya untuk /confirm (opsional): tetapkan ongkir sebagai default kecamatan pesanan ini.
+	SetRegionDefault *bool `json:"setRegionDefault"`
 }
 
 // readPricingInput membaca & memvalidasi {discount, discountNote, shippingFee} (dipakai /pricing dan
 // /confirm, pesan galat sama). false = respons galat sudah ditulis.
-func readPricingInput(w http.ResponseWriter, r *http.Request) (pricingInput, string, bool) {
+func readPricingInput(w http.ResponseWriter, r *http.Request, allowRegionDefault bool) (pricingInput, string, bool) {
 	var in pricingInput
 	if err := decodeJSON(w, r, &in, false); err != nil {
 		respondDecodeError(w, err)
+		return in, "", false
+	}
+	if in.SetRegionDefault != nil && !allowRegionDefault {
+		// Field ini tidak dikenal oleh /pricing (perilaku sama seperti field asing lain).
+		respondDecodeError(w, errBadJSON)
 		return in, "", false
 	}
 	if in.Discount == nil || in.ShippingFee == nil {
@@ -292,10 +299,11 @@ func (a *App) AdminConfirmOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, msgOrderMissing)
 		return
 	}
-	in, note, ok := readPricingInput(w, r)
+	in, note, ok := readPricingInput(w, r, true)
 	if !ok {
 		return
 	}
+	setDefault := in.SetRegionDefault != nil && *in.SetRegionDefault
 	db := a.db.Load().WithContext(r.Context())
 	err := db.Transaction(func(tx *gorm.DB) error {
 		o, err := lockOrderByID(tx, id)
@@ -308,6 +316,12 @@ func (a *App) AdminConfirmOrder(w http.ResponseWriter, r *http.Request) {
 		total, err := computeTotal(o.Subtotal, *in.Discount, *in.ShippingFee)
 		if err != nil {
 			return &httpError{http.StatusBadRequest, err.Error()}
+		}
+		if setDefault {
+			// Default ongkir kecamatan ikut transaksi ini: tersimpan hanya bila konfirmasi sukses.
+			if err := a.setRegionDefaultTx(tx, r, admin, o, *in.ShippingFee); err != nil {
+				return err
+			}
 		}
 		now := a.now()
 		res := tx.Exec(`UPDATE orders SET status = ?, discount = ?, discount_note = ?, shipping_fee = ?, total = ? WHERE id = ? AND status = ?`,
@@ -328,7 +342,8 @@ func (a *App) AdminConfirmOrder(w http.ResponseWriter, r *http.Request) {
 			Summary: "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): " + o.OrderNo,
 			Details: map[string]any{"orderNo": o.OrderNo,
 				"status":   map[string]any{"dari": StatusPendingConfirmation, "menjadi": StatusPending},
-				"subtotal": o.Subtotal, "discount": *in.Discount, "discountNote": note, "shippingFee": *in.ShippingFee, "total": total},
+				"subtotal": o.Subtotal, "discount": *in.Discount, "discountNote": note, "shippingFee": *in.ShippingFee, "total": total,
+				"defaultWilayah": setDefault},
 		}))
 	})
 	if err != nil {
@@ -347,7 +362,7 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, msgOrderMissing)
 		return
 	}
-	in, note, ok := readPricingInput(w, r)
+	in, note, ok := readPricingInput(w, r, false)
 	if !ok {
 		return
 	}
