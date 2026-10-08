@@ -27,7 +27,7 @@ jest.mock('../admin/api', () => {
     adminFetch: (path, opts) => {
       mockState.calls.push({ method: opts?.method || 'GET', url: `admin${path}`, body: opts?.body });
       if (path === '/me') return Promise.resolve({ user: { email: 'admin@example.com' } });
-      if (mockState.pricingHold && path.endsWith('/pricing')) return new Promise((resolve, reject) => mockState.pricingHold.push({ resolve, reject }));
+      if (mockState.pricingHold && (path.endsWith('/pricing') || path.endsWith('/confirm'))) return new Promise((resolve, reject) => mockState.pricingHold.push({ resolve, reject }));
       if (mockState.pricingError && path.endsWith('/pricing')) return Promise.reject(Object.assign(new Error(mockState.pricingError), { status: 409 }));
       const key = Object.keys(mockState.admin)
         .filter((k) => path.startsWith(k))
@@ -221,7 +221,7 @@ describe('form diskon & ongkir pesanan', () => {
     const shipping = inputInLabel('Ongkir (Rp)');
     expect(discount.value).toBe('5.000');
     expect(shipping.value).toBe('12.000');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(lastPricing().body).toEqual({ discount: 5000, discountNote: 'Promo', shippingFee: 12000 });
 
     typeInto(discount, '150000');
@@ -229,7 +229,7 @@ describe('form diskon & ongkir pesanan', () => {
     expect(discount.value).toBe('150.000');
     expect(shipping.value).toBe('25.000');
     expect(container.textContent).toContain('Total baru: Rp 1.325.000');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(lastPricing().body).toEqual({ discount: 5000, discountNote: 'Promo', shippingFee: 12000 }); // belum terkirim
     await click(btn('Ya, simpan'));
     expect(lastPricing().body).toEqual({ discount: 150000, discountNote: 'Promo', shippingFee: 25000 });
@@ -238,7 +238,7 @@ describe('form diskon & ongkir pesanan', () => {
     typeInto(discount, '');
     setRaw(discount, '', 0, 'deleteContentBackward');
     expect(discount.value).toBe('');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     await click(btn('Ya, simpan'));
     expect(lastPricing().body).toEqual({ discount: 0, discountNote: 'Promo', shippingFee: 25000 });
   });
@@ -251,12 +251,12 @@ describe('form diskon & ongkir pesanan', () => {
     typeInto(discount, '1450001');
     expect(discount.value).toBe('1.450.001');
     expect(discount.getAttribute('aria-invalid')).toBe('true');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(container.textContent).toContain('Diskon tidak boleh melebihi subtotal');
     typeInto(discount, '0');
     typeInto(shipping, '10000001');
     expect(shipping.value).toBe('10.000.001');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(container.textContent).toContain('Ongkir maksimal Rp 10.000.000');
     expect(lastPricing()).toBeUndefined();
   });
@@ -275,7 +275,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     mockState.admin = { '/orders/5': order, '/settings': { settings: {} } };
     await renderAt('/admin/orders/5');
     typeInto(inputInLabel('Ongkir (Rp)'), '15000');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(pricingCount()).toBe(0);
     const sh = confirmSheet();
     const dlg = sh.querySelector('[role="dialog"]');
@@ -302,7 +302,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     const shipping = inputInLabel('Ongkir (Rp)');
     typeInto(shipping, '');
     setRaw(shipping, '', 0, 'deleteContentBackward');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(confirmSheet().querySelector('[data-testid="confirm-shipping"]').textContent).toMatch(/Rp 12\.000.*→.*Rp 0$/);
     expect(confirmSheet().querySelector('[data-testid="confirm-notify"]')).not.toBeNull();
   });
@@ -312,7 +312,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     await renderAt('/admin/orders/5');
     const note = inputInLabel('Keterangan diskon (opsional)');
     await act(async () => setNative(note, 'Promo baru'));
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     const sh = confirmSheet();
     expect(sh).not.toBeNull();
     expect(sh.querySelector('[data-testid="confirm-note"]').textContent).toContain('Promo baru');
@@ -323,7 +323,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
   test('tanpa perubahan: langsung simpan tanpa konfirmasi (perilaku lama)', async () => {
     mockState.admin = { '/orders/5': order, '/settings': { settings: {} } };
     await renderAt('/admin/orders/5');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     expect(confirmSheet()).toBeNull();
     expect(pricingCount()).toBe(1);
   });
@@ -343,7 +343,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     ];
     for (const close of closers) {
       // eslint-disable-next-line no-await-in-loop
-      await click(btn('Simpan diskon & ongkir'));
+      await click(btn('Ubah diskon & ongkir'));
       expect(confirmSheet()).not.toBeNull();
       // eslint-disable-next-line no-await-in-loop
       await close();
@@ -357,7 +357,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     mockState.pricingHold = [];
     await renderAt('/admin/orders/5');
     typeInto(inputInLabel('Ongkir (Rp)'), '15000');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     const yes = btn('Ya, simpan');
     await act(async () => {
       yes.click();
@@ -377,7 +377,7 @@ describe('konfirmasi simpan diskon & ongkir', () => {
     mockState.pricingError = 'Status pesanan sudah berubah';
     await renderAt('/admin/orders/5');
     typeInto(inputInLabel('Ongkir (Rp)'), '15000');
-    await click(btn('Simpan diskon & ongkir'));
+    await click(btn('Ubah diskon & ongkir'));
     await click(btn('Ya, simpan'));
     expect(confirmSheet()).not.toBeNull();
     expect(confirmSheet().textContent).toContain('Status pesanan sudah berubah');
@@ -428,5 +428,116 @@ describe('Buat Invoice manual', () => {
       window.open = origOpen;
       window.alert = origAlert;
     }
+  });
+});
+
+// ---------- Konfirmasi pesanan (pending_confirmation, POST /confirm) ----------
+const awaiting = {
+  ...order,
+  status: 'pending_confirmation',
+  discount: 0,
+  discountNote: null,
+  shippingFee: 0,
+  total: 1450000,
+  canConfirm: true,
+  pricingLocked: false,
+  allowedNext: ['cancelled'],
+};
+const confirmCalls = () => mockState.calls.filter((c) => c.method === 'POST' && c.url === 'admin/orders/5/confirm');
+
+describe('konfirmasi pesanan (menunggu konfirmasi)', () => {
+  beforeEach(() => {
+    mockState.pricingError = null;
+    mockState.pricingHold = null;
+  });
+
+  test('label & petunjuk; tanpa tombol Dibayar; dialog SELALU tampil walau ongkir & diskon 0', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    expect(container.querySelector('[data-testid="confirm-hint"]').textContent).toBe('Isi ongkir lalu konfirmasi agar pelanggan bisa membayar.');
+    expect(btn('Tandai Dibayar')).toBeUndefined();
+    expect(btn('Batalkan')).toBeTruthy();
+    expect(btn('Ubah diskon & ongkir')).toBeUndefined();
+    await click(btn('Konfirmasi pesanan'));
+    const sh = confirmSheet();
+    expect(sh).not.toBeNull();
+    expect(document.getElementById(sh.querySelector('[role="dialog"]').getAttribute('aria-labelledby')).textContent).toBe('Konfirmasi pesanan');
+    expect(sh.querySelector('[data-testid="confirm-shipping"]').textContent).toBe('OngkirRp 0');
+    expect(sh.querySelector('[data-testid="confirm-discount"]').textContent).toBe('DiskonRp 0');
+    expect(sh.querySelector('[data-testid="confirm-total"]').textContent).toContain('Rp 1.450.000');
+    expect(sh.querySelector('[data-testid="confirm-notify"]').textContent).toBe('Pelanggan akan dinotifikasi dan diminta membayar.');
+    expect(confirmCalls()).toHaveLength(0);
+    mockState.admin['/orders/5/confirm'] = { ...awaiting, status: 'pending_payment', canConfirm: false, allowedNext: ['paid', 'cancelled'] };
+    await click(btn('Ya, konfirmasi'));
+    expect(confirmCalls()).toHaveLength(1);
+    expect(confirmCalls()[0].body).toEqual({ discount: 0, discountNote: '', shippingFee: 0 });
+    expect(mockState.calls.some((c) => c.method === 'PATCH')).toBe(false);
+    expect(confirmSheet()).toBeNull();
+  });
+
+  test('ongkir diisi: nilai lama -> baru di dialog, total baru, body angka bulat', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    typeInto(inputInLabel('Ongkir (Rp)'), '15000');
+    await click(btn('Konfirmasi pesanan'));
+    expect(confirmSheet().querySelector('[data-testid="confirm-shipping"]').textContent).toMatch(/Rp 0.*→.*Rp 15\.000/);
+    expect(confirmSheet().querySelector('[data-testid="confirm-total"]').textContent).toContain('Rp 1.465.000');
+    await click(btn('Ya, konfirmasi'));
+    expect(confirmCalls()[0].body).toEqual({ discount: 0, discountNote: '', shippingFee: 15000 });
+  });
+
+  test('empat cara menutup tanpa mengirim', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    const closers = [
+      () => click(btn('Batal')),
+      () => click(confirmSheet().querySelector('button[aria-label="Tutup"]')),
+      () => click(confirmSheet().querySelector('[data-testid="pricing-confirm-backdrop"]')),
+      async () => {
+        await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        await flush();
+      },
+    ];
+    for (const close of closers) {
+      // eslint-disable-next-line no-await-in-loop
+      await click(btn('Konfirmasi pesanan'));
+      expect(confirmSheet()).not.toBeNull();
+      // eslint-disable-next-line no-await-in-loop
+      await close();
+      expect(confirmSheet()).toBeNull();
+    }
+    expect(confirmCalls()).toHaveLength(0);
+  });
+
+  test('klik ganda hanya satu POST; galat server (409) tampil di dialog', async () => {
+    mockState.admin = { '/orders/5': awaiting, '/settings': { settings: {} } };
+    mockState.pricingHold = [];
+    await renderAt('/admin/orders/5');
+    await click(btn('Konfirmasi pesanan'));
+    const yes = btn('Ya, konfirmasi');
+    await act(async () => {
+      yes.click();
+      yes.click();
+    });
+    await flush();
+    expect(confirmCalls()).toHaveLength(1);
+    await act(async () => mockState.pricingHold[0].reject(Object.assign(new Error('Pesanan ini tidak sedang menunggu konfirmasi. Muat ulang halaman.'), { status: 409 })));
+    await flush();
+    expect(confirmSheet().textContent).toContain('tidak sedang menunggu konfirmasi');
+    expect(btn('Ya, konfirmasi').disabled).toBe(false);
+  });
+
+  test('menunggu pembayaran: tombol "Ubah diskon & ongkir"; status lain terkunci', async () => {
+    mockState.admin = { '/orders/5': order, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    expect(btn('Ubah diskon & ongkir')).toBeTruthy();
+    expect(btn('Konfirmasi pesanan')).toBeUndefined();
+    expect(container.querySelector('[data-testid="confirm-hint"]')).toBeNull();
+    act(() => root.unmount());
+    container.remove();
+    mockState.admin = { '/orders/5': { ...order, status: 'paid', pricingLocked: true, allowedNext: ['completed', 'cancelled'] }, '/settings': { settings: {} } };
+    await renderAt('/admin/orders/5');
+    expect(btn('Ubah diskon & ongkir')).toBeUndefined();
+    expect(container.textContent).toContain('Terkunci');
   });
 });

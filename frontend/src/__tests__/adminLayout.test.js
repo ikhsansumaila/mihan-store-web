@@ -26,7 +26,7 @@ jest.mock('../admin/api', () => {
         return Promise.resolve({
           products: { total: 20, active: 18, inactive: 2 },
           categories: 6,
-          orders: { pendingPayment: 4, paid: 2, last7Days: 9 },
+          orders: { pendingConfirmation: 3, pendingPayment: 4, paid: 2, last7Days: 9 },
           customers: 12,
           recentActivity: [{ id: 1, action: 'product.update', summary: 'Ubah harga', userEmail: 'pemilik@example.com', createdAt: '2026-10-02T03:00:00Z' }],
         });
@@ -122,7 +122,7 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
     ['Dashboard', '/admin'],
     ['Produk', '/admin/products'],
     ['Kategori', '/admin/categories'],
-    ['Pesanan, 4 menunggu pembayaran', '/admin/orders'],
+    ['Pesanan, 3 menunggu konfirmasi', '/admin/orders'],
     ['Pelanggan', '/admin/customers'],
     ['Invoice', '/admin/invoice'],
     ['Pricelist', '/admin/pricelist'],
@@ -131,9 +131,9 @@ test('sidebar: nama panel, empat grup, semua item, lencana pesanan menunggu, ema
     ['Log Aktivitas', '/admin/activity'],
   ]);
   const orders = linkByLabel('Pesanan');
-  expect(orders.getAttribute('title')).toBe('Pesanan, 4 menunggu pembayaran');
-  expect(orders.querySelector('[data-badge="icon"]').textContent).toBe('4');
-  expect(orders.querySelector('[data-badge="full"]').textContent).toBe('4');
+  expect(orders.getAttribute('title')).toBe('Pesanan, 3 menunggu konfirmasi');
+  expect(orders.querySelector('[data-badge="icon"]').textContent).toBe('3');
+  expect(orders.querySelector('[data-badge="full"]').textContent).toBe('3');
   expect(sb.textContent).toContain('Masuk sebagai pemilik@example.com');
   const back = [...sb.querySelectorAll('a')].find((a) => a.textContent.trim() === 'Kembali ke toko');
   expect(back.getAttribute('href')).toBe('/');
@@ -284,8 +284,8 @@ test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () 
   expect(container.querySelector('h1').textContent).toBe('Dashboard');
   const stats = container.querySelector('section[aria-label="Statistik"]');
   const text = stats.textContent;
-  ['Produk aktif18', 'Kategori6', 'Menunggu pembayaran4', 'Dibayar2', 'Pesanan 7 hari terakhir9', 'Pelanggan12'].forEach((t) => expect(text).toContain(t));
-  expect(stats.querySelectorAll('a svg')).toHaveLength(6);
+  ['Produk aktif18', 'Kategori6', 'Menunggu konfirmasi3', 'Menunggu pembayaran4', 'Dibayar2', 'Pesanan 7 hari terakhir9', 'Pelanggan12'].forEach((t) => expect(text).toContain(t));
+  expect(stats.querySelectorAll('a svg')).toHaveLength(7);
   const shortcutLinks = [...container.querySelectorAll('section[aria-labelledby="pintasan-cepat"] a')];
   expect(shortcutLinks.map((a) => a.querySelector('.font-semibold').textContent)).toEqual([
     'Tambah Produk',
@@ -297,7 +297,7 @@ test('dashboard: kartu statistik, pintasan cepat, aktivitas terakhir', async () 
   ]);
   expect(shortcutLinks.map((a) => a.getAttribute('href'))).toEqual([
     '/admin/products?tambah=1',
-    '/admin/orders?status=pending_payment',
+    '/admin/orders?status=pending_confirmation',
     '/admin/customers',
     '/admin/pricelist',
     '/admin/settings',
@@ -319,7 +319,12 @@ test('pintasan Tambah Produk membuka form tambah produk', async () => {
 
 const activeTab = () => container.querySelector('[role="tablist"] [role="tab"][aria-selected="true"]');
 
-test('pintasan Pesanan baru membuka tab menunggu pembayaran', async () => {
+test('pintasan Pesanan baru membuka tab menunggu konfirmasi; ?status=pending_payment tetap bekerja', async () => {
+  await renderAt('/admin/orders?status=pending_confirmation');
+  expect(activeTab().getAttribute('data-status')).toBe('pending_confirmation');
+  expect(mockState.calls.some((c) => c.startsWith('/orders?') && c.includes('status=pending_confirmation'))).toBe(true);
+  act(() => root.unmount());
+  container.remove();
   await renderAt('/admin/orders?status=pending_payment');
   expect(activeTab().getAttribute('data-status')).toBe('pending_payment');
   expect(mockState.calls.some((c) => c.startsWith('/orders?') && c.includes('status=pending_payment'))).toBe(true);
@@ -331,16 +336,16 @@ test('status tidak dikenal di URL diabaikan (tab Semua)', async () => {
   expect(mockState.calls.filter((c) => c.startsWith('/orders?')).every((c) => !c.includes('status='))).toBe(true);
 });
 
-test('tab pesanan: jumlah dari ringkasan untuk Menunggu pembayaran & Dibayar; menu Pesanan kembali ke tab Semua', async () => {
+test('tab pesanan: jumlah dari ringkasan (konfirmasi, pembayaran, dibayar); menu Pesanan kembali ke tab bawaan Menunggu konfirmasi', async () => {
   await renderAt('/admin/orders?status=paid');
   const counts = Object.fromEntries(
     [...container.querySelectorAll('[role="tab"]')].map((t) => [t.getAttribute('data-status'), t.querySelector('[data-testid="tab-count"]')?.textContent ?? null]),
   );
-  expect(counts).toEqual({ all: null, pending_payment: '4', paid: '2', completed: null, cancelled: null });
-  // Klik menu sidebar "Pesanan" (URL tanpa ?status) -> tab Semua, daftar dimuat ulang tanpa filter status.
+  expect(counts).toEqual({ all: null, pending_confirmation: '3', pending_payment: '4', paid: '2', completed: null, cancelled: null });
+  // Klik menu sidebar "Pesanan" (URL tanpa ?status) -> tab bawaan "Menunggu konfirmasi".
   mockState.calls = [];
   await act(async () => linkByLabel('Pesanan').click());
   await flush();
-  expect(activeTab().getAttribute('data-status')).toBe('all');
-  expect(mockState.calls.some((c) => c.startsWith('/orders?') && !c.includes('status='))).toBe(true);
+  expect(activeTab().getAttribute('data-status')).toBe('pending_confirmation');
+  expect(mockState.calls.some((c) => c.startsWith('/orders?') && c.includes('status=pending_confirmation'))).toBe(true);
 });

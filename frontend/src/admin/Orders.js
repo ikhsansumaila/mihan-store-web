@@ -22,18 +22,25 @@ export const OrderStatusBadge = ({ status }) => (
 
 const emptyFilters = { from: '', to: '', q: '' };
 
-// Tab status daftar pesanan: "Semua" + satu tab per status (urutan STATUS di shop/format.js).
+// Tab status daftar pesanan: "Semua" + satu tab per status (urutan STATUS di shop/format.js:
+// Menunggu konfirmasi, Menunggu pembayaran, Dibayar, Selesai, Dibatalkan).
 export const ORDER_TABS = [{ value: '', label: 'Semua' }, ...Object.keys(STATUS).map((s) => ({ value: s, label: statusLabel(s) }))];
+
+// Tab bawaan tanpa ?status= : "Menunggu konfirmasi" (pesanan yang butuh tindakan admin).
+// Tab "Semua" memakai ?status=all agar tetap bisa dibagikan/dipulihkan.
+export const DEFAULT_ORDER_TAB = 'pending_confirmation';
+export const ALL_TAB_PARAM = 'all';
 
 // ?status=... dari URL; nilai tidak dikenal (mis. "constructor") dianggap "Semua".
 export const tabFromSearch = (searchParams) => {
   const st = searchParams.get('status');
+  if (st === null) return DEFAULT_ORDER_TAB;
   return st && Object.prototype.hasOwnProperty.call(STATUS, st) ? st : '';
 };
 
 // Jumlah per tab hanya dari data yang sudah ada (/api/admin/summary: pendingPayment & paid, seluruh pesanan,
 // tidak terpengaruh pencarian/tanggal). Tab lain tanpa angka agar tidak perlu API baru.
-const SUMMARY_COUNT_KEY = { pending_payment: 'pendingPayment', paid: 'paid' };
+const SUMMARY_COUNT_KEY = { pending_confirmation: 'pendingConfirmation', pending_payment: 'pendingPayment', paid: 'paid' };
 
 const StatusTabs = ({ active, counts, onSelect }) => {
   const scrollerRef = useRef(null);
@@ -123,7 +130,8 @@ const LIST_CACHE_ID = 'admin-orders';
 
 export const OrdersList = () => {
   // Tab status disimpan di URL (?status=...): refresh/kembali tetap di tab yang sama, pintasan Dashboard
-  // (?status=pending_payment) langsung membuka tabnya. Tanpa ?status = tab "Semua".
+  // (?status=pending_confirmation) langsung membuka tabnya. Tanpa ?status = tab "Menunggu konfirmasi";
+  // tab "Semua" = ?status=all.
   const [searchParams, setSearchParams] = useSearchParams();
   const status = tabFromSearch(searchParams);
   const { summary } = useAdminSummary();
@@ -138,8 +146,8 @@ export const OrdersList = () => {
   const selectTab = (value) => {
     if (value === status) return;
     const next = new URLSearchParams(searchParams);
-    if (value) next.set('status', value);
-    else next.delete('status');
+    if (value === DEFAULT_ORDER_TAB) next.delete('status');
+    else next.set('status', value || ALL_TAB_PARAM);
     setSearchParams(next, { replace: true });
   };
 
@@ -314,7 +322,10 @@ const ChangeRow = ({ label, from, to, testId }) => (
   </div>
 );
 
+// Mode form: "confirm" (pending_confirmation, POST /confirm, dialog SELALU tampil) atau "edit"
+// (pending_payment, PATCH /pricing, dialog bila ada perubahan).
 const PricingForm = ({ order, onSaved }) => {
+  const confirmMode = !!order.canConfirm;
   const [discount, setDiscount] = useState(String(order.discount || 0));
   const [note, setNote] = useState(order.discountNote || '');
   const [shipping, setShipping] = useState(String(order.shippingFee || 0));
@@ -332,7 +343,9 @@ const PricingForm = ({ order, onSaved }) => {
     savingRef.current = true;
     setSaving(true);
     try {
-      const res = await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } });
+      const res = confirmMode
+        ? await adminFetch(`/orders/${order.id}/confirm`, { method: 'POST', body: { discount: d, discountNote: note, shippingFee: s } })
+        : await adminFetch(`/orders/${order.id}/pricing`, { method: 'PATCH', body: { discount: d, discountNote: note, shippingFee: s } });
       setConfirm(null);
       onSaved(res);
     } catch (err) {
@@ -350,7 +363,7 @@ const PricingForm = ({ order, onSaved }) => {
     if (d > order.subtotal) return setError(new Error('Diskon tidak boleh melebihi subtotal'));
     if (s > SHIPPING_MAX) return setError(new Error('Ongkir maksimal Rp 10.000.000'));
     const ch = pricingChanges(order, d, s, note);
-    if (!ch.any) return doSave(false); // tanpa perubahan: perilaku lama (langsung simpan)
+    if (!ch.any && !confirmMode) return doSave(false); // tanpa perubahan: perilaku lama (langsung simpan)
     setConfirmError(null);
     setConfirm(ch);
     return undefined;
@@ -383,7 +396,7 @@ const PricingForm = ({ order, onSaved }) => {
           Total baru: <strong className={preview < 0 ? 'text-red-600' : 'text-purple-700'}>{rupiah(Math.max(preview, 0))}</strong>
         </span>
         <button type="submit" className={btnPrimary} disabled={saving}>
-          {saving ? 'Menyimpan...' : 'Simpan diskon & ongkir'}
+          {saving ? 'Menyimpan...' : confirmMode ? 'Konfirmasi pesanan' : 'Ubah diskon & ongkir'}
         </button>
       </div>
 
@@ -392,7 +405,7 @@ const PricingForm = ({ order, onSaved }) => {
           <>
             <div className="flex items-start justify-between gap-3">
               <h2 id="pricing-confirm-title" className="text-lg font-bold text-gray-900">
-                Konfirmasi perubahan harga
+                {confirmMode ? 'Konfirmasi pesanan' : 'Konfirmasi perubahan harga'}
               </h2>
               <button
                 type="button"
@@ -406,7 +419,8 @@ const PricingForm = ({ order, onSaved }) => {
               </button>
             </div>
             <p className="mt-2 text-sm text-gray-700">
-              Anda akan mengubah harga pesanan <strong>{order.orderNo}</strong>:
+              {confirmMode ? 'Anda akan mengonfirmasi pesanan ' : 'Anda akan mengubah harga pesanan '}
+              <strong>{order.orderNo}</strong>:
             </p>
             <div className="mt-3 divide-y divide-gray-100 rounded-xl bg-purple-50 px-4 py-2 text-sm">
               <ChangeRow label="Ongkir" from={confirm.oldS} to={s} testId="confirm-shipping" />
@@ -422,10 +436,16 @@ const PricingForm = ({ order, onSaved }) => {
                 <strong className="text-base text-purple-800">{rupiah(confirm.total)}</strong>
               </div>
             </div>
-            {confirm.amountsChanged && (
+            {confirmMode ? (
               <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
-                Pelanggan akan menerima notifikasi.
+                Pelanggan akan dinotifikasi dan diminta membayar.
               </p>
+            ) : (
+              confirm.amountsChanged && (
+                <p className="mt-3 text-sm text-gray-600" data-testid="confirm-notify">
+                  Pelanggan akan menerima notifikasi.
+                </p>
+              )
             )}
             {confirmError && (
               <div className="mt-3">
@@ -437,7 +457,7 @@ const PricingForm = ({ order, onSaved }) => {
                 Batal
               </button>
               <button type="button" className={btnPrimary} onClick={() => doSave(true)} disabled={saving}>
-                {saving ? 'Menyimpan...' : 'Ya, simpan'}
+                {saving ? 'Menyimpan...' : confirmMode ? 'Ya, konfirmasi' : 'Ya, simpan'}
               </button>
             </div>
           </>
@@ -542,8 +562,10 @@ export const AdminOrderDetail = () => {
   // Kembali ke tab daftar asal (?status=...) bila datang dari daftar pesanan; hanya status yang dikenal.
   const backSearch = (() => {
     const raw = typeof navState?.ordersSearch === 'string' ? navState.ordersSearch : '';
-    const st = tabFromSearch(new URLSearchParams(raw));
-    return st ? `?status=${st}` : '';
+    const sp = new URLSearchParams(raw);
+    if (!sp.has('status')) return ''; // tab bawaan (Menunggu konfirmasi)
+    const st = tabFromSearch(sp);
+    return `?status=${st || ALL_TAB_PARAM}`;
   })();
   const [order, setOrder] = useState(null);
   const [settings, setSettings] = useState({});
@@ -698,6 +720,11 @@ export const AdminOrderDetail = () => {
           </Card>
 
           <Card title="Diskon & ongkir">
+            {order.canConfirm && (
+              <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-900" data-testid="confirm-hint">
+                Isi ongkir lalu konfirmasi agar pelanggan bisa membayar.
+              </p>
+            )}
             {order.pricingLocked ? (
               <p className="text-sm text-gray-600">Terkunci: diskon dan ongkir hanya bisa diubah saat pesanan menunggu pembayaran.</p>
             ) : (

@@ -9,7 +9,9 @@ export const perUnit = (price, unit) => (unit ? `${rupiah(price)} / ${unit}` : r
 // Catatan harga grosir untuk item pesanan/keranjang yang memakai jenjang.
 export const tierNote = (minQty) => (minQty ? `harga grosir (min. ${minQty})` : '');
 
+// Urutan = urutan tab status admin (setelah "Semua").
 export const STATUS = {
+  pending_confirmation: { label: 'Menunggu konfirmasi', cls: 'bg-orange-100 text-orange-800 border-orange-300' },
   pending_payment: { label: 'Menunggu pembayaran', cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
   paid: { label: 'Dibayar', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
   completed: { label: 'Selesai', cls: 'bg-green-100 text-green-800 border-green-300' },
@@ -140,6 +142,7 @@ export const buildAdminSummaryText = (order, store = {}) => {
     lines.push('Alamat pengiriman:');
     lines.push(addr);
   }
+  // Rekening hanya setelah admin mengonfirmasi (menunggu pembayaran); TIDAK untuk menunggu konfirmasi.
   if (order.status === 'pending_payment' && store.bank_name && store.bank_account_number) {
     lines.push('');
     lines.push('Pembayaran ke rekening:');

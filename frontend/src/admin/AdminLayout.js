@@ -23,7 +23,8 @@ export const MENU = [
   {
     group: 'Penjualan',
     items: [
-      { to: '/admin/orders', label: 'Pesanan', icon: 'cart', badge: 'pendingPayment', keywords: 'order transaksi pembayaran' },
+      // Lencana = pesanan menunggu konfirmasi (butuh tindakan admin: isi ongkir & konfirmasi).
+      { to: '/admin/orders', label: 'Pesanan', icon: 'cart', badge: 'pendingConfirmation', badgeLabel: 'menunggu konfirmasi', keywords: 'order transaksi pembayaran konfirmasi' },
       { to: '/admin/customers', label: 'Pelanggan', icon: 'users', keywords: 'customer pembeli akun alias nama panggilan' },
       { to: '/admin/invoice', label: 'Invoice', icon: 'doc', keywords: 'faktur pdf nota' },
       { to: '/admin/pricelist', label: 'Pricelist', icon: 'pricelist', keywords: 'daftar harga png gambar whatsapp bagikan share' },
@@ -191,7 +192,7 @@ const Sidebar = ({ me }) => {
             <ul className="space-y-1 lg:space-y-0.5">
               {g.items.map((it) => {
                 const badge = badgeOf(it);
-                const name = badge !== null ? `${it.label}, ${badge} menunggu pembayaran` : it.label;
+                const name = badge !== null ? `${it.label}, ${badge} ${it.badgeLabel || 'menunggu'}` : it.label;
                 return (
                   <li key={it.to}>
                     <NavLink

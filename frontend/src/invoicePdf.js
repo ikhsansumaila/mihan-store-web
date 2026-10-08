@@ -49,6 +49,8 @@ export const orderToInvoice = (order, settings = {}, opts = {}) => {
     total: order.total,
     recipient: order.recipient,
     payment,
+    // Menunggu konfirmasi ongkir: rekening TIDAK dicetak (pelanggan belum boleh membayar).
+    awaitingConfirmation: order.status === 'pending_confirmation',
   };
 };
 
@@ -197,13 +199,19 @@ export async function generateInvoicePdf(inv, opts = {}) {
   // === PAYMENT INFO ===
   currentY += 15;
   doc.setFontSize(11);
-  doc.text('PEMBAYARAN KE:', 15, currentY);
-  currentY += 7;
-  doc.text(String(payment.bankName).toUpperCase(), 15, currentY);
-  currentY += 6;
-  doc.text(String(payment.accountNumber), 15, currentY);
-  currentY += 6;
-  doc.text(String(payment.accountHolder).toUpperCase(), 15, currentY);
+  if (inv.awaitingConfirmation) {
+    doc.text('MENUNGGU KONFIRMASI ONGKIR', 15, currentY);
+    currentY += 7;
+    doc.text('Mohon belum melakukan pembayaran sampai ongkir dikonfirmasi.', 15, currentY);
+  } else {
+    doc.text('PEMBAYARAN KE:', 15, currentY);
+    currentY += 7;
+    doc.text(String(payment.bankName).toUpperCase(), 15, currentY);
+    currentY += 6;
+    doc.text(String(payment.accountNumber), 15, currentY);
+    currentY += 6;
+    doc.text(String(payment.accountHolder).toUpperCase(), 15, currentY);
+  }
 
   // === LUNAS STAMP ===
   if (isLunas) {

@@ -35,7 +35,7 @@ const StatCard = ({ icon, tone, label, value, sub, to }) => (
 
 const SHORTCUTS = [
   { to: '/admin/products?tambah=1', label: 'Tambah Produk', desc: 'Buat produk baru di katalog', icon: 'plus' },
-  { to: '/admin/orders?status=pending_payment', label: 'Pesanan baru', desc: 'Pesanan menunggu pembayaran', icon: 'cart' },
+  { to: '/admin/orders?status=pending_confirmation', label: 'Pesanan baru', desc: 'Pesanan menunggu konfirmasi ongkir', icon: 'cart' },
   { to: '/admin/customers', label: 'Pelanggan', desc: 'Daftar pelanggan & alias', icon: 'users' },
   { to: '/admin/pricelist', label: 'Buat Pricelist', desc: 'Gambar daftar harga untuk WhatsApp', icon: 'pricelist' },
   { to: '/admin/settings', label: 'Pengaturan Toko', desc: 'WhatsApp & rekening bank', icon: 'settings' },
@@ -61,9 +61,17 @@ const Dashboard = () => {
       <PushCard />
 
       <section aria-label="Statistik">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-7">
           <StatCard icon="box" tone="purple" label="Produk aktif" value={p.active ?? 0} sub={`${p.total ?? 0} total · ${p.inactive ?? 0} nonaktif`} to="/admin/products" />
           <StatCard icon="tag" tone="blue" label="Kategori" value={data.categories ?? 0} to="/admin/categories" />
+          <StatCard
+            icon="cart"
+            tone="purple"
+            label="Menunggu konfirmasi"
+            value={o.pendingConfirmation ?? 0}
+            sub="isi ongkir & konfirmasi"
+            to="/admin/orders?status=pending_confirmation"
+          />
           <StatCard icon="alert" tone="amber" label="Menunggu pembayaran" value={o.pendingPayment ?? 0} sub="perlu dicek transfernya" to="/admin/orders?status=pending_payment" />
           <StatCard icon="check" tone="green" label="Dibayar" value={o.paid ?? 0} sub="siap dikirim / diselesaikan" to="/admin/orders?status=paid" />
           <StatCard icon="chart" tone="slate" label="Pesanan 7 hari terakhir" value={o.last7Days ?? 0} to="/admin/orders" />
