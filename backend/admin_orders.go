@@ -134,6 +134,7 @@ type AdminOrderDTO struct {
 	Items         []OrderItemDTO    `json:"items"`
 	History       []AdminHistoryDTO `json:"history"`
 	PricingLocked bool              `json:"pricingLocked"`
+	CanConfirm    bool              `json:"canConfirm"` // pending_confirmation: tombol "Konfirmasi pesanan" (POST /confirm)
 	AllowedNext   []string          `json:"allowedNext"`
 	CreatedAt     time.Time         `json:"createdAt"`
 	UpdatedAt     time.Time         `json:"updatedAt"`
@@ -196,7 +197,9 @@ func (a *App) adminOrderDTO(db *gorm.DB, o *orderRow) (*AdminOrderDTO, error) {
 		PaymentMethod: o.PaymentMethod, Recipient: recipientOf(o), CustomerNote: o.CustomerNote, AdminNote: o.AdminNote,
 		PaymentNote: o.PaymentNote, CancelReason: o.CancelReason, Customer: customer,
 		ItemCount: sumQty(items), Items: items, History: h,
-		PricingLocked: o.Status != StatusPending, AllowedNext: allowedNext(o.Status, actorAdmin),
+		// Diskon/ongkir bisa diisi saat menunggu konfirmasi (disimpan lewat /confirm) dan saat menunggu pembayaran (/pricing).
+		PricingLocked: o.Status != StatusPending && o.Status != StatusPendingConfirmation,
+		CanConfirm:    o.Status == StatusPendingConfirmation, AllowedNext: allowedNext(o.Status, actorAdmin),
 		CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt, PaidAt: o.PaidAt, PaidBy: userLabel(db, o.PaidBy),
 		CompletedAt: o.CompletedAt, CancelledAt: o.CancelledAt, CancelledBy: userLabel(db, o.CancelledBy),
 	}, nil
@@ -247,6 +250,95 @@ type pricingInput struct {
 	ShippingFee  *int64  `json:"shippingFee"`
 }
 
+// readPricingInput membaca & memvalidasi {discount, discountNote, shippingFee} (dipakai /pricing dan
+// /confirm, pesan galat sama). false = respons galat sudah ditulis.
+func readPricingInput(w http.ResponseWriter, r *http.Request) (pricingInput, string, bool) {
+	var in pricingInput
+	if err := decodeJSON(w, r, &in, false); err != nil {
+		respondDecodeError(w, err)
+		return in, "", false
+	}
+	if in.Discount == nil || in.ShippingFee == nil {
+		writeError(w, http.StatusBadRequest, "discount dan shippingFee wajib diisi (bilangan bulat rupiah)")
+		return in, "", false
+	}
+	note := ""
+	if in.DiscountNote != nil {
+		note = cleanText(*in.DiscountNote, false)
+		if utf8.RuneCountInString(note) > maxNote255 {
+			writeError(w, http.StatusBadRequest, "Keterangan diskon maksimal 255 karakter")
+			return in, "", false
+		}
+	}
+	if *in.Discount < 0 || *in.ShippingFee < 0 {
+		writeError(w, http.StatusBadRequest, errAmountNegative.Error())
+		return in, "", false
+	}
+	if *in.ShippingFee > maxShippingFee {
+		writeError(w, http.StatusBadRequest, errShippingRange.Error())
+		return in, "", false
+	}
+	return in, note, true
+}
+
+// AdminConfirmOrder: POST /api/admin/orders/{id}/confirm {discount, discountNote?, shippingFee}.
+// Satu transaksi: pending_confirmation -> pending_payment sekaligus menyimpan diskon/ongkir/total,
+// riwayat status, dan log aktivitas "order.confirm". Klik ganda: yang kedua 409.
+// Setelah commit: push pelanggan "Ongkir sudah dikonfirmasi" (ongkir & total dari DB) SELALU dikirim.
+func (a *App) AdminConfirmOrder(w http.ResponseWriter, r *http.Request) {
+	admin := adminFrom(r.Context())
+	id, ok := pathID(r)
+	if !ok {
+		writeError(w, http.StatusNotFound, msgOrderMissing)
+		return
+	}
+	in, note, ok := readPricingInput(w, r)
+	if !ok {
+		return
+	}
+	db := a.db.Load().WithContext(r.Context())
+	err := db.Transaction(func(tx *gorm.DB) error {
+		o, err := lockOrderByID(tx, id)
+		if err != nil {
+			return err
+		}
+		if err := checkConfirm(o.Status); err != nil {
+			return &httpError{http.StatusConflict, err.Error()}
+		}
+		total, err := computeTotal(o.Subtotal, *in.Discount, *in.ShippingFee)
+		if err != nil {
+			return &httpError{http.StatusBadRequest, err.Error()}
+		}
+		now := a.now()
+		res := tx.Exec(`UPDATE orders SET status = ?, discount = ?, discount_note = ?, shipping_fee = ?, total = ? WHERE id = ? AND status = ?`,
+			StatusPending, *in.Discount, strPtr(note), *in.ShippingFee, total, id, StatusPendingConfirmation)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return &httpError{http.StatusConflict, msgStatusChanged}
+		}
+		if err := tx.Exec(`INSERT INTO order_status_history (order_id, from_status, to_status, actor_user_id, actor_label, note, created_at)
+			VALUES (?, ?, ?, ?, ?, NULL, ?)`, id, StatusPendingConfirmation, StatusPending, admin.ID, truncateUTF8(actorOf(admin), 100), now).Error; err != nil {
+			return err
+		}
+		return a.logActivity(tx, a.reqMeta(r, LogEntry{
+			UserID: uid(admin), ActorLabel: actorOf(admin), Action: "order.confirm",
+			EntityType: "order", EntityID: o.OrderNo,
+			Summary: "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): " + o.OrderNo,
+			Details: map[string]any{"orderNo": o.OrderNo,
+				"status":   map[string]any{"dari": StatusPendingConfirmation, "menjadi": StatusPending},
+				"subtotal": o.Subtotal, "discount": *in.Discount, "discountNote": note, "shippingFee": *in.ShippingFee, "total": total},
+		}))
+	})
+	if err != nil {
+		a.respondTxError(w, err, "konfirmasi pesanan")
+		return
+	}
+	a.pushCustomer(db, push.KindCustomerPricing, id)
+	a.respondAdminOrder(w, db, id)
+}
+
 // AdminUpdatePricing: PATCH /api/admin/orders/{id}/pricing — hanya saat pending_payment.
 func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 	admin := adminFrom(r.Context())
@@ -255,29 +347,8 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, msgOrderMissing)
 		return
 	}
-	var in pricingInput
-	if err := decodeJSON(w, r, &in, false); err != nil {
-		respondDecodeError(w, err)
-		return
-	}
-	if in.Discount == nil || in.ShippingFee == nil {
-		writeError(w, http.StatusBadRequest, "discount dan shippingFee wajib diisi (bilangan bulat rupiah)")
-		return
-	}
-	note := ""
-	if in.DiscountNote != nil {
-		note = cleanText(*in.DiscountNote, false)
-		if utf8.RuneCountInString(note) > maxNote255 {
-			writeError(w, http.StatusBadRequest, "Keterangan diskon maksimal 255 karakter")
-			return
-		}
-	}
-	if *in.Discount < 0 || *in.ShippingFee < 0 {
-		writeError(w, http.StatusBadRequest, errAmountNegative.Error())
-		return
-	}
-	if *in.ShippingFee > maxShippingFee {
-		writeError(w, http.StatusBadRequest, errShippingRange.Error())
+	in, note, ok := readPricingInput(w, r)
+	if !ok {
 		return
 	}
 	db := a.db.Load().WithContext(r.Context())
@@ -286,6 +357,9 @@ func (a *App) AdminUpdatePricing(w http.ResponseWriter, r *http.Request) {
 		o, err := lockOrderByID(tx, id)
 		if err != nil {
 			return err
+		}
+		if o.Status == StatusPendingConfirmation {
+			return &httpError{http.StatusConflict, errConfirmFirst.Error()}
 		}
 		if o.Status != StatusPending {
 			return &httpError{http.StatusConflict, errPricingLocked.Error()}
@@ -591,14 +665,16 @@ func (a *App) AdminUpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 // orderCounts untuk ringkasan admin.
 type orderCounts struct {
-	PendingPayment int64 `json:"pendingPayment" gorm:"column:pending_payment"`
-	Paid           int64 `json:"paid" gorm:"column:paid"`
-	Last7Days      int64 `json:"last7Days" gorm:"column:last7"`
+	PendingConfirmation int64 `json:"pendingConfirmation" gorm:"column:pending_confirmation"`
+	PendingPayment      int64 `json:"pendingPayment" gorm:"column:pending_payment"`
+	Paid                int64 `json:"paid" gorm:"column:paid"`
+	Last7Days           int64 `json:"last7Days" gorm:"column:last7"`
 }
 
 func (a *App) loadOrderCounts(db *gorm.DB) (orderCounts, error) {
 	var c orderCounts
-	err := db.Raw(`SELECT COALESCE(SUM(status = 'pending_payment'), 0) AS pending_payment,
+	err := db.Raw(`SELECT COALESCE(SUM(status = 'pending_confirmation'), 0) AS pending_confirmation,
+		COALESCE(SUM(status = 'pending_payment'), 0) AS pending_payment,
 		COALESCE(SUM(status = 'paid'), 0) AS paid,
 		COALESCE(SUM(created_at >= ?), 0) AS last7
 		FROM orders WHERE deleted_at IS NULL AND order_no IS NOT NULL`, a.now().Add(-7*24*time.Hour)).Scan(&c).Error

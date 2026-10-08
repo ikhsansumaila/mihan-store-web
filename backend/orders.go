@@ -239,7 +239,7 @@ func (a *App) customerOrderDTO(db *gorm.DB, o *orderRow) (*CustomerOrderDTO, err
 		OrderNo: o.OrderNo, Status: o.Status, StatusLabel: statusLabel(o.Status),
 		Subtotal: o.Subtotal, Discount: o.Discount, DiscountNote: o.DiscountNote, ShippingFee: o.ShippingFee, Total: o.Total,
 		PaymentMethod: o.PaymentMethod, Recipient: recipientOf(o), Note: o.CustomerNote, CancelReason: o.CancelReason,
-		ItemCount: sumQty(items), Items: items, History: h, CanCancel: o.Status == StatusPending,
+		ItemCount: sumQty(items), Items: items, History: h, CanCancel: canOwnerCancel(o.Status),
 		CreatedAt: o.CreatedAt, PaidAt: o.PaidAt, CompletedAt: o.CompletedAt, CancelledAt: o.CancelledAt,
 	}, nil
 }
@@ -425,7 +425,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			province_code, province_name, regency_code, regency_name, district_code, district_name, village_code, village_name,
 			created_at, updated_at)
 			VALUES (?, ?, ?, 0, 0, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			u.ID, StatusPending, subtotal, total, f.Name, f.Phone, f.Address, city, f.PostalCode, f.Note, f.IdemKey,
+			u.ID, StatusPendingConfirmation, subtotal, total, f.Name, f.Phone, f.Address, city, f.PostalCode, f.Note, f.IdemKey,
 			region.Province.Code, truncateUTF8(region.Province.Name, 100), region.Regency.Code, truncateUTF8(region.Regency.Name, 100),
 			region.District.Code, truncateUTF8(region.District.Name, 100), region.Village.Code, truncateUTF8(region.Village.Name, 100),
 			now, now).Error; err != nil {
@@ -452,7 +452,7 @@ func (a *App) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if err := tx.Exec(`INSERT INTO order_status_history (order_id, from_status, to_status, actor_user_id, actor_label, note, created_at)
-			VALUES (?, NULL, ?, ?, ?, NULL, ?)`, orderID, StatusPending, u.ID, truncateUTF8(actorLabelCustomer+":"+u.Username, 100), now).Error; err != nil {
+			VALUES (?, NULL, ?, ?, ?, NULL, ?)`, orderID, StatusPendingConfirmation, u.ID, truncateUTF8(actorLabelCustomer+":"+u.Username, 100), now).Error; err != nil {
 			return err
 		}
 		if err := a.logActivity(tx, a.reqMeta(r, LogEntry{
@@ -601,7 +601,8 @@ type cancelInput struct {
 	Reason string `json:"reason"`
 }
 
-// CancelMyOrder: POST /api/orders/{orderNo}/cancel — hanya pemilik, hanya dari pending_payment.
+// CancelMyOrder: POST /api/orders/{orderNo}/cancel — hanya pemilik, dari pending_confirmation atau
+// pending_payment (UPDATE bersyarat pada status asal; riwayat from_status = status asal).
 func (a *App) CancelMyOrder(w http.ResponseWriter, r *http.Request) {
 	u := customerFrom(r.Context())
 	if !limitUser(w, a.cancelLimiter, u, msgTooManyCancel) {
@@ -633,7 +634,7 @@ func (a *App) CancelMyOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		now := a.now()
 		res := tx.Exec(`UPDATE orders SET status = ?, cancelled_at = ?, cancelled_by = ?, cancel_reason = ? WHERE id = ? AND status = ?`,
-			StatusCancelled, now, u.ID, reason, o.ID, StatusPending)
+			StatusCancelled, now, u.ID, reason, o.ID, o.Status)
 		if res.Error != nil {
 			return res.Error
 		}
@@ -641,7 +642,7 @@ func (a *App) CancelMyOrder(w http.ResponseWriter, r *http.Request) {
 			return &httpError{http.StatusConflict, msgStatusChanged}
 		}
 		if err := tx.Exec(`INSERT INTO order_status_history (order_id, from_status, to_status, actor_user_id, actor_label, note, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`, o.ID, StatusPending, StatusCancelled, u.ID,
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, o.ID, o.Status, StatusCancelled, u.ID,
 			truncateUTF8(actorLabelCustomer+":"+u.Username, 100), reason, now).Error; err != nil {
 			return err
 		}

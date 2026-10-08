@@ -112,6 +112,9 @@ func TestIntegrationCustomersAdmin(t *testing.T) {
 	o2 := createOrderFor(t, h, tokA, 2)
 	o3 := createOrderFor(t, h, tokA, 3)
 	o4 := createOrderFor(t, h, tokA, 4)
+	for _, no := range []string{o1, o2, o3, o4} {
+		confirmCall(t, h, orderIDByNo(db, no), 0, 0)
+	}
 	adminSetStatus(t, h, orderIDByNo(db, o1), StatusPending, StatusPaid)
 	adminSetStatus(t, h, orderIDByNo(db, o2), StatusPending, StatusPaid)
 	adminSetStatus(t, h, orderIDByNo(db, o2), StatusPaid, StatusCompleted)

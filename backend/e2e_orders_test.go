@@ -169,9 +169,14 @@ func TestE2EOrderFlow(t *testing.T) {
 		map[string]any{"discount": 5000, "shippingFee": 12000}); r.Code != 403 {
 		t.Fatalf("CSRF pricing tanpa header harus 403: %d", r.Code)
 	}
-	r = e2e(t, "PATCH", base+"/pricing", adminHdr(t, admin, true), map[string]any{"discount": 5000, "discountNote": "Promo", "shippingFee": 12000})
-	if r.Code != 200 || r.Body["total"].(float64) != 97000 {
-		t.Fatalf("pricing: %d %s", r.Code, r.Raw)
+	// Status awal "menunggu konfirmasi": admin mengonfirmasi (ongkir/diskon) -> menunggu pembayaran.
+	if r := e2e(t, "POST", base+"/confirm", map[string]string{"Cf-Access-Jwt-Assertion": accessJWT(t, admin)},
+		map[string]any{"discount": 5000, "shippingFee": 12000}); r.Code != 403 {
+		t.Fatalf("CSRF confirm tanpa header harus 403: %d", r.Code)
+	}
+	r = e2e(t, "POST", base+"/confirm", adminHdr(t, admin, true), map[string]any{"discount": 5000, "discountNote": "Promo", "shippingFee": 12000})
+	if r.Code != 200 || r.Body["total"].(float64) != 97000 || r.Body["status"] != "pending_payment" {
+		t.Fatalf("confirm: %d %s", r.Code, r.Raw)
 	}
 	r = e2e(t, "PATCH", base+"/status", adminHdr(t, admin, true), map[string]any{"from": "pending_payment", "to": "paid", "paymentNote": "BCA"})
 	if r.Code != 200 || r.Body["status"] != "paid" {
@@ -189,7 +194,7 @@ func TestE2EOrderFlow(t *testing.T) {
 	}
 	assertMinimalPayload(t, paidHits[0])
 	r = e2e(t, "PATCH", base+"/status", adminHdr(t, admin, true), map[string]any{"from": "paid", "to": "completed"})
-	if r.Code != 200 || r.Body["status"] != "completed" || len(r.Body["history"].([]any)) != 3 {
+	if r.Code != 200 || r.Body["status"] != "completed" || len(r.Body["history"].([]any)) != 4 {
 		t.Fatalf("selesai: %d %s", r.Code, r.Raw)
 	}
 	if r := e2e(t, "GET", e2eBackend+"/api/orders/"+orderNo, bearer(tokA), nil); r.Body["status"] != "completed" || r.Body["total"].(float64) != 97000 {

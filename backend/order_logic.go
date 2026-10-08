@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	StatusPending   = "pending_payment"
-	StatusPaid      = "paid"
-	StatusCompleted = "completed"
-	StatusCancelled = "cancelled"
+	// Alur: pending_confirmation (checkout) -> [admin konfirmasi ongkir] -> pending_payment -> paid -> completed;
+	// cancelled dari pending_confirmation / pending_payment (admin atau pemilik) dan dari paid (admin, alasan wajib).
+	StatusPendingConfirmation = "pending_confirmation"
+	StatusPending             = "pending_payment"
+	StatusPaid                = "paid"
+	StatusCompleted           = "completed"
+	StatusCancelled           = "cancelled"
 
 	maxCartLines     = 50
 	maxItemQty       = 999
@@ -29,10 +32,11 @@ const (
 )
 
 var statusLabelID = map[string]string{
-	StatusPending:   "Menunggu pembayaran",
-	StatusPaid:      "Dibayar",
-	StatusCompleted: "Selesai",
-	StatusCancelled: "Dibatalkan",
+	StatusPendingConfirmation: "Menunggu konfirmasi",
+	StatusPending:             "Menunggu pembayaran",
+	StatusPaid:                "Dibayar",
+	StatusCompleted:           "Selesai",
+	StatusCancelled:           "Dibatalkan",
 }
 
 func statusLabel(s string) string {
@@ -51,7 +55,12 @@ const (
 )
 
 // statusTransitions: from -> to -> pelaku yang boleh. completed & cancelled final.
+// pending_confirmation -> pending_payment SENGAJA tidak ada di sini: hanya lewat endpoint konfirmasi
+// (POST /api/admin/orders/{id}/confirm, checkConfirm) yang sekaligus menyimpan diskon & ongkir.
 var statusTransitions = map[string]map[string][]string{
+	StatusPendingConfirmation: {
+		StatusCancelled: {actorAdmin, actorOwner},
+	},
 	StatusPending: {
 		StatusPaid:      {actorAdmin},
 		StatusCancelled: {actorAdmin, actorOwner},
@@ -63,11 +72,26 @@ var statusTransitions = map[string]map[string][]string{
 }
 
 var (
-	errTransition    = errors.New("Perpindahan status tidak diizinkan")
-	errReasonNeeded  = errors.New("Alasan pembatalan wajib diisi untuk pesanan yang sudah dibayar")
-	errFinalStatus   = errors.New("Pesanan sudah selesai atau dibatalkan dan tidak bisa diubah lagi")
-	errPricingLocked = errors.New("Diskon dan ongkir hanya bisa diubah saat pesanan menunggu pembayaran")
+	errTransition         = errors.New("Perpindahan status tidak diizinkan")
+	errReasonNeeded       = errors.New("Alasan pembatalan wajib diisi untuk pesanan yang sudah dibayar")
+	errFinalStatus        = errors.New("Pesanan sudah selesai atau dibatalkan dan tidak bisa diubah lagi")
+	errPricingLocked      = errors.New("Diskon dan ongkir hanya bisa diubah saat pesanan menunggu pembayaran")
+	errNotAwaitingConfirm = errors.New("Pesanan ini tidak sedang menunggu konfirmasi. Muat ulang halaman.")
+	errConfirmFirst       = errors.New("Pesanan belum dikonfirmasi. Konfirmasi pesanan (isi ongkir) terlebih dahulu.")
 )
+
+// checkConfirm: konfirmasi admin hanya dari pending_confirmation.
+func checkConfirm(from string) error {
+	if from != StatusPendingConfirmation {
+		return errNotAwaitingConfirm
+	}
+	return nil
+}
+
+// canOwnerCancel: pelanggan boleh membatalkan sendiri pesanan yang belum dibayar.
+func canOwnerCancel(status string) bool {
+	return checkTransition(status, StatusCancelled, actorOwner, "") == nil
+}
 
 // checkTransition memeriksa apakah actor boleh memindahkan status from -> to.
 // reason dipakai untuk aturan paid -> cancelled (alasan wajib).

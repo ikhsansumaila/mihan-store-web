@@ -211,7 +211,7 @@ func TestIntegrationCartCheckoutFlow(t *testing.T) {
 		t.Fatalf("checkout: %d %v", r.Code, r.Body)
 	}
 	orderNo := r.Body["orderNo"].(string)
-	if !validOrderNo(orderNo) || r.Body["status"] != StatusPending || num(r.Body["subtotal"]) != 2*45000+55000 ||
+	if !validOrderNo(orderNo) || r.Body["status"] != StatusPendingConfirmation || r.Body["canCancel"] != true || num(r.Body["subtotal"]) != 2*45000+55000 ||
 		num(r.Body["total"]) != 2*45000+55000 || num(r.Body["itemCount"]) != 3 || len(r.Body["items"].([]any)) != 2 {
 		t.Fatalf("pesanan: %v", r.Body)
 	}
@@ -226,7 +226,7 @@ func TestIntegrationCartCheckoutFlow(t *testing.T) {
 	var o orderRow
 	db.Raw("SELECT "+orderCols+" FROM orders o WHERE order_no = ?", orderNo).Scan(&o)
 	var nHist int64
-	db.Raw("SELECT COUNT(*) FROM order_status_history WHERE order_id = ? AND to_status = 'pending_payment' AND from_status IS NULL", o.ID).Scan(&nHist)
+	db.Raw("SELECT COUNT(*) FROM order_status_history WHERE order_id = ? AND to_status = 'pending_confirmation' AND from_status IS NULL", o.ID).Scan(&nHist)
 	if nHist != 1 {
 		t.Fatal("riwayat status awal harus tertulis")
 	}
@@ -342,7 +342,7 @@ func TestIntegrationOrderIDORAndCancel(t *testing.T) {
 	}
 	var st string
 	db.Raw("SELECT status FROM orders WHERE order_no = ?", orderA).Scan(&st)
-	if st != StatusPending {
+	if st != StatusPendingConfirmation {
 		t.Fatal("pesanan A tidak boleh berubah")
 	}
 	// Pemilik membatalkan.
@@ -384,7 +384,7 @@ func TestIntegrationAdminOrders(t *testing.T) {
 		t.Fatalf("pelanggan -> admin: %d", r.Code)
 	}
 	// Daftar + filter + cari.
-	r := adminCall(t, h, "GET", "/api/admin/orders?status=pending_payment&q="+orderNo, integAdmin, nil)
+	r := adminCall(t, h, "GET", "/api/admin/orders?status=pending_confirmation&q="+orderNo, integAdmin, nil)
 	if r.Code != 200 || num(r.Body["total"]) != 1 {
 		t.Fatalf("daftar admin: %d %v", r.Code, r.Body)
 	}
@@ -411,6 +411,8 @@ func TestIntegrationAdminOrders(t *testing.T) {
 		t.Fatal("pesanan tidak ada harus 404")
 	}
 
+	// Konfirmasi (ongkir 0) -> menunggu pembayaran; lalu diskon & ongkir lewat /pricing.
+	confirmCall(t, h, o.ID, 0, 0)
 	// Diskon & ongkir.
 	sub := o.Subtotal
 	if r := adminCall(t, h, "PATCH", base+"/pricing", integAdmin, map[string]any{"discount": sub + 1, "shippingFee": 0}); r.Code != 400 {
@@ -476,7 +478,7 @@ func TestIntegrationAdminOrders(t *testing.T) {
 	}
 	// Selesai.
 	r = adminCall(t, h, "PATCH", base+"/status", integAdmin, map[string]any{"from": "paid", "to": "completed"})
-	if r.Code != 200 || r.Body["status"] != StatusCompleted || len(r.Body["history"].([]any)) != 3 {
+	if r.Code != 200 || r.Body["status"] != StatusCompleted || len(r.Body["history"].([]any)) != 4 { // dibuat, dikonfirmasi, dibayar, selesai
 		t.Fatalf("selesai: %d %v", r.Code, r.Body)
 	}
 	if r := adminCall(t, h, "PATCH", base+"/status", integAdmin, map[string]any{"from": "completed", "to": "cancelled", "reason": "x"}); r.Code != 409 {
@@ -489,7 +491,7 @@ func TestIntegrationAdminOrders(t *testing.T) {
 	}
 	var nHist int64
 	db.Raw("SELECT COUNT(*) FROM order_status_history WHERE order_id = ?", o.ID).Scan(&nHist)
-	if nHist != 3 {
+	if nHist != 4 { // dibuat, dikonfirmasi, dibayar, selesai
 		t.Fatalf("riwayat status: %d", nHist)
 	}
 	if !strings.Contains(rec.kinds(), "paid:"+orderNo) || strings.Contains(rec.kinds(), "completed:") {
@@ -500,6 +502,7 @@ func TestIntegrationAdminOrders(t *testing.T) {
 	var id2 uint64
 	db.Raw("SELECT id FROM orders WHERE order_no = ?", order2).Scan(&id2)
 	b2 := fmt.Sprintf("/api/admin/orders/%d", id2)
+	confirmCall(t, h, id2, 0, 0)
 	adminCall(t, h, "PATCH", b2+"/status", integAdmin, map[string]any{"from": "pending_payment", "to": "paid"})
 	r = adminCall(t, h, "PATCH", b2+"/status", integAdmin, map[string]any{"from": "paid", "to": "cancelled", "reason": "Stok habis, dana dikembalikan"})
 	if r.Code != 200 || r.Body["cancelReason"] != "Stok habis, dana dikembalikan" || r.Body["cancelledBy"] != integAdmin {
@@ -570,6 +573,7 @@ func TestIntegrationOrderTxAtomicWithLog(t *testing.T) {
 	orderNo := createOrderFor(t, h, tok, 8)
 	var id uint64
 	db.Raw("SELECT id FROM orders WHERE order_no = ?", orderNo).Scan(&id)
+	confirmCall(t, h, id, 0, 0)
 
 	var fail atomic.Bool
 	if err := db.Callback().Create().Before("gorm:create").Register("uji_gagal_log", func(tx *gorm.DB) {
@@ -588,7 +592,7 @@ func TestIntegrationOrderTxAtomicWithLog(t *testing.T) {
 	var nHist int64
 	db.Raw("SELECT status FROM orders WHERE id = ?", id).Scan(&st)
 	db.Raw("SELECT COUNT(*) FROM order_status_history WHERE order_id = ?", id).Scan(&nHist)
-	if st != StatusPending || nHist != 1 {
+	if st != StatusPending || nHist != 2 { // riwayat: dibuat + dikonfirmasi
 		t.Fatalf("status/riwayat harus di-rollback: %s %d", st, nHist)
 	}
 	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 1000, "shippingFee": 0}); r.Code != 500 {

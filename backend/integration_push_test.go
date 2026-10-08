@@ -265,7 +265,7 @@ func TestIntegrationPushOnOrderEvents(t *testing.T) {
 	}
 	order2 := createOrderFor(t, h, tok, 4)
 	wp.Wait()
-	adminSetStatus(t, h, orderIDByNo(db, order2), StatusPending, StatusCancelled)
+	adminSetStatus(t, h, orderIDByNo(db, order2), StatusPendingConfirmation, StatusCancelled)
 	wp.Wait()
 	if rec.hits(tag+"-ok") != 3 {
 		t.Fatalf("batal oleh admin tidak boleh mengirim push (hanya pesanan baru): %d", rec.hits(tag+"-ok"))
@@ -443,7 +443,9 @@ func TestIntegrationCustomerPushEvents(t *testing.T) {
 		}
 		wp.Wait()
 	}
-	pr(15000)
+	// Konfirmasi (ongkir 15.000) -> push "Ongkir sudah dikonfirmasi" ke pemilik saja.
+	confirmCall(t, h, id, 0, 15000)
+	wp.Wait()
 	if exact("-A") != 1 || exact("-B") != 0 || exact("-ADMCUST") != 0 || exact("-ADM") != 1 {
 		t.Fatalf("ongkir: A=%d B=%d admcust=%d adm=%d", exact("-A"), exact("-B"), exact("-ADMCUST"), exact("-ADM"))
 	}
@@ -469,7 +471,7 @@ func TestIntegrationCustomerPushEvents(t *testing.T) {
 	// Dibatalkan admin -> push pelanggan; dibatalkan pelanggan sendiri -> tidak ke pelanggan (hanya admin).
 	o2 := createOrderFor(t, h, tokA, 4)
 	wp.Wait()
-	adminSetStatus(t, h, orderIDByNo(db, o2), StatusPending, StatusCancelled)
+	adminSetStatus(t, h, orderIDByNo(db, o2), StatusPendingConfirmation, StatusCancelled)
 	wp.Wait()
 	if exact("-A") != 4 || exact("-ADM") != 2 {
 		t.Fatalf("batal admin: A=%d adm=%d", exact("-A"), exact("-ADM"))
@@ -487,6 +489,7 @@ func TestIntegrationCustomerPushEvents(t *testing.T) {
 	call(t, h, "DELETE", "/api/push/subscribe", tokA, map[string]any{"endpoint": epA})
 	o4 := createOrderFor(t, h, tokA, 4)
 	wp.Wait()
+	confirmCall(t, h, orderIDByNo(db, o4), 0, 0)
 	adminSetStatus(t, h, orderIDByNo(db, o4), StatusPending, StatusPaid)
 	wp.Wait()
 	if exact("-A") != 4 {
@@ -562,9 +565,7 @@ func TestIntegrationCustomerPricingAmountsFromDB(t *testing.T) {
 	tok, uid := aliasCustomer(t, h, db, "Pembeli Nominal", "081277771111")
 	no := createOrderFor(t, h, tok, 4)
 	id := orderIDByNo(db, no)
-	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 1000, "shippingFee": 15000}); r.Code != 200 {
-		t.Fatalf("pricing: %d %v", r.Code, r.Body)
-	}
+	confirmCall(t, h, id, 1000, 15000)
 	var row struct {
 		ShippingFee int64 `gorm:"column:shipping_fee"`
 		Total       int64 `gorm:"column:total"`

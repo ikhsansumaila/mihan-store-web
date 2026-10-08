@@ -41,7 +41,7 @@ type OrderEvent struct {
 	CustomerName string
 	ItemCount    int
 	Total        uint64
-	Status       string // kode status (pending_payment, paid, completed, cancelled)
+	Status       string // kode status (pending_confirmation, pending_payment, paid, completed, cancelled)
 	AdminURL     string
 }
 
@@ -208,10 +208,11 @@ func sanitizeErr(err error) string {
 // ---------- Penyusun pesan ----------
 
 var statusLabels = map[string]string{
-	"pending_payment": "Menunggu pembayaran",
-	"paid":            "Dibayar",
-	"completed":       "Selesai",
-	"cancelled":       "Dibatalkan",
+	"pending_confirmation": "Menunggu konfirmasi",
+	"pending_payment":      "Menunggu pembayaran",
+	"paid":                 "Dibayar",
+	"completed":            "Selesai",
+	"cancelled":            "Dibatalkan",
 }
 
 // StatusLabel mengembalikan label Indonesia untuk kode status.
