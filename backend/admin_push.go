@@ -156,14 +156,21 @@ func (a *App) pushCustomer(db *gorm.DB, kind string, orderID uint64) {
 		return
 	}
 	var row struct {
-		OrderNo string `gorm:"column:order_no"`
-		UserID  uint64 `gorm:"column:user_id"`
+		OrderNo     string `gorm:"column:order_no"`
+		UserID      uint64 `gorm:"column:user_id"`
+		ShippingFee int64  `gorm:"column:shipping_fee"`
+		Total       int64  `gorm:"column:total"`
 	}
-	if err := db.Raw(`SELECT order_no, user_id FROM orders WHERE id = ?`, orderID).Scan(&row).Error; err != nil || row.OrderNo == "" || row.UserID == 0 {
+	// Nominal dibaca dari DB setelah commit (bukan dari input permintaan).
+	if err := db.Raw(`SELECT order_no, user_id, shipping_fee, total FROM orders WHERE id = ?`, orderID).Scan(&row).Error; err != nil || row.OrderNo == "" || row.UserID == 0 {
 		log.Printf("web push pelanggan, pesanan %d: gagal membaca pesanan: %v", orderID, err)
 		return
 	}
-	a.pusher.CustomerOrderEvent(row.UserID, push.Event{Kind: kind, OrderNo: row.OrderNo})
+	e := push.Event{Kind: kind, OrderNo: row.OrderNo}
+	if kind == push.KindCustomerPricing {
+		e.ShippingFee, e.Total = row.ShippingFee, row.Total
+	}
+	a.pusher.CustomerOrderEvent(row.UserID, e)
 }
 
 // ---------- Logika langganan bersama (admin & pelanggan) ----------

@@ -356,13 +356,13 @@ func TestPayloadDecryptable(t *testing.T) {
 
 func TestBuildPayloadCustomer(t *testing.T) {
 	cases := map[string][2]string{
-		KindCustomerPricing:   {"Ongkir sudah dikonfirmasi", "Pesanan MS-261007-0009: silakan cek total dan lanjut pembayaran"},
+		KindCustomerPricing:   {"Ongkir sudah dikonfirmasi", "Pesanan MS-261007-0009: ongkir Rp 15.000, total Rp 110.000. Silakan lanjut pembayaran."},
 		KindCustomerPaid:      {"Pembayaran diterima", "Pesanan MS-261007-0009: pembayaran sudah kami terima"},
 		KindCustomerCompleted: {"Pesanan selesai", "Pesanan MS-261007-0009 telah selesai. Terima kasih!"},
 		KindCustomerCancelled: {"Pesanan dibatalkan", "Pesanan MS-261007-0009 dibatalkan oleh toko"},
 	}
 	for k, want := range cases {
-		b, err := BuildPayload(Event{Kind: k, OrderNo: "MS-261007-0009"})
+		b, err := BuildPayload(Event{Kind: k, OrderNo: "MS-261007-0009", ShippingFee: 15000, Total: 110000})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -371,7 +371,7 @@ func TestBuildPayloadCustomer(t *testing.T) {
 		if p["title"] != want[0] || p["body"] != want[1] || p["url"] != "/pesanan/MS-261007-0009" || p["tag"] != "pesanan-MS-261007-0009" || len(p) != 4 {
 			t.Errorf("%s: %v", k, p)
 		}
-		if strings.Contains(string(b), "Rp") || strings.Contains(string(b), "/admin") {
+		if (k != KindCustomerPricing && strings.Contains(string(b), "Rp")) || strings.Contains(string(b), "/admin") {
 			t.Errorf("%s: isi tidak minimal: %s", k, b)
 		}
 	}
@@ -446,5 +446,25 @@ func TestAdminBodyNamesSafe(t *testing.T) {
 	}
 	if len(p["body"]) > 200 {
 		t.Fatalf("body terlalu panjang untuk sw.js (dipotong 200): %d", len(p["body"]))
+	}
+}
+
+func TestPricingPayloadZeroShipping(t *testing.T) {
+	b, err := BuildPayload(Event{Kind: KindCustomerPricing, OrderNo: "MS-1", ShippingFee: 0, Total: 95000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p map[string]string
+	json.Unmarshal(b, &p)
+	if p["body"] != "Pesanan MS-1: ongkir Rp 0, total Rp 95.000. Silakan lanjut pembayaran." {
+		t.Fatalf("body: %q", p["body"])
+	}
+	if _, err := BuildPayload(Event{Kind: KindCustomerPricing, OrderNo: "MS-1", ShippingFee: -1}); err == nil {
+		t.Fatal("nominal negatif harus ditolak")
+	}
+	// Kejadian lain tetap tanpa nominal walau field terisi.
+	b, _ = BuildPayload(Event{Kind: KindCustomerPaid, OrderNo: "MS-1", ShippingFee: 5000, Total: 9000})
+	if strings.Contains(string(b), "Rp") {
+		t.Fatalf("paid memuat nominal: %s", b)
 	}
 }

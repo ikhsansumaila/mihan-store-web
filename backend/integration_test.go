@@ -24,6 +24,13 @@ func setupIntegration(t *testing.T) (*App, http.Handler) {
 	if err != nil {
 		t.Fatalf("koneksi DB uji: %v", err)
 	}
+	// Tutup pool koneksi setelah tes agar jumlah koneksi ke MySQL bersama tidak menumpuk
+	// (max_connections server dipakai juga oleh produksi).
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	})
 	// Database uji dibuat ulang dari migrasi sebelum setiap putaran tes (user aplikasi
 	// tidak punya hak DELETE pada users/activity_logs), jadi tiap tes memakai nama unik.
 

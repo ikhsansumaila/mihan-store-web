@@ -21,6 +21,7 @@ import (
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 
+	"mihanstore/notify"
 	"mihanstore/push"
 )
 
@@ -497,8 +498,10 @@ func TestIntegrationCustomerPushEvents(t *testing.T) {
 
 // recSender merekam kejadian push (tanpa enkripsi) untuk memeriksa nama pemesan/penerima.
 type recSender struct {
-	mu sync.Mutex
-	ev []push.Event
+	mu   sync.Mutex
+	ev   []push.Event
+	cust []push.Event
+	uids []uint64
 }
 
 func (s *recSender) Enabled() bool     { return true }
@@ -508,7 +511,12 @@ func (s *recSender) OrderEvent(e push.Event) {
 	s.ev = append(s.ev, e)
 	s.mu.Unlock()
 }
-func (s *recSender) CustomerOrderEvent(uint64, push.Event) {}
+func (s *recSender) CustomerOrderEvent(uid uint64, e push.Event) {
+	s.mu.Lock()
+	s.cust = append(s.cust, e)
+	s.uids = append(s.uids, uid)
+	s.mu.Unlock()
+}
 func (s *recSender) SendTest(context.Context, uint64) (int, int, error) {
 	return 0, 0, nil
 }
@@ -544,3 +552,49 @@ func TestIntegrationAdminPushNames(t *testing.T) {
 		t.Fatalf("payload: %s", b)
 	}
 }
+
+// Notifikasi "Ongkir sudah dikonfirmasi" memuat ongkir & total yang dibaca dari DB setelah commit.
+func TestIntegrationCustomerPricingAmountsFromDB(t *testing.T) {
+	app, h, db, _ := setupOrders(t)
+	rs := &recSender{}
+	app.pusher = rs
+	h = newRouter(app)
+	tok, uid := aliasCustomer(t, h, db, "Pembeli Nominal", "081277771111")
+	no := createOrderFor(t, h, tok, 4)
+	id := orderIDByNo(db, no)
+	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 1000, "shippingFee": 15000}); r.Code != 200 {
+		t.Fatalf("pricing: %d %v", r.Code, r.Body)
+	}
+	var row struct {
+		ShippingFee int64 `gorm:"column:shipping_fee"`
+		Total       int64 `gorm:"column:total"`
+	}
+	db.Raw("SELECT shipping_fee, total FROM orders WHERE id = ?", id).Scan(&row)
+	// Ongkir dikosongkan ke 0 juga mengirim (nilai berubah).
+	if r := adminCall(t, h, "PATCH", fmt.Sprintf("/api/admin/orders/%d/pricing", id), integAdmin, map[string]any{"discount": 1000, "shippingFee": 0}); r.Code != 200 {
+		t.Fatalf("pricing 0: %d", r.Code)
+	}
+	adminSetStatus(t, h, id, StatusPending, StatusPaid)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if len(rs.cust) != 3 || rs.uids[0] != uid {
+		t.Fatalf("kejadian pelanggan: %+v %v", rs.cust, rs.uids)
+	}
+	e := rs.cust[0]
+	if e.Kind != push.KindCustomerPricing || e.ShippingFee != 15000 || e.Total != row.Total || row.ShippingFee != 15000 {
+		t.Fatalf("nominal dari DB: %+v db=%+v", e, row)
+	}
+	b, _ := push.BuildPayload(e)
+	want := "ongkir Rp 15.000, total " + notifyRupiah(row.Total)
+	if !strings.Contains(string(b), want) {
+		t.Fatalf("payload %s tidak memuat %q", b, want)
+	}
+	if rs.cust[1].ShippingFee != 0 || rs.cust[1].Total != row.Total-15000 {
+		t.Fatalf("ongkir 0: %+v", rs.cust[1])
+	}
+	if rs.cust[2].Kind != push.KindCustomerPaid || rs.cust[2].Total != 0 || rs.cust[2].ShippingFee != 0 {
+		t.Fatalf("paid tanpa nominal: %+v", rs.cust[2])
+	}
+}
+
+func notifyRupiah(n int64) string { return notify.FormatRupiah(uint64(n)) }

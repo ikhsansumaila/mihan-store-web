@@ -5,8 +5,8 @@
 //     Kegagalan tidak pernah menggagalkan pesanan; hanya dicatat di log TANPA endpoint
 //     langganan maupun kunci (hanya id langganan dan host layanan push).
 //   - Isi terbatas. Admin: judul + "dari <alias/nama pemesan>" + "penerima <nama penerima>" + nomor
-//     pesanan (nama dibersihkan & dipotong). Pelanggan: judul + nomor pesanan + kalimat pendek.
-//     Tidak pernah memuat nominal, alamat, telepon, atau email. Payload terenkripsi end-to-end (RFC 8291).
+//     pesanan (nama dibersihkan & dipotong). Pelanggan: judul + nomor pesanan + kalimat pendek; HANYA
+//     "Ongkir sudah dikonfirmasi" memuat nominal (ongkir & total). Tidak pernah alamat, telepon, email. Payload terenkripsi end-to-end (RFC 8291).
 //   - Layanan push menjawab 404/410 -> langganan sudah tidak berlaku dan dihapus.
 //   - Endpoint hanya https ke host layanan push yang dikenal (anti-SSRF), koneksi keluar
 //     ditolak bila host me-resolve ke alamat privat/loopback, redirect tidak diikuti.
@@ -32,6 +32,8 @@ import (
 	"unicode/utf8"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
+
+	"mihanstore/notify"
 )
 
 // Jenis kejadian (sama dengan notify.KindCreated / notify.KindCancelled).
@@ -60,6 +62,9 @@ type Event struct {
 	OrderNo   string
 	Customer  string // alias pelanggan bila ada, selain itu nama akun pemesan
 	Recipient string // nama penerima pada pesanan
+	// Hanya untuk KindCustomerPricing: ongkir & total dari DB SETELAH commit (bukan dari input permintaan).
+	ShippingFee int64
+	Total       int64
 }
 
 // Payload JSON yang dibaca service worker (frontend/public/sw.js).
@@ -298,7 +303,12 @@ func BuildPayload(e Event) ([]byte, error) {
 		p.URL = "/pesanan/" + esc
 		switch e.Kind {
 		case KindCustomerPricing:
-			p.Title, p.Body = "Ongkir sudah dikonfirmasi", "Pesanan "+no+": silakan cek total dan lanjut pembayaran"
+			if e.ShippingFee < 0 || e.Total < 0 {
+				return nil, errors.New("nominal tidak valid")
+			}
+			p.Title = "Ongkir sudah dikonfirmasi"
+			p.Body = "Pesanan " + no + ": ongkir " + notify.FormatRupiah(uint64(e.ShippingFee)) + ", total " +
+				notify.FormatRupiah(uint64(e.Total)) + ". Silakan lanjut pembayaran."
 		case KindCustomerPaid:
 			p.Title, p.Body = "Pembayaran diterima", "Pesanan "+no+": pembayaran sudah kami terima"
 		case KindCustomerCompleted:
