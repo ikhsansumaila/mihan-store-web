@@ -79,12 +79,20 @@ const defaultCreateCanvas = () => document.createElement('canvas');
  */
 export const prepareImage = async (
   file,
-  { maxSide = CLIENT_MAX_SIDE, quality = CLIENT_QUALITY, maxBytes = MAX_UPLOAD_BYTES, createCanvas = defaultCreateCanvas } = {}
+  {
+    maxSide = CLIENT_MAX_SIDE,
+    quality = CLIENT_QUALITY,
+    maxBytes = MAX_UPLOAD_BYTES,
+    createCanvas = defaultCreateCanvas,
+    acceptTypes = ACCEPTED_TYPES,
+    tooBigMessage = MSG_TOO_BIG,
+  } = {}
 ) => {
   if (!file) throw new ImagePrepError('Pilih foto terlebih dahulu.');
   const type = String(file.type || '').toLowerCase();
   // HEIC/AVIF/GIF/SVG dsb. ditolak (iPhone otomatis mengubah HEIC ke JPEG bila input menerima JPEG saja).
-  if (!ACCEPTED_TYPES.includes(type)) throw new ImagePrepError(MSG_TYPE);
+  // Pemanggil boleh memperluas acceptTypes (mis. bukti transfer mencoba HEIC bila browser bisa mendekodenya).
+  if (!acceptTypes.includes(type)) throw new ImagePrepError(MSG_TYPE);
   if (file.size > MAX_SOURCE_BYTES) throw new ImagePrepError(MSG_SOURCE_TOO_BIG);
   const decoded = await decodeImage(file);
   try {
@@ -111,7 +119,7 @@ export const prepareImage = async (
       if (q > 0.55) q = Math.round((q - 0.1) * 100) / 100;
       else side = Math.max(320, Math.round(side * 0.8));
     }
-    throw new ImagePrepError(MSG_TOO_BIG);
+    throw new ImagePrepError(tooBigMessage);
   } finally {
     decoded.close();
   }

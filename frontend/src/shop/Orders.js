@@ -4,6 +4,7 @@ import { errorMessage } from '../auth';
 import { cancelOrder, getOrder, getStoreInfo, isUnauthorized, listOrders } from './api';
 import { useCart } from './CartContext';
 import { Notice } from './Cart';
+import { usePaymentProofFlow, PaymentProofButton } from './PaymentProof';
 import { STATUS, buildCustomerConfirmText, fmtDateTime, formatFullAddress, perUnit, rupiah, statusLabel, tierNote, waLink } from './format';
 
 export const StatusBadge = ({ status }) => (
@@ -46,7 +47,14 @@ export const MyOrders = () => {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold text-gray-800">{o.orderNo}</span>
-                  <StatusBadge status={o.status} />
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {o.status === 'pending_payment' && o.hasPaymentProof && (
+                      <span className="inline-block rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800" data-testid="proof-badge">
+                        Bukti terkirim
+                      </span>
+                    )}
+                    <StatusBadge status={o.status} />
+                  </span>
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
                   {o.firstItem}
@@ -118,6 +126,14 @@ export const OrderDetail = ({ user }) => {
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const reloadOrder = useCallback(
+    () =>
+      getOrder(orderNo)
+        .then(setOrder)
+        .catch(() => {}),
+    [orderNo]
+  );
+  const proof = usePaymentProofFlow({ order, info, accountName: user?.name, onChange: reloadOrder, onUnauthorized });
 
   const handleErr = useCallback(
     (err, fallback) => {
@@ -188,6 +204,7 @@ export const OrderDetail = ({ user }) => {
 
       {/* Rekening HANYA setelah admin mengonfirmasi ongkir (menunggu pembayaran). */}
       {order.status === 'pending_payment' && <PaymentInfo info={info} />}
+      {proof.card}
       {order.status === 'pending_confirmation' && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900" data-testid="awaiting-confirmation">
           <div className="font-semibold">Pesanan diterima</div>
@@ -272,7 +289,9 @@ export const OrderDetail = ({ user }) => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        {wa && (
+        {/* Menunggu pembayaran: "Konfirmasi pembayaran" (unggah bukti) menggantikan tombol WhatsApp. */}
+        {order.status === 'pending_payment' && !order.paymentProof && <PaymentProofButton onOpen={proof.open} />}
+        {order.status !== 'pending_payment' && wa && (
           <a
             href={wa}
             target="_blank"
@@ -315,6 +334,7 @@ export const OrderDetail = ({ user }) => {
       <Link to="/pesanan" className="inline-block text-purple-700 underline text-sm">
         ‹ Semua pesanan
       </Link>
+      {proof.sheets}
     </div>
   );
 };

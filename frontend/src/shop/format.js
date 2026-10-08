@@ -115,6 +115,14 @@ export const buildCustomerConfirmText = (order, accountName) => {
   return lines.join('\n');
 };
 
+// Teks WhatsApp pelanggan -> toko setelah mengunggah bukti transfer (status menunggu pembayaran).
+// Nama = nama penerima (cadangan nama akun) seperti buildCustomerConfirmText. TANPA nominal dan TANPA tautan
+// (admin melihat bukti di panel admin).
+export const buildPaymentConfirmText = (order, accountName) => {
+  const name = String(order.recipient?.name || '').trim() || String(accountName || '').trim() || '-';
+  return `Halo Mihan Store, saya sudah transfer untuk pesanan ${order.orderNo} atas nama ${name}. Tolong periksa bukti pembayaran. Terima kasih.`;
+};
+
 // Ringkasan admin -> pelanggan (nomor penerima).
 export const buildAdminSummaryText = (order, store = {}) => {
   const lines = [

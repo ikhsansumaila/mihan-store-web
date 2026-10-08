@@ -54,6 +54,12 @@ export const PrivacyPolicy = () => (
           keranjang belanja juga disimpan di server kami selama Anda login.
         </li>
         <li>
+          <strong>Bukti transfer:</strong> bila Anda mengunggah foto bukti transfer untuk pesanan, foto tersebut disimpan
+          secara privat di server kami (tidak dapat dibuka lewat tautan publik; data lokasi/EXIF foto dibuang) dan hanya
+          dapat dilihat oleh Anda sebagai pemilik pesanan serta admin toko. Anda dapat mengganti atau menghapusnya selama
+          pesanan menunggu pembayaran. Bukti dihapus otomatis 180 hari setelah pesanan selesai atau dibatalkan.
+        </li>
+        <li>
           <strong>Catatan aktivitas keamanan:</strong> waktu login/logout, percobaan login yang gagal, alamat IP, dan
           informasi perangkat/peramban (user agent). Catatan ini disimpan paling lama sekitar 6 bulan.
         </li>
@@ -96,7 +102,8 @@ export const PrivacyPolicy = () => (
         <li>
           <strong>Discord</strong> — notifikasi internal ke pengelola toko saat ada pesanan baru, dibayar, atau
           dibatalkan. Notifikasi ini <strong>hanya</strong> memuat nomor pesanan, nama pemesan, jumlah item, total, dan
-          status; <strong>tidak</strong> memuat alamat, nomor telepon, email, atau catatan pesanan.
+          status; <strong>tidak</strong> memuat alamat, nomor telepon, email, atau catatan pesanan. Saat bukti transfer
+          diunggah, notifikasinya hanya memuat nomor pesanan, nama pemesan, dan status (foto tidak dikirim).
         </li>
         <li>
           <strong>WhatsApp</strong> — bila Anda menekan tombol “Konfirmasi via WhatsApp”, aplikasi WhatsApp dibuka dengan

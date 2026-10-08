@@ -266,8 +266,8 @@ test('/pesanan menampilkan daftar pesanan', async () => {
   expect(container.textContent).toContain('Rp 152.000');
 });
 
-test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko, tombol batal saat menunggu pembayaran', async () => {
-  mockState.order = sampleOrder;
+test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko (menunggu konfirmasi), tombol batal', async () => {
+  mockState.order = { ...sampleOrder, status: 'pending_confirmation' };
   mockState.storeInfo = { storeWhatsapp: '+6281299998888', paymentConfigured: false };
   await renderAt('/pesanan/MS-261002-0001', USER);
   const wa = [...container.querySelectorAll('a')].find((a) => a.textContent.includes('Konfirmasi via WhatsApp'));
@@ -283,7 +283,6 @@ test('/pesanan/:no: tombol Konfirmasi via WhatsApp ke nomor toko, tombol batal s
   expect(text).not.toContain('/admin/');
   expect(text.endsWith(`\n\nMohon infokan terkait ongkir dan total yang harus saya bayar, Terima Kasih\n\n${window.location.origin}/pesanan/MS-261002-0001`)).toBe(true);
   expect(text).not.toMatch(/Nama: Budi$/m);
-  expect(container.textContent).toContain('Info rekening toko belum diatur');
   expect(btn('Batalkan pesanan')).toBeTruthy();
   expect(container.textContent).toContain('-Rp 5.000');
 });

@@ -22,4 +22,14 @@ export const cancelOrder = (orderNo, reason) =>
   data(axios.post(`${API_BASE_URL}/orders/${encodeURIComponent(orderNo)}/cancel`, { reason: reason || '' }, cfg()));
 export const getStoreInfo = () => data(axios.get(`${API_BASE_URL}/store-info`, cfg()));
 
+// Bukti transfer (pemilik pesanan). Berkas privat: diambil sebagai blob dengan header Authorization.
+const proofUrl = (orderNo) => `${API_BASE_URL}/orders/${encodeURIComponent(orderNo)}/payment-proof`;
+export const uploadPaymentProof = (orderNo, blob, filename = 'bukti.jpg') => {
+  const fd = new FormData();
+  fd.append('file', blob, filename);
+  return data(axios.post(proofUrl(orderNo), fd, { headers: authHeader() }));
+};
+export const getPaymentProofBlob = (orderNo) => data(axios.get(proofUrl(orderNo), { headers: authHeader(), responseType: 'blob' }));
+export const deletePaymentProof = (orderNo) => axios.delete(proofUrl(orderNo), { headers: authHeader() });
+
 export const isUnauthorized = (err) => err?.response?.status === 401;
