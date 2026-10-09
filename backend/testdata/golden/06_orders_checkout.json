@@ -1,0 +1,1091 @@
+[
+  {
+    "name": "noauth GET /api/orders",
+    "request": "GET /api/orders",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/orders",
+    "request": "POST /api/orders",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth GET /api/orders/MS-260310-1",
+    "request": "GET /api/orders/MS-<DATE>-1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/orders/MS-260310-1/cancel",
+    "request": "POST /api/orders/MS-<DATE>-1/cancel",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/orders/MS-260310-1/payment-proof",
+    "request": "POST /api/orders/MS-<DATE>-1/payment-proof",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth GET /api/orders/MS-260310-1/payment-proof",
+    "request": "GET /api/orders/MS-<DATE>-1/payment-proof",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth DELETE /api/orders/MS-260310-1/payment-proof",
+    "request": "DELETE /api/orders/MS-<DATE>-1/payment-proof",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth GET /api/store-info",
+    "request": "GET /api/store-info",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "store-info before settings",
+    "request": "GET /api/store-info",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "bankAccountHolder": null,
+      "bankAccountNumber": null,
+      "bankName": null,
+      "paymentConfigured": false,
+      "paymentNote": null,
+      "storeWhatsapp": null
+    }
+  },
+  {
+    "name": "orders list empty",
+    "request": "GET /api/orders",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [],
+      "page": 1,
+      "perPage": 20,
+      "total": 0
+    }
+  },
+  {
+    "name": "checkout empty cart",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#9>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Keranjang masih kosong"
+    }
+  },
+  {
+    "name": "cart add for checkout",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 4,
+      "qty": 2
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 2,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 25000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 25000,
+          "priceChanged": false,
+          "productId": 4,
+          "qty": 2,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 50000
+    }
+  },
+  {
+    "name": "checkout invalid empty body",
+    "request": "POST /api/orders",
+    "requestBody": {},
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data wilayah tidak lengkap. Perbarui halaman lalu coba lagi.",
+      "field": "region"
+    }
+  },
+  {
+    "name": "checkout invalid idempotency key",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "bukan-uuid",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "idempotencyKey wajib berupa UUID",
+      "field": "idempotencyKey"
+    }
+  },
+  {
+    "name": "checkout invalid phone",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#10>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "123",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nomor telepon harus diawali 08, 62, atau +62 (nomor HP, mis. 0812...)",
+      "field": "recipientPhone"
+    }
+  },
+  {
+    "name": "checkout missing region",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#11>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pilih kelurahan/desa",
+      "field": "villageCode"
+    }
+  },
+  {
+    "name": "checkout region not in data",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#12>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.9999"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kelurahan/desa tidak ditemukan. Pilih ulang dari daftar.",
+      "field": "villageCode"
+    }
+  },
+  {
+    "name": "checkout region mismatch",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#13>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "31.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kabupaten/kota tidak sesuai dengan provinsi yang dipilih",
+      "field": "regencyCode"
+    }
+  },
+  {
+    "name": "checkout expectedTotal mismatch",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "expectedTotal": 1,
+      "idempotencyKey": "<UUID#14>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "cart": {
+        "hasPriceChanges": false,
+        "hasUnavailable": false,
+        "itemCount": 2,
+        "items": [
+          {
+            "available": true,
+            "baseUnitPrice": 25000,
+            "category": "kerupuk",
+            "image": "",
+            "lineTotal": 50000,
+            "name": "Kerupuk Aci",
+            "nextTier": null,
+            "previousUnitPrice": null,
+            "price": 25000,
+            "priceChanged": false,
+            "productId": 4,
+            "qty": 2,
+            "savings": 0,
+            "thumb": "",
+            "tierMinQty": null,
+            "unit": "pcs",
+            "unitPrice": 25000
+          }
+        ],
+        "lineCount": 1,
+        "maxLines": 50,
+        "maxQty": 999,
+        "savings": 0,
+        "subtotal": 50000
+      },
+      "error": "price_changed",
+      "message": "Harga berubah. Periksa kembali keranjang Anda lalu tekan konfirmasi untuk membuat pesanan dengan harga terbaru."
+    }
+  },
+  {
+    "name": "unusual checkout html/unicode address",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "<script>alert(1)</script> ‮ Jl. 🍤 \u0000 No 1",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#15>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "<TOKEN#17>",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nama penerima wajib diisi (maksimal 100 karakter)",
+      "field": "recipientName"
+    }
+  },
+  {
+    "name": "unusual checkout array body",
+    "request": "POST /api/orders",
+    "requestBody": [
+      1
+    ],
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "unusual checkout huge note",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#16>",
+      "note": "<TOKEN#18>",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 422,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Catatan maksimal 500 karakter",
+      "field": "note"
+    }
+  },
+  {
+    "name": "checkout ok -> pending_confirmation",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#17>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_confirmation",
+      "statusLabel": "Menunggu konfirmasi",
+      "subtotal": 50000,
+      "total": 50000
+    }
+  },
+  {
+    "name": "checkout same idempotency key replays",
+    "request": "POST /api/orders",
+    "requestBody": {
+      "address": "Jl. Melati No. 9, RT 3",
+      "city": "Tangerang",
+      "districtCode": "36.71.01",
+      "idempotencyKey": "<UUID#17>",
+      "note": "Titip di pos satpam",
+      "postalCode": "15111",
+      "provinceCode": "36",
+      "recipientName": "Budi Penerima",
+      "recipientPhone": "0813-1111-2222",
+      "regencyCode": "36.71",
+      "villageCode": "36.71.01.1001"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_confirmation",
+      "statusLabel": "Menunggu konfirmasi",
+      "subtotal": 50000,
+      "total": 50000
+    }
+  },
+  {
+    "name": "cart after checkout",
+    "request": "GET /api/cart",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  },
+  {
+    "name": "orders list",
+    "request": "GET /api/orders",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Aci",
+          "hasPaymentProof": false,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0001",
+          "status": "pending_confirmation",
+          "statusLabel": "Menunggu konfirmasi",
+          "total": 50000
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 1
+    }
+  },
+  {
+    "name": "order get own",
+    "request": "GET /api/orders/MS-<DATE>-0001",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_confirmation",
+      "statusLabel": "Menunggu konfirmasi",
+      "subtotal": 50000,
+      "total": 50000
+    }
+  },
+  {
+    "name": "order get other customer (IDOR) 404",
+    "request": "GET /api/orders/MS-<DATE>-0001",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order get unknown number",
+    "request": "GET /api/orders/MS-<DATE>-9999",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order get invalid number format",
+    "request": "GET /api/orders/bukan-nomor",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "unusual order get long number",
+    "request": "GET /api/orders/<TOKEN#19>",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order cancel other customer 404",
+    "request": "POST /api/orders/MS-<DATE>-0001/cancel",
+    "requestBody": {},
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order cancel invalid number",
+    "request": "POST /api/orders/bukan-nomor/cancel",
+    "requestBody": {},
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order cancel reason too long",
+    "request": "POST /api/orders/MS-<DATE>-0001/cancel",
+    "requestBody": {
+      "reason": "<TOKEN#20>"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Alasan maksimal 255 karakter"
+    }
+  },
+  {
+    "name": "unusual order cancel with unknown field",
+    "request": "POST /api/orders/MS-<DATE>-0002/cancel",
+    "requestBody": {
+      "status": "paid"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": false,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": "<TIME>",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 45000,
+          "lineTotal": 45000,
+          "name": "Kerupuk Finna Udang",
+          "productId": 1,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0002",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 45000,
+      "total": 45000
+    }
+  }
+]

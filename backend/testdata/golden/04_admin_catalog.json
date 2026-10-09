@@ -1,0 +1,2292 @@
+[
+  {
+    "name": "admin categories list",
+    "request": "GET /api/admin/categories",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "activeProducts": 4,
+          "createdAt": "<TIME>",
+          "id": 1,
+          "name": "Kerupuk",
+          "slug": "kerupuk",
+          "sortOrder": 10,
+          "totalProducts": 4,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 4,
+          "createdAt": "<TIME>",
+          "id": 2,
+          "name": "Tepung",
+          "slug": "tepung",
+          "sortOrder": 20,
+          "totalProducts": 4,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 3,
+          "createdAt": "<TIME>",
+          "id": 3,
+          "name": "Saos",
+          "slug": "saos",
+          "sortOrder": 30,
+          "totalProducts": 3,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 3,
+          "createdAt": "<TIME>",
+          "id": 4,
+          "name": "Sambal",
+          "slug": "sambal",
+          "sortOrder": 40,
+          "totalProducts": 3,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 2,
+          "createdAt": "<TIME>",
+          "id": 5,
+          "name": "Sendok Plastik",
+          "slug": "sendok_plastik",
+          "sortOrder": 50,
+          "totalProducts": 2,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 4,
+          "createdAt": "<TIME>",
+          "id": 6,
+          "name": "Box Hampers",
+          "slug": "box_hampers",
+          "sortOrder": 60,
+          "totalProducts": 4,
+          "updatedAt": "<TIME>"
+        }
+      ]
+    }
+  },
+  {
+    "name": "admin category create ok",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "Bumbu Uji",
+      "slug": "bumbu_uji",
+      "sortOrder": 70
+    },
+    "status": 201,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeProducts": 0,
+      "createdAt": "<TIME>",
+      "id": 7,
+      "name": "Bumbu Uji",
+      "slug": "bumbu_uji",
+      "sortOrder": 70,
+      "totalProducts": 0,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "admin category create duplicate slug",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "Lagi",
+      "slug": "bumbu_uji"
+    },
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Slug kategori sudah dipakai"
+    }
+  },
+  {
+    "name": "admin category create invalid slug",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "X",
+      "slug": "Bumbu Uji"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Slug harus 2–50 karakter: huruf kecil, angka, atau garis bawah (_)"
+    }
+  },
+  {
+    "name": "admin category create empty body",
+    "request": "POST /api/admin/categories",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Slug harus 2–50 karakter: huruf kecil, angka, atau garis bawah (_)"
+    }
+  },
+  {
+    "name": "unusual admin category create unicode name",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "Kategori ‮🍤 \u0000 aneh",
+      "slug": "unik_uji",
+      "sortOrder": -5
+    },
+    "status": 201,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeProducts": 0,
+      "createdAt": "<TIME>",
+      "id": 9,
+      "name": "Kategori 🍤 aneh",
+      "slug": "unik_uji",
+      "sortOrder": -5,
+      "totalProducts": 0,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "admin category update ok",
+    "request": "PUT /api/admin/categories/7",
+    "requestBody": {
+      "name": "Bumbu Uji Baru",
+      "slug": "bumbu_uji"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeProducts": 0,
+      "createdAt": "<TIME>",
+      "id": 7,
+      "name": "Bumbu Uji Baru",
+      "slug": "bumbu_uji",
+      "sortOrder": 70,
+      "totalProducts": 0,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "admin category update not found",
+    "request": "PUT /api/admin/categories/99999",
+    "requestBody": {
+      "name": "X",
+      "slug": "x"
+    },
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kategori tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin category update invalid",
+    "request": "PUT /api/admin/categories/7",
+    "requestBody": {
+      "name": "",
+      "slug": ""
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Slug harus 2–50 karakter: huruf kecil, angka, atau garis bawah (_)"
+    }
+  },
+  {
+    "name": "admin products list",
+    "request": "GET /api/admin/products",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk udang asli dengan rasa gurih",
+          "id": 1,
+          "image": "",
+          "imagePath": "kerupuk1.jpg",
+          "isActive": true,
+          "name": "Kerupuk Finna Udang",
+          "price": 45000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk bawang renyah",
+          "id": 2,
+          "image": "",
+          "imagePath": "kerupuk2.jpg",
+          "isActive": true,
+          "name": "Kerupuk Finna Bawang",
+          "price": 55000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk ketela tradisional",
+          "id": 3,
+          "image": "",
+          "imagePath": "kerupuk3.jpg",
+          "isActive": true,
+          "name": "Kerupuk Gondang",
+          "price": 35000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk aci warna-warni",
+          "id": 4,
+          "image": "",
+          "imagePath": "kerupuk4.jpg",
+          "isActive": true,
+          "name": "Kerupuk Aci",
+          "price": 25000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 2,
+          "categoryName": "Tepung",
+          "categorySlug": "tepung",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Tepung terigu 1kg protein tinggi",
+          "id": 5,
+          "image": "",
+          "imagePath": "tepung1.jpg",
+          "isActive": true,
+          "name": "Tepung Terigu Protein Tinggi",
+          "price": 65000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 2,
+          "categoryName": "Tepung",
+          "categorySlug": "tepung",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Tepung maizena 500gr",
+          "id": 6,
+          "image": "",
+          "imagePath": "tepung2.jpg",
+          "isActive": true,
+          "name": "Tepung Maizena",
+          "price": 28000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 2,
+          "categoryName": "Tepung",
+          "categorySlug": "tepung",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Tepung beras premium 500gr",
+          "id": 7,
+          "image": "",
+          "imagePath": "tepung3.jpg",
+          "isActive": true,
+          "name": "Tepung Beras",
+          "price": 32000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 2,
+          "categoryName": "Tepung",
+          "categorySlug": "tepung",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Tepung gandum organik 1kg",
+          "id": 8,
+          "image": "",
+          "imagePath": "tepung4.jpg",
+          "isActive": true,
+          "name": "Tepung Gandum",
+          "price": 48000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 3,
+          "categoryName": "Saos",
+          "categorySlug": "saos",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Saos tomat 400ml tanpa pengawet",
+          "id": 9,
+          "image": "",
+          "imagePath": "saos1.jpg",
+          "isActive": true,
+          "name": "Saos Tomat Murni",
+          "price": 18000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 3,
+          "categoryName": "Saos",
+          "categorySlug": "saos",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Saos cabe merah pedas 300ml",
+          "id": 10,
+          "image": "",
+          "imagePath": "saos2.jpg",
+          "isActive": true,
+          "name": "Saos Cabe Merah",
+          "price": 22000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 4,
+          "categoryName": "Sambal",
+          "categorySlug": "sambal",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Sambal bajak tradisional 350gr",
+          "id": 11,
+          "image": "",
+          "imagePath": "sambal1.jpg",
+          "isActive": true,
+          "name": "Sambal Bajak Pedas",
+          "price": 35000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 4,
+          "categoryName": "Sambal",
+          "categorySlug": "sambal",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Sambal matah segar 250gr",
+          "id": 12,
+          "image": "",
+          "imagePath": "sambal2.jpg",
+          "isActive": true,
+          "name": "Sambal Matah Segar",
+          "price": 28000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 5,
+          "categoryName": "Sendok Plastik",
+          "categorySlug": "sendok_plastik",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "1 pak isi 50 pcs sendok plastik",
+          "id": 13,
+          "image": "",
+          "imagePath": "sendok1.jpg",
+          "isActive": true,
+          "name": "Sendok Plastik Putih",
+          "price": 5000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 5,
+          "categoryName": "Sendok Plastik",
+          "categorySlug": "sendok_plastik",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "1 pak isi 50 pcs warna-warni",
+          "id": 14,
+          "image": "",
+          "imagePath": "sendok2.jpg",
+          "isActive": true,
+          "name": "Sendok Plastik Warna",
+          "price": 7000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 6,
+          "categoryName": "Box Hampers",
+          "categorySlug": "box_hampers",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Box hampers isi produk pilihan",
+          "id": 15,
+          "image": "",
+          "imagePath": "hampers1.jpg",
+          "isActive": true,
+          "name": "Box Hampers Kecil",
+          "price": 75000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 6,
+          "categoryName": "Box Hampers",
+          "categorySlug": "box_hampers",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Box hampers isi 8 item premium",
+          "id": 16,
+          "image": "",
+          "imagePath": "hampers2.jpg",
+          "isActive": true,
+          "name": "Box Hampers Sedang",
+          "price": 150000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 6,
+          "categoryName": "Box Hampers",
+          "categorySlug": "box_hampers",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Box hampers lengkap 15 item",
+          "id": 17,
+          "image": "",
+          "imagePath": "hampers3.jpg",
+          "isActive": true,
+          "name": "Box Hampers Besar",
+          "price": 300000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 6,
+          "categoryName": "Box Hampers",
+          "categorySlug": "box_hampers",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Box hampers eksklusif 20 item mewah",
+          "id": 18,
+          "image": "",
+          "imagePath": "hampers4.jpg",
+          "isActive": true,
+          "name": "Box Hampers VIP",
+          "price": 500000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 3,
+          "categoryName": "Saos",
+          "categorySlug": "saos",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kecap manis premium 420ml",
+          "id": 19,
+          "image": "",
+          "imagePath": "saos3.jpg",
+          "isActive": true,
+          "name": "Saos Kecap Manis",
+          "price": 16000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 4,
+          "categoryName": "Sambal",
+          "categorySlug": "sambal",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Sambal tomat ulek 300gr",
+          "id": 20,
+          "image": "",
+          "imagePath": "sambal3.jpg",
+          "isActive": true,
+          "name": "Sambal Tomat Pedas",
+          "price": 32000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 20
+    }
+  },
+  {
+    "name": "admin products list filtered",
+    "request": "GET /api/admin/products?q=kerupuk&category=1&status=aktif&page=1&per_page=3",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk udang asli dengan rasa gurih",
+          "id": 1,
+          "image": "",
+          "imagePath": "kerupuk1.jpg",
+          "isActive": true,
+          "name": "Kerupuk Finna Udang",
+          "price": 45000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk bawang renyah",
+          "id": 2,
+          "image": "",
+          "imagePath": "kerupuk2.jpg",
+          "isActive": true,
+          "name": "Kerupuk Finna Bawang",
+          "price": 55000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        },
+        {
+          "categoryDeleted": false,
+          "categoryId": 1,
+          "categoryName": "Kerupuk",
+          "categorySlug": "kerupuk",
+          "createdAt": "<TIME>",
+          "createdBy": null,
+          "description": "Kerupuk ketela tradisional",
+          "id": 3,
+          "image": "",
+          "imagePath": "kerupuk3.jpg",
+          "isActive": true,
+          "name": "Kerupuk Gondang",
+          "price": 35000,
+          "thumb": "",
+          "tiers": [],
+          "unit": "pcs",
+          "updatedAt": "<TIME>",
+          "updatedBy": null
+        }
+      ],
+      "page": 1,
+      "perPage": 3,
+      "total": 4
+    }
+  },
+  {
+    "name": "unusual admin products list bad paging",
+    "request": "GET /api/admin/products?page=-1&per_page=100000&q=%25_",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [],
+      "page": 1,
+      "perPage": 100,
+      "total": 0
+    }
+  },
+  {
+    "name": "admin product create ok",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 7,
+      "description": "uji",
+      "name": "Bumbu Kontrak",
+      "price": 12000,
+      "tiers": [
+        {
+          "minQty": 10,
+          "type": "fixed",
+          "value": 10000
+        },
+        {
+          "minQty": 50,
+          "type": "percent",
+          "value": 20
+        }
+      ],
+      "unit": "pak"
+    },
+    "status": 201,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 7,
+      "categoryName": "Bumbu Uji Baru",
+      "categorySlug": "bumbu_uji",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "uji",
+      "id": 21,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Bumbu Kontrak",
+      "price": 12000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 10,
+          "type": "fixed",
+          "unitPrice": 10000,
+          "value": 10000
+        },
+        {
+          "minQty": 50,
+          "type": "percent",
+          "unitPrice": 9600,
+          "value": 20
+        }
+      ],
+      "unit": "pak",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product create simple",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "name": "Produk Polos Kontrak",
+      "price": 5000
+    },
+    "status": 201,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 1,
+      "categoryName": "Kerupuk",
+      "categorySlug": "kerupuk",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "",
+      "id": 22,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Produk Polos Kontrak",
+      "price": 5000,
+      "thumb": "",
+      "tiers": [],
+      "unit": "pcs",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product create invalid price",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "name": "X",
+      "price": -1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Harga harus bilangan bulat 0 sampai 1.000.000.000"
+    }
+  },
+  {
+    "name": "admin product create missing name",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "price": 1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nama produk wajib diisi (maksimal 150 karakter)"
+    }
+  },
+  {
+    "name": "admin product create bad category",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 99999,
+      "name": "X",
+      "price": 1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kategori tidak ditemukan atau sudah dihapus"
+    }
+  },
+  {
+    "name": "admin product create bad tiers",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "name": "X",
+      "price": 1000,
+      "tiers": [
+        {
+          "minQty": 1,
+          "type": "fixed",
+          "value": 5000
+        }
+      ]
+    },
+    "status": 422,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Jenjang 1: jumlah minimal harus bilangan bulat 2 sampai 1.000.000",
+      "tierErrors": [
+        {
+          "index": 0,
+          "message": "Jenjang 1: jumlah minimal harus bilangan bulat 2 sampai 1.000.000",
+          "minQty": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "unusual admin product create huge price/unicode",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "name": "Produk ‮🍤 aneh",
+      "price": 99999999999
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Harga harus bilangan bulat 0 sampai 1.000.000.000"
+    }
+  },
+  {
+    "name": "unusual admin product create not json",
+    "request": "POST /api/admin/products",
+    "requestBody": [
+      1,
+      2,
+      3
+    ],
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "admin product get ok",
+    "request": "GET /api/admin/products/21",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 7,
+      "categoryName": "Bumbu Uji Baru",
+      "categorySlug": "bumbu_uji",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "uji",
+      "id": 21,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Bumbu Kontrak",
+      "price": 12000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 10,
+          "type": "fixed",
+          "unitPrice": 10000,
+          "value": 10000
+        },
+        {
+          "minQty": 50,
+          "type": "percent",
+          "unitPrice": 9600,
+          "value": 20
+        }
+      ],
+      "unit": "pak",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product get not found",
+    "request": "GET /api/admin/products/99999",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Produk tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin product update ok",
+    "request": "PUT /api/admin/products/21",
+    "requestBody": {
+      "categoryId": 7,
+      "name": "Bumbu Kontrak 2",
+      "price": 13000,
+      "tiers": [
+        {
+          "minQty": 5,
+          "type": "percent",
+          "value": 10
+        }
+      ],
+      "unit": "dus"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 7,
+      "categoryName": "Bumbu Uji Baru",
+      "categorySlug": "bumbu_uji",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "",
+      "id": 21,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Bumbu Kontrak 2",
+      "price": 13000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 5,
+          "type": "percent",
+          "unitPrice": 11700,
+          "value": 10
+        }
+      ],
+      "unit": "dus",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product update invalid",
+    "request": "PUT /api/admin/products/21",
+    "requestBody": {
+      "name": "",
+      "price": 0
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nama produk wajib diisi (maksimal 150 karakter)"
+    }
+  },
+  {
+    "name": "admin product active off",
+    "request": "PATCH /api/admin/products/21/active",
+    "requestBody": {
+      "active": false
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 7,
+      "categoryName": "Bumbu Uji Baru",
+      "categorySlug": "bumbu_uji",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "",
+      "id": 21,
+      "image": "",
+      "imagePath": "",
+      "isActive": false,
+      "name": "Bumbu Kontrak 2",
+      "price": 13000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 5,
+          "type": "percent",
+          "unitPrice": 11700,
+          "value": 10
+        }
+      ],
+      "unit": "dus",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product active on",
+    "request": "PATCH /api/admin/products/21/active",
+    "requestBody": {
+      "active": true
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 7,
+      "categoryName": "Bumbu Uji Baru",
+      "categorySlug": "bumbu_uji",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "",
+      "id": 21,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Bumbu Kontrak 2",
+      "price": 13000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 5,
+          "type": "percent",
+          "unitPrice": 11700,
+          "value": 10
+        }
+      ],
+      "unit": "dus",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin product active invalid",
+    "request": "PATCH /api/admin/products/21/active",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Field active (true/false) wajib diisi"
+    }
+  },
+  {
+    "name": "admin product active not found",
+    "request": "PATCH /api/admin/products/99999/active",
+    "requestBody": {
+      "active": true
+    },
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Produk tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin product image upload ok",
+    "request": "POST /api/admin/products/21/image",
+    "requestBody": "<multipart file \"foto.png\", 323 byte>",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "image": "/uploads/products/21/<UUID#7>.jpg",
+      "thumb": "/uploads/products/21/<UUID#7>_t.jpg"
+    }
+  },
+  {
+    "name": "admin product image replace",
+    "request": "POST /api/admin/products/21/image",
+    "requestBody": "<multipart file \"foto2.png\", 494 byte>",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "image": "/uploads/products/21/<UUID#8>.jpg",
+      "thumb": "/uploads/products/21/<UUID#8>_t.jpg"
+    }
+  },
+  {
+    "name": "admin product image not an image",
+    "request": "POST /api/admin/products/21/image",
+    "requestBody": "<multipart file \"x.png\", 16 byte>",
+    "status": 415,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format foto tidak didukung. Gunakan JPG, PNG, atau WebP."
+    }
+  },
+  {
+    "name": "admin product image not multipart",
+    "request": "POST /api/admin/products/21/image",
+    "requestBody": {
+      "a": 1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Unggahan harus berupa multipart/form-data dengan field \"file\"."
+    }
+  },
+  {
+    "name": "admin product image not found",
+    "request": "POST /api/admin/products/99999/image",
+    "requestBody": "<multipart file \"x.png\", 150 byte>",
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Produk tidak ditemukan"
+    }
+  },
+  {
+    "name": "unusual admin product image empty file",
+    "request": "POST /api/admin/products/21/image",
+    "requestBody": "<multipart file \"kosong.png\", 0 byte>",
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pilih berkas foto terlebih dahulu (field \"file\")."
+    }
+  },
+  {
+    "name": "products list shows uploaded image",
+    "request": "GET /api/products?category=bumbu_uji",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "bumbu_uji",
+        "description": "",
+        "id": 21,
+        "image": "/uploads/products/21/<UUID#8>.jpg",
+        "name": "Bumbu Kontrak 2",
+        "price": 13000,
+        "thumb": "/uploads/products/21/<UUID#8>_t.jpg",
+        "tiers": [
+          {
+            "minQty": 5,
+            "type": "percent",
+            "unitPrice": 11700,
+            "value": 10
+          }
+        ],
+        "unit": "dus"
+      },
+      {
+        "category": "kerupuk",
+        "description": "",
+        "id": 22,
+        "image": "",
+        "name": "Produk Polos Kontrak",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "admin product image delete ok",
+    "request": "DELETE /api/admin/products/21/image",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "image": "",
+      "thumb": ""
+    }
+  },
+  {
+    "name": "admin product image delete again",
+    "request": "DELETE /api/admin/products/21/image",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "image": "",
+      "thumb": ""
+    }
+  },
+  {
+    "name": "admin product delete ok",
+    "request": "DELETE /api/admin/products/21",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "message": "Produk dihapus",
+      "success": true
+    }
+  },
+  {
+    "name": "admin product delete again",
+    "request": "DELETE /api/admin/products/21",
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Produk tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin product create tiered for cart",
+    "request": "POST /api/admin/products",
+    "requestBody": {
+      "categoryId": 1,
+      "name": "Kerupuk Grosir Kontrak",
+      "price": 10000,
+      "tiers": [
+        {
+          "minQty": 3,
+          "type": "fixed",
+          "value": 9000
+        },
+        {
+          "minQty": 6,
+          "type": "percent",
+          "value": 20
+        }
+      ],
+      "unit": "pak"
+    },
+    "status": 201,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categoryDeleted": false,
+      "categoryId": 1,
+      "categoryName": "Kerupuk",
+      "categorySlug": "kerupuk",
+      "createdAt": "<TIME>",
+      "createdBy": "user_<RAND>",
+      "description": "",
+      "id": 23,
+      "image": "",
+      "imagePath": "",
+      "isActive": true,
+      "name": "Kerupuk Grosir Kontrak",
+      "price": 10000,
+      "thumb": "",
+      "tiers": [
+        {
+          "minQty": 3,
+          "type": "fixed",
+          "unitPrice": 9000,
+          "value": 9000
+        },
+        {
+          "minQty": 6,
+          "type": "percent",
+          "unitPrice": 8000,
+          "value": 20
+        }
+      ],
+      "unit": "pak",
+      "updatedAt": "<TIME>",
+      "updatedBy": "user_<RAND>"
+    }
+  },
+  {
+    "name": "admin category delete with products",
+    "request": "DELETE /api/admin/categories/7",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "message": "Kategori dihapus",
+      "success": true
+    }
+  },
+  {
+    "name": "admin category delete not found",
+    "request": "DELETE /api/admin/categories/99999",
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kategori tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin category delete empty (unik)",
+    "request": "DELETE /api/admin/categories/9",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "message": "Kategori dihapus",
+      "success": true
+    }
+  },
+  {
+    "name": "products public after catalog changes",
+    "request": "GET /api/products",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "",
+        "id": 22,
+        "image": "",
+        "name": "Produk Polos Kontrak",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "",
+        "id": 23,
+        "image": "",
+        "name": "Kerupuk Grosir Kontrak",
+        "price": 10000,
+        "thumb": "",
+        "tiers": [
+          {
+            "minQty": 3,
+            "type": "fixed",
+            "unitPrice": 9000,
+            "value": 9000
+          },
+          {
+            "minQty": 6,
+            "type": "percent",
+            "unitPrice": 8000,
+            "value": 20
+          }
+        ],
+        "unit": "pak"
+      }
+    ]
+  },
+  {
+    "name": "categories public after catalog changes",
+    "request": "GET /api/categories",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "id": 1,
+        "name": "Kerupuk",
+        "slug": "kerupuk",
+        "sortOrder": 10
+      },
+      {
+        "id": 2,
+        "name": "Tepung",
+        "slug": "tepung",
+        "sortOrder": 20
+      },
+      {
+        "id": 3,
+        "name": "Saos",
+        "slug": "saos",
+        "sortOrder": 30
+      },
+      {
+        "id": 4,
+        "name": "Sambal",
+        "slug": "sambal",
+        "sortOrder": 40
+      },
+      {
+        "id": 5,
+        "name": "Sendok Plastik",
+        "slug": "sendok_plastik",
+        "sortOrder": 50
+      },
+      {
+        "id": 6,
+        "name": "Box Hampers",
+        "slug": "box_hampers",
+        "sortOrder": 60
+      }
+    ]
+  },
+  {
+    "name": "admin categories list after changes",
+    "request": "GET /api/admin/categories",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "activeProducts": 6,
+          "createdAt": "<TIME>",
+          "id": 1,
+          "name": "Kerupuk",
+          "slug": "kerupuk",
+          "sortOrder": 10,
+          "totalProducts": 6,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 4,
+          "createdAt": "<TIME>",
+          "id": 2,
+          "name": "Tepung",
+          "slug": "tepung",
+          "sortOrder": 20,
+          "totalProducts": 4,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 3,
+          "createdAt": "<TIME>",
+          "id": 3,
+          "name": "Saos",
+          "slug": "saos",
+          "sortOrder": 30,
+          "totalProducts": 3,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 3,
+          "createdAt": "<TIME>",
+          "id": 4,
+          "name": "Sambal",
+          "slug": "sambal",
+          "sortOrder": 40,
+          "totalProducts": 3,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 2,
+          "createdAt": "<TIME>",
+          "id": 5,
+          "name": "Sendok Plastik",
+          "slug": "sendok_plastik",
+          "sortOrder": 50,
+          "totalProducts": 2,
+          "updatedAt": "<TIME>"
+        },
+        {
+          "activeProducts": 4,
+          "createdAt": "<TIME>",
+          "id": 6,
+          "name": "Box Hampers",
+          "slug": "box_hampers",
+          "sortOrder": 60,
+          "totalProducts": 4,
+          "updatedAt": "<TIME>"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,975 @@
+[
+  {
+    "name": "noauth GET /api/cart",
+    "request": "GET /api/cart",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth DELETE /api/cart",
+    "request": "DELETE /api/cart",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/cart/items",
+    "request": "POST /api/cart/items",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth PUT /api/cart/items",
+    "request": "PUT /api/cart/items",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth DELETE /api/cart/items/1",
+    "request": "DELETE /api/cart/items/1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/cart/ack-prices",
+    "request": "POST /api/cart/ack-prices",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "cart empty",
+    "request": "GET /api/cart",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  },
+  {
+    "name": "cart add product 1 qty 2",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": 2
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 2,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 90000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 2,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 90000
+    }
+  },
+  {
+    "name": "cart add product 1 default qty",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 3,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 135000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 3,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 135000
+    }
+  },
+  {
+    "name": "cart add product 2",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 2,
+      "qty": 1
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 4,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 135000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 3,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        },
+        {
+          "available": true,
+          "baseUnitPrice": 55000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 55000,
+          "name": "Kerupuk Finna Bawang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 55000,
+          "priceChanged": false,
+          "productId": 2,
+          "qty": 1,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 55000
+        }
+      ],
+      "lineCount": 2,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 190000
+    }
+  },
+  {
+    "name": "cart add invalid qty 0",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": 0
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Jumlah harus 1 sampai 999"
+    }
+  },
+  {
+    "name": "cart add invalid qty too many",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": 100000
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Jumlah harus 1 sampai 999"
+    }
+  },
+  {
+    "name": "cart add missing productId",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "qty": 1
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "productId wajib diisi"
+    }
+  },
+  {
+    "name": "cart add unknown product",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 99999,
+      "qty": 1
+    },
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Produk tidak ditemukan atau sedang tidak tersedia"
+    }
+  },
+  {
+    "name": "unusual cart add price override ignored",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "price": 1,
+      "productId": 1,
+      "qty": 1
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 5,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 180000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 4,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        },
+        {
+          "available": true,
+          "baseUnitPrice": 55000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 55000,
+          "name": "Kerupuk Finna Bawang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 55000,
+          "priceChanged": false,
+          "productId": 2,
+          "qty": 1,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 55000
+        }
+      ],
+      "lineCount": 2,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 235000
+    }
+  },
+  {
+    "name": "unusual cart add qty as string",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": "2"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "unusual cart add qty float",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": 1.5
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "unusual cart add negative productId",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": -3,
+      "qty": 1
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "cart set qty",
+    "request": "PUT /api/cart/items",
+    "requestBody": {
+      "productId": 1,
+      "qty": 4
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 5,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 180000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 4,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        },
+        {
+          "available": true,
+          "baseUnitPrice": 55000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 55000,
+          "name": "Kerupuk Finna Bawang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 55000,
+          "priceChanged": false,
+          "productId": 2,
+          "qty": 1,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 55000
+        }
+      ],
+      "lineCount": 2,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 235000
+    }
+  },
+  {
+    "name": "cart set qty invalid",
+    "request": "PUT /api/cart/items",
+    "requestBody": {
+      "productId": 1
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "productId dan qty wajib diisi"
+    }
+  },
+  {
+    "name": "cart set qty 0 removes",
+    "request": "PUT /api/cart/items",
+    "requestBody": {
+      "productId": 2,
+      "qty": 0
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 4,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 45000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 180000,
+          "name": "Kerupuk Finna Udang",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 45000,
+          "priceChanged": false,
+          "productId": 1,
+          "qty": 4,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 180000
+    }
+  },
+  {
+    "name": "cart delete item",
+    "request": "DELETE /api/cart/items/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  },
+  {
+    "name": "cart delete item not in cart",
+    "request": "DELETE /api/cart/items/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  },
+  {
+    "name": "cart delete item invalid id",
+    "request": "DELETE /api/cart/items/abc",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/plain; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "bodyText": "404 page not found\n"
+  },
+  {
+    "name": "cart add tiered below threshold",
+    "request": "POST /api/cart/items",
+    "requestBody": {
+      "productId": 23,
+      "qty": 2
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 2,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 10000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 20000,
+          "name": "Kerupuk Grosir Kontrak",
+          "nextTier": {
+            "minQty": 3,
+            "moreQty": 1,
+            "unitPrice": 9000
+          },
+          "previousUnitPrice": null,
+          "price": 10000,
+          "priceChanged": false,
+          "productId": 23,
+          "qty": 2,
+          "savings": 0,
+          "thumb": "",
+          "tierMinQty": null,
+          "unit": "pak",
+          "unitPrice": 10000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 20000
+    }
+  },
+  {
+    "name": "cart add tiered at threshold",
+    "request": "PUT /api/cart/items",
+    "requestBody": {
+      "productId": 23,
+      "qty": 3
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 3,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 10000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 27000,
+          "name": "Kerupuk Grosir Kontrak",
+          "nextTier": {
+            "minQty": 6,
+            "moreQty": 3,
+            "unitPrice": 8000
+          },
+          "previousUnitPrice": null,
+          "price": 10000,
+          "priceChanged": false,
+          "productId": 23,
+          "qty": 3,
+          "savings": 3000,
+          "thumb": "",
+          "tierMinQty": 3,
+          "unit": "pak",
+          "unitPrice": 9000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 3000,
+      "subtotal": 27000
+    }
+  },
+  {
+    "name": "cart add tiered percent tier",
+    "request": "PUT /api/cart/items",
+    "requestBody": {
+      "productId": 23,
+      "qty": 7
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 7,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 10000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 56000,
+          "name": "Kerupuk Grosir Kontrak",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 10000,
+          "priceChanged": false,
+          "productId": 23,
+          "qty": 7,
+          "savings": 14000,
+          "thumb": "",
+          "tierMinQty": 6,
+          "unit": "pak",
+          "unitPrice": 8000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 14000,
+      "subtotal": 56000
+    }
+  },
+  {
+    "name": "cart get with tiered",
+    "request": "GET /api/cart",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 7,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 10000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 56000,
+          "name": "Kerupuk Grosir Kontrak",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 10000,
+          "priceChanged": false,
+          "productId": 23,
+          "qty": 7,
+          "savings": 14000,
+          "thumb": "",
+          "tierMinQty": 6,
+          "unit": "pak",
+          "unitPrice": 8000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 14000,
+      "subtotal": 56000
+    }
+  },
+  {
+    "name": "cart ack-prices",
+    "request": "POST /api/cart/ack-prices",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 7,
+      "items": [
+        {
+          "available": true,
+          "baseUnitPrice": 10000,
+          "category": "kerupuk",
+          "image": "",
+          "lineTotal": 56000,
+          "name": "Kerupuk Grosir Kontrak",
+          "nextTier": null,
+          "previousUnitPrice": null,
+          "price": 10000,
+          "priceChanged": false,
+          "productId": 23,
+          "qty": 7,
+          "savings": 14000,
+          "thumb": "",
+          "tierMinQty": 6,
+          "unit": "pak",
+          "unitPrice": 8000
+        }
+      ],
+      "lineCount": 1,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 14000,
+      "subtotal": 56000
+    }
+  },
+  {
+    "name": "cart clear",
+    "request": "DELETE /api/cart",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  },
+  {
+    "name": "cart after clear",
+    "request": "GET /api/cart",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "hasPriceChanges": false,
+      "hasUnavailable": false,
+      "itemCount": 0,
+      "items": [],
+      "lineCount": 0,
+      "maxLines": 50,
+      "maxQty": 999,
+      "savings": 0,
+      "subtotal": 0
+    }
+  }
+]

@@ -1,0 +1,1514 @@
+[
+  {
+    "name": "settings get",
+    "request": "GET /api/admin/settings",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keys": [
+        "store_whatsapp",
+        "bank_name",
+        "bank_account_number",
+        "bank_account_holder",
+        "payment_note"
+      ],
+      "settings": {
+        "bank_account_holder": "",
+        "bank_account_number": "",
+        "bank_name": "",
+        "payment_note": "",
+        "store_whatsapp": ""
+      }
+    }
+  },
+  {
+    "name": "settings put invalid whatsapp",
+    "request": "PUT /api/admin/settings",
+    "requestBody": {
+      "store_whatsapp": "12345"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nomor WhatsApp toko tidak valid. Gunakan format 08xx, 628xx, atau +628xx"
+    }
+  },
+  {
+    "name": "settings put unknown key",
+    "request": "PUT /api/admin/settings",
+    "requestBody": {
+      "kunci_lain": "x"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "settings put ok",
+    "request": "PUT /api/admin/settings",
+    "requestBody": {
+      "bank_account_holder": "Mihan Store",
+      "bank_account_number": "1234567890",
+      "bank_name": "BCA",
+      "payment_note": "Transfer lalu unggah bukti",
+      "store_whatsapp": "0812-9999-8888"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keys": [
+        "store_whatsapp",
+        "bank_name",
+        "bank_account_number",
+        "bank_account_holder",
+        "payment_note"
+      ],
+      "settings": {
+        "bank_account_holder": "Mihan Store",
+        "bank_account_number": "1234567890",
+        "bank_name": "BCA",
+        "payment_note": "Transfer lalu unggah bukti",
+        "store_whatsapp": "+6281299998888"
+      }
+    }
+  },
+  {
+    "name": "settings put too long",
+    "request": "PUT /api/admin/settings",
+    "requestBody": {
+      "payment_note": "<TOKEN#23>"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Catatan pembayaran maksimal 500 karakter"
+    }
+  },
+  {
+    "name": "unusual settings put empty body",
+    "request": "PUT /api/admin/settings",
+    "requestBody": {},
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keys": [
+        "store_whatsapp",
+        "bank_name",
+        "bank_account_number",
+        "bank_account_holder",
+        "payment_note"
+      ],
+      "settings": {
+        "bank_account_holder": "Mihan Store",
+        "bank_account_number": "1234567890",
+        "bank_name": "BCA",
+        "payment_note": "Transfer lalu unggah bukti",
+        "store_whatsapp": "+6281299998888"
+      }
+    }
+  },
+  {
+    "name": "settings get after update",
+    "request": "GET /api/admin/settings",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keys": [
+        "store_whatsapp",
+        "bank_name",
+        "bank_account_number",
+        "bank_account_holder",
+        "payment_note"
+      ],
+      "settings": {
+        "bank_account_holder": "Mihan Store",
+        "bank_account_number": "1234567890",
+        "bank_name": "BCA",
+        "payment_note": "Transfer lalu unggah bukti",
+        "store_whatsapp": "+6281299998888"
+      }
+    }
+  },
+  {
+    "name": "store-info after settings",
+    "request": "GET /api/store-info",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "bankAccountHolder": "Mihan Store",
+      "bankAccountNumber": "1234567890",
+      "bankName": "BCA",
+      "paymentConfigured": true,
+      "paymentNote": "Transfer lalu unggah bukti",
+      "storeWhatsapp": "+6281299998888"
+    }
+  },
+  {
+    "name": "customers list",
+    "request": "GET /api/admin/customers",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "guser@gmail.com",
+          "id": 7,
+          "lastOrderAt": null,
+          "name": "Pengguna Google",
+          "orderCount": 0,
+          "phone": "+6281200001111",
+          "status": "active",
+          "totalSpent": 0,
+          "username": "guser"
+        },
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "unik@uji.test",
+          "id": 6,
+          "lastOrderAt": null,
+          "name": "Nama 🍤 Aneh",
+          "orderCount": 0,
+          "phone": null,
+          "status": "active",
+          "totalSpent": 0,
+          "username": "unik_uji"
+        },
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "tautan@uji.test",
+          "id": 3,
+          "lastOrderAt": null,
+          "name": "Tautan",
+          "orderCount": 0,
+          "phone": null,
+          "status": "active",
+          "totalSpent": 0,
+          "username": "tautan"
+        },
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "siti@uji.test",
+          "id": 2,
+          "lastOrderAt": "<TIME>",
+          "name": "Siti",
+          "orderCount": 2,
+          "phone": null,
+          "status": "active",
+          "totalSpent": 0,
+          "username": "siti"
+        },
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "budi@uji.test",
+          "id": 1,
+          "lastOrderAt": "<TIME>",
+          "name": "Budi Uji",
+          "orderCount": 5,
+          "phone": "+6281234567890",
+          "status": "active",
+          "totalSpent": 60000,
+          "username": "budi_uji"
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 5
+    }
+  },
+  {
+    "name": "customers list sort orders",
+    "request": "GET /api/admin/customers?sort=orders&per_page=2&page=1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "budi@uji.test",
+          "id": 1,
+          "lastOrderAt": "<TIME>",
+          "name": "Budi Uji",
+          "orderCount": 5,
+          "phone": "+6281234567890",
+          "status": "active",
+          "totalSpent": 60000,
+          "username": "budi_uji"
+        },
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "siti@uji.test",
+          "id": 2,
+          "lastOrderAt": "<TIME>",
+          "name": "Siti",
+          "orderCount": 2,
+          "phone": null,
+          "status": "active",
+          "totalSpent": 0,
+          "username": "siti"
+        }
+      ],
+      "page": 1,
+      "perPage": 2,
+      "total": 5
+    }
+  },
+  {
+    "name": "customers list sort spent + q",
+    "request": "GET /api/admin/customers?sort=spent&q=budi",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "alias": null,
+          "createdAt": "<TIME>",
+          "email": "budi@uji.test",
+          "id": 1,
+          "lastOrderAt": "<TIME>",
+          "name": "Budi Uji",
+          "orderCount": 5,
+          "phone": "+6281234567890",
+          "status": "active",
+          "totalSpent": 60000,
+          "username": "budi_uji"
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 1
+    }
+  },
+  {
+    "name": "customers list invalid sort",
+    "request": "GET /api/admin/customers?sort=ngawur",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Urutan tidak dikenal (pilihan: newest, orders, spent)"
+    }
+  },
+  {
+    "name": "unusual customers list wildcard q",
+    "request": "GET /api/admin/customers?q=%25_%5C",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [],
+      "page": 1,
+      "perPage": 20,
+      "total": 0
+    }
+  },
+  {
+    "name": "customer get",
+    "request": "GET /api/admin/customers/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "customer": {
+        "alias": null,
+        "createdAt": "<TIME>",
+        "email": "budi@uji.test",
+        "id": 1,
+        "lastOrderAt": "<TIME>",
+        "name": "Budi Uji",
+        "orderCount": 5,
+        "phone": "+6281234567890",
+        "status": "active",
+        "totalSpent": 60000,
+        "username": "budi_uji"
+      },
+      "recentOrders": [
+        {
+          "createdAt": "<TIME>",
+          "id": 7,
+          "orderNo": "MS-<DATE>-0007",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 6,
+          "orderNo": "MS-<DATE>-0006",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 5,
+          "orderNo": "MS-<DATE>-0005",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 55000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 2,
+          "orderNo": "MS-<DATE>-0002",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 1,
+          "orderNo": "MS-<DATE>-0001",
+          "status": "completed",
+          "statusLabel": "Selesai",
+          "total": 60000
+        }
+      ]
+    }
+  },
+  {
+    "name": "customer get not found",
+    "request": "GET /api/admin/customers/99999",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pelanggan tidak ditemukan"
+    }
+  },
+  {
+    "name": "customer alias set",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {
+      "alias": "  Bu‮ Budi \t Toko   Maju "
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "alias": "Bu Budi Toko Maju",
+      "id": 1
+    }
+  },
+  {
+    "name": "customer alias too long",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {
+      "alias": "<TOKEN#24>"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Alias maksimal 100 karakter"
+    }
+  },
+  {
+    "name": "customer alias missing",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Field alias wajib dikirim (string, kosong = hapus alias)"
+    }
+  },
+  {
+    "name": "customer alias unknown field",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {
+      "alias": "x",
+      "name": "y"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "customer alias not found",
+    "request": "PATCH /api/admin/customers/99999/alias",
+    "requestBody": {
+      "alias": "x"
+    },
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pelanggan tidak ditemukan"
+    }
+  },
+  {
+    "name": "unusual customer alias blank clears",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {
+      "alias": "   "
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "alias": null,
+      "id": 1
+    }
+  },
+  {
+    "name": "customer alias set again",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "requestBody": {
+      "alias": "Toko Budi"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "alias": "Toko Budi",
+      "id": 1
+    }
+  },
+  {
+    "name": "customer get after alias",
+    "request": "GET /api/admin/customers/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "customer": {
+        "alias": "Toko Budi",
+        "createdAt": "<TIME>",
+        "email": "budi@uji.test",
+        "id": 1,
+        "lastOrderAt": "<TIME>",
+        "name": "Budi Uji",
+        "orderCount": 5,
+        "phone": "+6281234567890",
+        "status": "active",
+        "totalSpent": 60000,
+        "username": "budi_uji"
+      },
+      "recentOrders": [
+        {
+          "createdAt": "<TIME>",
+          "id": 7,
+          "orderNo": "MS-<DATE>-0007",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 6,
+          "orderNo": "MS-<DATE>-0006",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 5,
+          "orderNo": "MS-<DATE>-0005",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 55000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 2,
+          "orderNo": "MS-<DATE>-0002",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000
+        },
+        {
+          "createdAt": "<TIME>",
+          "id": 1,
+          "orderNo": "MS-<DATE>-0001",
+          "status": "completed",
+          "statusLabel": "Selesai",
+          "total": 60000
+        }
+      ]
+    }
+  },
+  {
+    "name": "admin orders list shows alias",
+    "request": "GET /api/admin/orders?per_page=2",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": "Toko Budi",
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 7,
+          "itemCount": 3,
+          "orderNo": "MS-<DATE>-0007",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": "Toko Budi",
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 6,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0006",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000,
+          "username": "budi_uji"
+        }
+      ],
+      "page": 1,
+      "perPage": 2,
+      "total": 7
+    }
+  },
+  {
+    "name": "activity-logs list",
+    "request": "GET /api/admin/activity-logs",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "action": "customer.alias_update",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alias": {
+              "dari": null,
+              "menjadi": "Toko Budi"
+            }
+          },
+          "entityId": "<UUID#1>",
+          "entityType": "user",
+          "id": 83,
+          "ip": "198.51.100.20",
+          "summary": "Alias pelanggan diubah",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "customer.alias_update",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alias": {
+              "dari": "Bu Budi Toko Maju",
+              "menjadi": null
+            }
+          },
+          "entityId": "<UUID#1>",
+          "entityType": "user",
+          "id": 82,
+          "ip": "198.51.100.20",
+          "summary": "Alias pelanggan diubah",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "customer.alias_update",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alias": {
+              "dari": null,
+              "menjadi": "Bu Budi Toko Maju"
+            }
+          },
+          "entityId": "<UUID#1>",
+          "entityType": "user",
+          "id": 81,
+          "ip": "198.51.100.20",
+          "summary": "Alias pelanggan diubah",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "settings.update",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "kunci": {
+              "bank_account_holder": "diubah",
+              "bank_account_number": "diubah",
+              "bank_name": "diubah",
+              "payment_note": "diubah",
+              "store_whatsapp": "diubah"
+            }
+          },
+          "entityId": null,
+          "entityType": "site_settings",
+          "id": 80,
+          "ip": "198.51.100.20",
+          "summary": "Pengaturan toko diubah: store_whatsapp, bank_name, bank_account_number, bank_account_holder, payment_note",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "auth.login",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "metode": "password"
+          },
+          "entityId": "<UUID#1>",
+          "entityType": "user",
+          "id": 79,
+          "ip": "203.0.113.7",
+          "summary": "Login: budi_uji",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Dikembalikan",
+            "orderNo": "MS-<DATE>-0007",
+            "status": {
+              "dari": "paid",
+              "menjadi": "cancelled"
+            },
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 78,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0007: Dibayar → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.pay",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "orderNo": "MS-<DATE>-0007",
+            "status": {
+              "dari": "pending_payment",
+              "menjadi": "paid"
+            },
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 77,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0007: Menunggu pembayaran → Dibayar",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 500,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0007",
+            "shippingFee": 9000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 75000,
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 76,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0007",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 3,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0007",
+            "produkId": [
+              4
+            ],
+            "subtotal": 75000,
+            "total": 75000
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 75,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0007",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": null,
+            "orderNo": "MS-<DATE>-0006",
+            "status": {
+              "dari": "pending_payment",
+              "menjadi": "cancelled"
+            },
+            "total": 73000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 74,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0006: Menunggu pembayaran → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 0,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0006",
+            "shippingFee": 8000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 65000,
+            "total": 73000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 73,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0006",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 1,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0006",
+            "produkId": [
+              5
+            ],
+            "subtotal": 65000,
+            "total": 65000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 72,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0006",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Stok habis",
+            "orderNo": "MS-<DATE>-0005",
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "cancelled"
+            },
+            "total": 55000
+          },
+          "entityId": "MS-<DATE>-0005",
+          "entityType": "order",
+          "id": 71,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0005: Menunggu konfirmasi → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 1,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0005",
+            "produkId": [
+              2
+            ],
+            "subtotal": 55000,
+            "total": 55000
+          },
+          "entityId": "MS-<DATE>-0005",
+          "entityType": "order",
+          "id": 70,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0005",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "siti@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Berubah pikiran",
+            "oleh": "pelanggan",
+            "orderNo": "MS-<DATE>-0004",
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "cancelled"
+            }
+          },
+          "entityId": "MS-<DATE>-0004",
+          "entityType": "order",
+          "id": 69,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibatalkan oleh pelanggan: MS-<DATE>-0004",
+          "userAgent": "contract-test",
+          "userEmail": "siti@uji.test",
+          "username": "siti"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "siti@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 1,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0004",
+            "produkId": [
+              1
+            ],
+            "subtotal": 45000,
+            "total": 45000
+          },
+          "entityId": "MS-<DATE>-0004",
+          "entityType": "order",
+          "id": 68,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0004",
+          "userAgent": null,
+          "userEmail": "siti@uji.test",
+          "username": "siti"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "siti@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Salah pesan",
+            "oleh": "pelanggan",
+            "orderNo": "MS-<DATE>-0003",
+            "status": {
+              "dari": "pending_payment",
+              "menjadi": "cancelled"
+            }
+          },
+          "entityId": "MS-<DATE>-0003",
+          "entityType": "order",
+          "id": 67,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibatalkan oleh pelanggan: MS-<DATE>-0003",
+          "userAgent": "contract-test",
+          "userEmail": "siti@uji.test",
+          "username": "siti"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 0,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0003",
+            "shippingFee": 0,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 70000,
+            "total": 70000
+          },
+          "entityId": "MS-<DATE>-0003",
+          "entityType": "order",
+          "id": 66,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0003",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "siti@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 2,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0003",
+            "produkId": [
+              3
+            ],
+            "subtotal": 70000,
+            "total": 70000
+          },
+          "entityId": "MS-<DATE>-0003",
+          "entityType": "order",
+          "id": 65,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0003",
+          "userAgent": null,
+          "userEmail": "siti@uji.test",
+          "username": "siti"
+        },
+        {
+          "action": "order.complete",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "orderNo": "MS-<DATE>-0001",
+            "status": {
+              "dari": "paid",
+              "menjadi": "completed"
+            },
+            "total": 60000
+          },
+          "entityId": "MS-<DATE>-0001",
+          "entityType": "order",
+          "id": 64,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0001: Dibayar → Selesai",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 83
+    }
+  },
+  {
+    "name": "activity-logs filter action",
+    "request": "GET /api/admin/activity-logs?action=order.confirm&per_page=3",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 500,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0007",
+            "shippingFee": 9000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 75000,
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 76,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0007",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 0,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0006",
+            "shippingFee": 8000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 65000,
+            "total": 73000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 73,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0006",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 0,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0003",
+            "shippingFee": 0,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 70000,
+            "total": 70000
+          },
+          "entityId": "MS-<DATE>-0003",
+          "entityType": "order",
+          "id": 66,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0003",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        }
+      ],
+      "page": 1,
+      "perPage": 3,
+      "total": 4
+    }
+  },
+  {
+    "name": "activity-logs filter entity_type",
+    "request": "GET /api/admin/activity-logs?entity_type=order&per_page=2&page=2",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 500,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0007",
+            "shippingFee": 9000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 75000,
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 76,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0007",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 3,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0007",
+            "produkId": [
+              4
+            ],
+            "subtotal": 75000,
+            "total": 75000
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 75,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0007",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        }
+      ],
+      "page": 2,
+      "perPage": 2,
+      "total": 28
+    }
+  },
+  {
+    "name": "activity-logs invalid date",
+    "request": "GET /api/admin/activity-logs?from=kemarin",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format tanggal harus YYYY-MM-DD"
+    }
+  },
+  {
+    "name": "unusual activity-logs weird filters",
+    "request": "GET /api/admin/activity-logs?action=%25%27+OR+1%3D1+--&per_page=0&page=-3",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [],
+      "page": 1,
+      "perPage": 20,
+      "total": 0
+    }
+  },
+  {
+    "name": "activity-logs purge",
+    "request": "POST /api/admin/activity-logs/purge",
+    "requestBody": {},
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "deleted": 83,
+      "message": "Log lebih dari 6 bulan dihapus",
+      "success": true
+    }
+  },
+  {
+    "name": "activity-logs purge invalid body",
+    "request": "POST /api/admin/activity-logs/purge",
+    "requestBody": {
+      "days": -1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "activity-logs list after purge",
+    "request": "GET /api/admin/activity-logs?per_page=2",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "action": "activity_log.purge",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "batasHari": 180,
+            "jumlahDihapus": 83
+          },
+          "entityId": null,
+          "entityType": "activity_log",
+          "id": 84,
+          "ip": "198.51.100.20",
+          "summary": "Log aktivitas lebih dari 6 bulan dihapus",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        }
+      ],
+      "page": 1,
+      "perPage": 2,
+      "total": 1
+    }
+  }
+]

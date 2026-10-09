@@ -1,0 +1,398 @@
+{
+  "DELETE /api/admin/categories/{id}": [
+    "200 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "DELETE /api/admin/products/{id}": [
+    "200 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "DELETE /api/admin/products/{id}/image": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "DELETE /api/admin/push/subscribe": [
+    "200 x3",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "DELETE /api/cart": [
+    "200 x1",
+    "401 x1"
+  ],
+  "DELETE /api/cart/items/{id}": [
+    "200 x2",
+    "401 x1",
+    "404 x1"
+  ],
+  "DELETE /api/orders/{no}/payment-proof": [
+    "204 x2",
+    "401 x1",
+    "404 x2",
+    "409 x1"
+  ],
+  "DELETE /api/push/subscribe": [
+    "200 x3",
+    "400 x1",
+    "401 x1"
+  ],
+  "GET /api/admin/activity-logs": [
+    "200 x5",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/categories": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/customers": [
+    "200 x4",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/customers/{id}": [
+    "200 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "GET /api/admin/me": [
+    "200 x2",
+    "401 x3",
+    "403 x1"
+  ],
+  "GET /api/admin/orders": [
+    "200 x6",
+    "400 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/orders/{id}": [
+    "200 x5",
+    "401 x1",
+    "403 x1",
+    "404 x2"
+  ],
+  "GET /api/admin/orders/{id}/payment-proof": [
+    "200 x1",
+    "401 x1",
+    "403 x1",
+    "404 x3"
+  ],
+  "GET /api/admin/orders/{id}/shipping-suggestions": [
+    "200 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "GET /api/admin/products": [
+    "200 x3",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/products/{id}": [
+    "200 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "GET /api/admin/push/public-key": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/regions/runs/{id}": [
+    "200 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "GET /api/admin/regions/status": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/settings": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/admin/summary": [
+    "200 x2",
+    "401 x1",
+    "403 x1"
+  ],
+  "GET /api/auth/me": [
+    "200 x1",
+    "401 x3"
+  ],
+  "GET /api/cart": [
+    "200 x4",
+    "401 x1"
+  ],
+  "GET /api/categories": [
+    "200 x2"
+  ],
+  "GET /api/orders": [
+    "200 x4",
+    "401 x1"
+  ],
+  "GET /api/orders/{no}": [
+    "200 x6",
+    "401 x1",
+    "404 x4"
+  ],
+  "GET /api/orders/{no}/payment-proof": [
+    "200 x4",
+    "401 x1",
+    "404 x3"
+  ],
+  "GET /api/products": [
+    "200 x5"
+  ],
+  "GET /api/products/search": [
+    "200 x5"
+  ],
+  "GET /api/push/public-key": [
+    "200 x1",
+    "401 x1"
+  ],
+  "GET /api/regions/districts/{code}": [
+    "200 x1",
+    "400 x1"
+  ],
+  "GET /api/regions/provinces": [
+    "200 x3"
+  ],
+  "GET /api/regions/regencies/{code}": [
+    "200 x1",
+    "400 x1",
+    "404 x1"
+  ],
+  "GET /api/regions/villages/{code}": [
+    "200 x1",
+    "400 x1",
+    "404 x1"
+  ],
+  "GET /api/store-info": [
+    "200 x2",
+    "401 x1"
+  ],
+  "GET /health": [
+    "200 x1"
+  ],
+  "GET /health/ready": [
+    "200 x1"
+  ],
+  "PATCH /api/admin/customers/{id}/alias": [
+    "200 x3",
+    "400 x3",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "PATCH /api/admin/orders/{id}/note": [
+    "200 x1",
+    "400 x3",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "PATCH /api/admin/orders/{id}/pricing": [
+    "200 x1",
+    "400 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "409 x2"
+  ],
+  "PATCH /api/admin/orders/{id}/status": [
+    "200 x6",
+    "400 x7",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "409 x2"
+  ],
+  "PATCH /api/admin/products/{id}/active": [
+    "200 x2",
+    "400 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "POST /api/admin/activity-logs/purge": [
+    "200 x1",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "POST /api/admin/categories": [
+    "201 x2",
+    "400 x2",
+    "401 x1",
+    "403 x3",
+    "409 x1"
+  ],
+  "POST /api/admin/orders/{id}/confirm": [
+    "200 x4",
+    "400 x7",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "409 x2"
+  ],
+  "POST /api/admin/orders/{id}/shipping-default": [
+    "200 x2",
+    "400 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "409 x2"
+  ],
+  "POST /api/admin/products": [
+    "201 x3",
+    "400 x5",
+    "401 x1",
+    "403 x1",
+    "422 x1"
+  ],
+  "POST /api/admin/products/{id}/image": [
+    "200 x2",
+    "400 x2",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "415 x1"
+  ],
+  "POST /api/admin/push/subscribe": [
+    "200 x3",
+    "400 x4",
+    "401 x1",
+    "403 x1"
+  ],
+  "POST /api/admin/push/test": [
+    "200 x1",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "POST /api/admin/regions/fetch": [
+    "202 x2",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "POST /api/admin/regions/runs/{id}/discard": [
+    "200 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1",
+    "409 x2"
+  ],
+  "POST /api/admin/regions/runs/{id}/save": [
+    "200 x1",
+    "401 x1",
+    "403 x2",
+    "404 x1",
+    "409 x1"
+  ],
+  "POST /api/auth/google": [
+    "200 x3",
+    "401 x3"
+  ],
+  "POST /api/auth/google/complete": [
+    "201 x1",
+    "400 x2",
+    "401 x1"
+  ],
+  "POST /api/auth/login": [
+    "200 x4",
+    "400 x2",
+    "401 x5"
+  ],
+  "POST /api/auth/logout": [
+    "200 x2"
+  ],
+  "POST /api/auth/register": [
+    "201 x4",
+    "400 x8",
+    "401 x1",
+    "409 x2"
+  ],
+  "POST /api/auth/verify": [
+    "200 x2",
+    "401 x3"
+  ],
+  "POST /api/cart/ack-prices": [
+    "200 x1",
+    "401 x1"
+  ],
+  "POST /api/cart/items": [
+    "200 x6",
+    "400 x6",
+    "401 x1",
+    "404 x1"
+  ],
+  "POST /api/orders": [
+    "200 x1",
+    "201 x1",
+    "400 x2",
+    "401 x1",
+    "409 x1",
+    "422 x8"
+  ],
+  "POST /api/orders/{no}/cancel": [
+    "200 x3",
+    "400 x1",
+    "401 x1",
+    "404 x2",
+    "409 x2"
+  ],
+  "POST /api/orders/{no}/payment-proof": [
+    "200 x4",
+    "400 x2",
+    "401 x1",
+    "404 x2",
+    "409 x3",
+    "415 x1"
+  ],
+  "POST /api/push/subscribe": [
+    "200 x2",
+    "400 x2",
+    "401 x1"
+  ],
+  "PUT /api/admin/categories/{id}": [
+    "200 x1",
+    "400 x1",
+    "401 x1",
+    "403 x1",
+    "404 x1"
+  ],
+  "PUT /api/admin/products/{id}": [
+    "200 x1",
+    "400 x1",
+    "401 x1",
+    "403 x1"
+  ],
+  "PUT /api/admin/settings": [
+    "200 x2",
+    "400 x3",
+    "401 x1",
+    "403 x1"
+  ],
+  "PUT /api/cart/items": [
+    "200 x4",
+    "400 x1",
+    "401 x1"
+  ]
+}

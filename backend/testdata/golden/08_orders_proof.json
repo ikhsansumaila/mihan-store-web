@@ -1,0 +1,1040 @@
+[
+  {
+    "name": "proof get none (customer)",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti pembayaran tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof admin get none",
+    "request": "GET /api/admin/orders/1/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti pembayaran tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof upload no multipart",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": {
+      "a": 1
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Unggahan harus berupa multipart/form-data dengan field \"file\"."
+    }
+  },
+  {
+    "name": "proof upload empty file",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"kosong.png\", 0 byte>",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pilih berkas foto terlebih dahulu (field \"file\")."
+    }
+  },
+  {
+    "name": "proof upload not an image",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"x.pdf\", 21 byte>",
+    "status": 415,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format foto tidak didukung. Gunakan JPG, PNG, atau WebP."
+    }
+  },
+  {
+    "name": "proof upload other customer 404",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"bukti.png\", 160 byte>",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof upload unknown order",
+    "request": "POST /api/orders/MS-<DATE>-9999/payment-proof",
+    "requestBody": "<multipart file \"bukti.png\", 160 byte>",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "unusual proof upload tiny 1x1 png",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"../../etc/passwd.png\", 74 byte>",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "paymentProof": {
+        "height": 1,
+        "mime": "image/jpeg",
+        "sizeBytes": 597,
+        "uploadedAt": "<TIME>",
+        "width": 1
+      },
+      "replaced": false,
+      "success": true
+    }
+  },
+  {
+    "name": "proof get after tiny upload",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "inline; filename=\"bukti-1.jpg\"",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Content-Type": "image/jpeg",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "binary": {
+      "bytes": 597,
+      "sha256": "c51f5919753d088b47ec474d4ff73d896e3567ef1bdf1011aa1ac89e3deeab55"
+    }
+  },
+  {
+    "name": "proof delete tiny",
+    "request": "DELETE /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 204,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    }
+  },
+  {
+    "name": "proof upload ok",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"bukti.png\", 1403 byte>",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 6832,
+        "uploadedAt": "<TIME>",
+        "width": 300
+      },
+      "replaced": false,
+      "success": true
+    }
+  },
+  {
+    "name": "proof get (customer)",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "inline; filename=\"bukti-1.jpg\"",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Content-Type": "image/jpeg",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "binary": {
+      "bytes": 6832,
+      "sha256": "3705fa54d773956a640c8069b6ec44b349d98ba5b438530f1f558f10a963483c"
+    }
+  },
+  {
+    "name": "proof get other customer 404",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof admin get",
+    "request": "GET /api/admin/orders/1/payment-proof",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "inline; filename=\"bukti-1.jpg\"",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Content-Type": "image/jpeg",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "binary": {
+      "bytes": 6832,
+      "sha256": "3705fa54d773956a640c8069b6ec44b349d98ba5b438530f1f558f10a963483c"
+    }
+  },
+  {
+    "name": "proof admin get unknown order",
+    "request": "GET /api/admin/orders/99999999/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "order detail with proof (customer)",
+    "request": "GET /api/orders/MS-<DATE>-0001",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": true,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Admin toko",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 6832,
+        "uploadedAt": "<TIME>",
+        "width": 300
+      },
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 50000,
+      "total": 60000
+    }
+  },
+  {
+    "name": "order detail with proof (admin)",
+    "request": "GET /api/admin/orders/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": "Catatan admin kontrak",
+      "allowedNext": [
+        "paid",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "id": 1,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 6832,
+        "uploadedAt": "<TIME>",
+        "width": 300
+      },
+      "pricingLocked": false,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 50000,
+      "total": 60000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "proof replace",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"bukti2.png\", 1740 byte>",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "paymentProof": {
+        "height": 240,
+        "mime": "image/jpeg",
+        "sizeBytes": 8750,
+        "uploadedAt": "<TIME>",
+        "width": 320
+      },
+      "replaced": true,
+      "success": true
+    }
+  },
+  {
+    "name": "proof get after replace",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "inline; filename=\"bukti-1.jpg\"",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Content-Type": "image/jpeg",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "binary": {
+      "bytes": 8750,
+      "sha256": "2d48ce3817d23434aa097ab925299f2e9b934cacea71c6335676f139703ef0d1"
+    }
+  },
+  {
+    "name": "proof delete other customer 404",
+    "request": "DELETE /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof delete ok",
+    "request": "DELETE /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 204,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    }
+  },
+  {
+    "name": "proof delete again",
+    "request": "DELETE /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti pembayaran tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof get after delete",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti pembayaran tidak ditemukan"
+    }
+  },
+  {
+    "name": "proof re-upload",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"bukti3.png\", 979 byte>",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "replaced": false,
+      "success": true
+    }
+  },
+  {
+    "name": "status paid (with proof)",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "from": "pending_payment",
+      "paymentNote": "Transfer BCA",
+      "to": "paid"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": "Catatan admin kontrak",
+      "allowedNext": [
+        "completed",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": "Transfer BCA",
+          "to": "paid",
+          "toLabel": "Dibayar"
+        }
+      ],
+      "id": 1,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": "Transfer BCA",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "paid",
+      "statusLabel": "Dibayar",
+      "subtotal": 50000,
+      "total": 60000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "proof locked: upload after paid",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"bukti4.png\", 160 byte>",
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti transfer hanya bisa diunggah atau diubah saat pesanan menunggu pembayaran."
+    }
+  },
+  {
+    "name": "proof locked: delete after paid",
+    "request": "DELETE /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti transfer hanya bisa diunggah atau diubah saat pesanan menunggu pembayaran."
+    }
+  },
+  {
+    "name": "proof still readable after paid",
+    "request": "GET /api/orders/MS-<DATE>-0001/payment-proof",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "inline; filename=\"bukti-1.jpg\"",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Content-Type": "image/jpeg",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "binary": {
+      "bytes": 5939,
+      "sha256": "4842bda26b9a925b65a2a1125c3f4a7405bda47bf678c4fcc918fbf922114fb3"
+    }
+  },
+  {
+    "name": "pricing locked after paid",
+    "request": "PATCH /api/admin/orders/1/pricing",
+    "requestBody": {
+      "discount": 0,
+      "shippingFee": 1
+    },
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Diskon dan ongkir hanya bisa diubah saat pesanan menunggu pembayaran"
+    }
+  },
+  {
+    "name": "order detail after paid (admin)",
+    "request": "GET /api/admin/orders/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": "Catatan admin kontrak",
+      "allowedNext": [
+        "completed",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": "Transfer BCA",
+          "to": "paid",
+          "toLabel": "Dibayar"
+        }
+      ],
+      "id": 1,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": "Transfer BCA",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "paid",
+      "statusLabel": "Dibayar",
+      "subtotal": 50000,
+      "total": 60000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "order detail after paid (customer)",
+    "request": "GET /api/orders/MS-<DATE>-0001",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": false,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Admin toko",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "Admin toko",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": null,
+          "to": "paid",
+          "toLabel": "Dibayar"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": "<TIME>",
+      "paymentMethod": "bank_transfer",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "paid",
+      "statusLabel": "Dibayar",
+      "subtotal": 50000,
+      "total": 60000
+    }
+  }
+]

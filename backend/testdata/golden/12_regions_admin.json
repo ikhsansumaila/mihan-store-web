@@ -1,0 +1,785 @@
+[
+  {
+    "name": "regions status",
+    "request": "GET /api/admin/regions/status",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeRun": null,
+      "runs": [],
+      "source": "http://127.0.0.1:<PORT>",
+      "stagedTtlHours": 24,
+      "stored": {
+        "datasetTotal": 13,
+        "datasets": {
+          "districts": 4,
+          "provinces": 1,
+          "regencies": 2,
+          "villages": 6
+        },
+        "hasData": true,
+        "items": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "lastSaved": null,
+        "sizeBytes": 1432,
+        "sourceUpdatedAt": null
+      }
+    }
+  },
+  {
+    "name": "regions run get not found",
+    "request": "GET /api/admin/regions/runs/999999",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run tidak ditemukan"
+    }
+  },
+  {
+    "name": "regions run discard not found",
+    "request": "POST /api/admin/regions/runs/999999/discard",
+    "requestBody": {},
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run tidak ditemukan"
+    }
+  },
+  {
+    "name": "regions run save not found",
+    "request": "POST /api/admin/regions/runs/999999/save",
+    "requestBody": {},
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run tidak ditemukan"
+    }
+  },
+  {
+    "name": "regions fetch (mulai run)",
+    "request": "POST /api/admin/regions/fetch",
+    "requestBody": {},
+    "status": 202,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "run": {
+        "counts": null,
+        "diff": null,
+        "error": null,
+        "finishedAt": null,
+        "id": 1,
+        "progress": {
+          "done": 0,
+          "phase": 0,
+          "phaseLabel": "",
+          "total": 0
+        },
+        "savedAt": null,
+        "savedBy": null,
+        "sourceUpdatedAt": null,
+        "startedAt": "<TIME>",
+        "startedBy": "admin.kontrak@uji.test",
+        "stats": null,
+        "status": "running",
+        "statusLabel": "Berjalan"
+      }
+    }
+  },
+  {
+    "name": "regions run get staged",
+    "request": "GET /api/admin/regions/runs/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "run": {
+        "counts": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "diff": {
+          "changed": 0,
+          "datasetsNew": {
+            "districts": 4,
+            "provinces": 1,
+            "regencies": 2,
+            "villages": 6
+          },
+          "datasetsStored": {
+            "districts": 4,
+            "provinces": 1,
+            "regencies": 2,
+            "villages": 6
+          },
+          "emptyDatasets": 0,
+          "failedKeys": [],
+          "itemsNew": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "itemsStored": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "missing": 0,
+          "new": 0,
+          "protected": 0,
+          "unchanged": 13,
+          "warnings": []
+        },
+        "error": null,
+        "finishedAt": "<TIME>",
+        "id": 1,
+        "progress": {
+          "done": 13,
+          "phase": 4,
+          "phaseLabel": "kelurahan/desa",
+          "total": 13
+        },
+        "savedAt": null,
+        "savedBy": null,
+        "sourceUpdatedAt": "2025-07-04",
+        "startedAt": "<TIME>",
+        "startedBy": "admin.kontrak@uji.test",
+        "stats": {
+          "durationMs": 0,
+          "failed": 0,
+          "phase": 4,
+          "requests": 13,
+          "retries": 0
+        },
+        "status": "staged",
+        "statusLabel": "Menunggu keputusan simpan"
+      }
+    }
+  },
+  {
+    "name": "regions save without csrf",
+    "request": "POST /api/admin/regions/runs/1/save",
+    "requestBody": {},
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Permintaan ditolak (pemeriksaan asal permintaan gagal)"
+    }
+  },
+  {
+    "name": "regions save ok",
+    "request": "POST /api/admin/regions/runs/1/save",
+    "requestBody": {},
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeRun": null,
+      "result": {
+        "deleted": 0,
+        "inserted": 0,
+        "items": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "protected": 0,
+        "restored": 0,
+        "unchanged": 13,
+        "updated": 0
+      },
+      "runs": [
+        {
+          "counts": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "diff": {
+            "changed": 0,
+            "datasetsNew": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "datasetsStored": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "emptyDatasets": 0,
+            "failedKeys": [],
+            "itemsNew": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "itemsStored": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "missing": 0,
+            "new": 0,
+            "protected": 0,
+            "unchanged": 13,
+            "warnings": []
+          },
+          "error": null,
+          "finishedAt": "<TIME>",
+          "id": 1,
+          "progress": {
+            "done": 13,
+            "phase": 4,
+            "phaseLabel": "kelurahan/desa",
+            "total": 13
+          },
+          "savedAt": "<TIME>",
+          "savedBy": "admin.kontrak@uji.test",
+          "sourceUpdatedAt": "2025-07-04",
+          "startedAt": "<TIME>",
+          "startedBy": "admin.kontrak@uji.test",
+          "stats": {
+            "durationMs": 0,
+            "failed": 0,
+            "phase": 4,
+            "requests": 13,
+            "retries": 0
+          },
+          "status": "saved",
+          "statusLabel": "Tersimpan"
+        }
+      ],
+      "source": "http://127.0.0.1:<PORT>",
+      "stagedTtlHours": 24,
+      "stored": {
+        "datasetTotal": 13,
+        "datasets": {
+          "districts": 4,
+          "provinces": 1,
+          "regencies": 2,
+          "villages": 6
+        },
+        "hasData": true,
+        "items": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "lastSaved": {
+          "at": "<TIME>",
+          "by": "admin.kontrak@uji.test",
+          "runId": 1
+        },
+        "sizeBytes": 1432,
+        "sourceUpdatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions save again (409)",
+    "request": "POST /api/admin/regions/runs/1/save",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run ini tidak bisa disimpan (status: tersimpan)"
+    }
+  },
+  {
+    "name": "regions discard saved run",
+    "request": "POST /api/admin/regions/runs/1/discard",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run sudah selesai (status: tersimpan)"
+    }
+  },
+  {
+    "name": "regions status after save",
+    "request": "GET /api/admin/regions/status",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeRun": null,
+      "runs": [
+        {
+          "counts": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "diff": {
+            "changed": 0,
+            "datasetsNew": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "datasetsStored": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "emptyDatasets": 0,
+            "failedKeys": [],
+            "itemsNew": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "itemsStored": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "missing": 0,
+            "new": 0,
+            "protected": 0,
+            "unchanged": 13,
+            "warnings": []
+          },
+          "error": null,
+          "finishedAt": "<TIME>",
+          "id": 1,
+          "progress": {
+            "done": 13,
+            "phase": 4,
+            "phaseLabel": "kelurahan/desa",
+            "total": 13
+          },
+          "savedAt": "<TIME>",
+          "savedBy": "admin.kontrak@uji.test",
+          "sourceUpdatedAt": "2025-07-04",
+          "startedAt": "<TIME>",
+          "startedBy": "admin.kontrak@uji.test",
+          "stats": {
+            "durationMs": 0,
+            "failed": 0,
+            "phase": 4,
+            "requests": 13,
+            "retries": 0
+          },
+          "status": "saved",
+          "statusLabel": "Tersimpan"
+        }
+      ],
+      "source": "http://127.0.0.1:<PORT>",
+      "stagedTtlHours": 24,
+      "stored": {
+        "datasetTotal": 13,
+        "datasets": {
+          "districts": 4,
+          "provinces": 1,
+          "regencies": 2,
+          "villages": 6
+        },
+        "hasData": true,
+        "items": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "lastSaved": {
+          "at": "<TIME>",
+          "by": "admin.kontrak@uji.test",
+          "runId": 1
+        },
+        "sizeBytes": 1432,
+        "sourceUpdatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions provinces public after save",
+    "request": "GET /api/regions/provinces",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"d52cf081b1b1f431700ab3da\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36",
+          "name": "Banten"
+        },
+        {
+          "code": "31",
+          "name": "DKI Jakarta"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions fetch second run",
+    "request": "POST /api/admin/regions/fetch",
+    "requestBody": {},
+    "status": 202,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "run": {
+        "counts": null,
+        "diff": null,
+        "error": null,
+        "finishedAt": null,
+        "id": 2,
+        "progress": {
+          "done": 0,
+          "phase": 0,
+          "phaseLabel": "",
+          "total": 0
+        },
+        "savedAt": null,
+        "savedBy": null,
+        "sourceUpdatedAt": null,
+        "startedAt": "<TIME>",
+        "startedBy": "admin.kontrak@uji.test",
+        "stats": null,
+        "status": "running",
+        "statusLabel": "Berjalan"
+      }
+    }
+  },
+  {
+    "name": "regions discard staged run",
+    "request": "POST /api/admin/regions/runs/2/discard",
+    "requestBody": {},
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "activeRun": null,
+      "runs": [
+        {
+          "counts": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "diff": {
+            "changed": 0,
+            "datasetsNew": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "datasetsStored": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "emptyDatasets": 0,
+            "failedKeys": [],
+            "itemsNew": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "itemsStored": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "missing": 0,
+            "new": 0,
+            "protected": 0,
+            "unchanged": 13,
+            "warnings": []
+          },
+          "error": null,
+          "finishedAt": "<TIME>",
+          "id": 2,
+          "progress": {
+            "done": 13,
+            "phase": 4,
+            "phaseLabel": "kelurahan/desa",
+            "total": 13
+          },
+          "savedAt": null,
+          "savedBy": null,
+          "sourceUpdatedAt": "2025-07-04",
+          "startedAt": "<TIME>",
+          "startedBy": "admin.kontrak@uji.test",
+          "stats": {
+            "durationMs": 0,
+            "failed": 0,
+            "phase": 4,
+            "requests": 13,
+            "retries": 0
+          },
+          "status": "discarded",
+          "statusLabel": "Dibuang"
+        },
+        {
+          "counts": {
+            "districts": 6,
+            "provinces": 2,
+            "regencies": 4,
+            "villages": 14
+          },
+          "diff": {
+            "changed": 0,
+            "datasetsNew": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "datasetsStored": {
+              "districts": 4,
+              "provinces": 1,
+              "regencies": 2,
+              "villages": 6
+            },
+            "emptyDatasets": 0,
+            "failedKeys": [],
+            "itemsNew": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "itemsStored": {
+              "districts": 6,
+              "provinces": 2,
+              "regencies": 4,
+              "villages": 14
+            },
+            "missing": 0,
+            "new": 0,
+            "protected": 0,
+            "unchanged": 13,
+            "warnings": []
+          },
+          "error": null,
+          "finishedAt": "<TIME>",
+          "id": 1,
+          "progress": {
+            "done": 13,
+            "phase": 4,
+            "phaseLabel": "kelurahan/desa",
+            "total": 13
+          },
+          "savedAt": "<TIME>",
+          "savedBy": "admin.kontrak@uji.test",
+          "sourceUpdatedAt": "2025-07-04",
+          "startedAt": "<TIME>",
+          "startedBy": "admin.kontrak@uji.test",
+          "stats": {
+            "durationMs": 0,
+            "failed": 0,
+            "phase": 4,
+            "requests": 13,
+            "retries": 0
+          },
+          "status": "saved",
+          "statusLabel": "Tersimpan"
+        }
+      ],
+      "source": "http://127.0.0.1:<PORT>",
+      "stagedTtlHours": 24,
+      "status": "discarded",
+      "stored": {
+        "datasetTotal": 13,
+        "datasets": {
+          "districts": 4,
+          "provinces": 1,
+          "regencies": 2,
+          "villages": 6
+        },
+        "hasData": true,
+        "items": {
+          "districts": 6,
+          "provinces": 2,
+          "regencies": 4,
+          "villages": 14
+        },
+        "lastSaved": {
+          "at": "<TIME>",
+          "by": "admin.kontrak@uji.test",
+          "runId": 1
+        },
+        "sizeBytes": 1432,
+        "sourceUpdatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions discard again",
+    "request": "POST /api/admin/regions/runs/2/discard",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Run sudah selesai (status: dibuang)"
+    }
+  },
+  {
+    "name": "regions fetch with unexpected body",
+    "request": "POST /api/admin/regions/fetch",
+    "requestBody": {
+      "x": 1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  }
+]

@@ -1,0 +1,2402 @@
+[
+  {
+    "name": "status invalid values",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "from": "paid",
+      "to": "ngawur"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Field from dan to wajib berisi status yang valid"
+    }
+  },
+  {
+    "name": "status missing from",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "to": "completed"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Field from dan to wajib berisi status yang valid"
+    }
+  },
+  {
+    "name": "status stale from (409)",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "from": "pending_payment",
+      "to": "paid"
+    },
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Status pesanan sudah berubah menjadi \"Dibayar\". Muat ulang halaman."
+    }
+  },
+  {
+    "name": "status paid -> completed",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "from": "paid",
+      "note": "Terkirim",
+      "to": "completed"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": "Catatan admin kontrak",
+      "allowedNext": [],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": "<TIME>",
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": "Transfer BCA",
+          "to": "paid",
+          "toLabel": "Dibayar"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "paid",
+          "note": "Terkirim",
+          "to": "completed",
+          "toLabel": "Selesai"
+        }
+      ],
+      "id": 1,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": "Transfer BCA",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "completed",
+      "statusLabel": "Selesai",
+      "subtotal": 50000,
+      "total": 60000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "status completed -> cancelled (final)",
+    "request": "PATCH /api/admin/orders/1/status",
+    "requestBody": {
+      "from": "completed",
+      "reason": "x",
+      "to": "cancelled"
+    },
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan sudah selesai atau dibatalkan dan tidak bisa diubah lagi"
+    }
+  },
+  {
+    "name": "customer cancel completed order",
+    "request": "POST /api/orders/MS-<DATE>-0001/cancel",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak bisa dibatalkan karena statusnya sudah selesai"
+    }
+  },
+  {
+    "name": "status not found",
+    "request": "PATCH /api/admin/orders/99999999/status",
+    "requestBody": {
+      "from": "paid",
+      "to": "completed"
+    },
+    "status": 404,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak ditemukan"
+    }
+  },
+  {
+    "name": "admin order after completed",
+    "request": "GET /api/admin/orders/1",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": "Catatan admin kontrak",
+      "allowedNext": [],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": "<TIME>",
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 2000,
+      "discountNote": "Diskon diubah",
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": "Transfer BCA",
+          "to": "paid",
+          "toLabel": "Dibayar"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "paid",
+          "note": "Terkirim",
+          "to": "completed",
+          "toLabel": "Selesai"
+        }
+      ],
+      "id": 1,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 50000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0001",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": "Transfer BCA",
+      "paymentProof": {
+        "height": 200,
+        "mime": "image/jpeg",
+        "sizeBytes": 5939,
+        "uploadedAt": "<TIME>",
+        "width": 200
+      },
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 12000,
+      "status": "completed",
+      "statusLabel": "Selesai",
+      "subtotal": 50000,
+      "total": 60000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "confirm with shipping 0 (ongkir gratis)",
+    "request": "POST /api/admin/orders/3/confirm",
+    "requestBody": {
+      "discount": 0,
+      "shippingFee": 0
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [
+        "paid",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "siti@uji.test",
+        "id": 2,
+        "name": "Siti",
+        "phone": null,
+        "username": "siti"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:siti",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "id": 3,
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 35000,
+          "lineTotal": 70000,
+          "name": "Kerupuk Gondang",
+          "productId": 3,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 35000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0003",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": false,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 70000,
+      "total": 70000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "shipping-default with shipping 0 rejected",
+    "request": "POST /api/admin/orders/3/shipping-default",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Default ongkir wilayah harus lebih dari Rp 0"
+    }
+  },
+  {
+    "name": "order with ongkir 0 (customer)",
+    "request": "GET /api/orders/MS-<DATE>-0003",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": true,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Admin toko",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 35000,
+          "lineTotal": 70000,
+          "name": "Kerupuk Gondang",
+          "productId": 3,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 35000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0003",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 70000,
+      "total": 70000
+    }
+  },
+  {
+    "name": "customer cancel from pending_payment",
+    "request": "POST /api/orders/MS-<DATE>-0003/cancel",
+    "requestBody": {
+      "reason": "Salah pesan"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": false,
+      "canUploadProof": false,
+      "cancelReason": "Salah pesan",
+      "cancelledAt": "<TIME>",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Admin toko",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": "Salah pesan",
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "itemCount": 2,
+      "items": [
+        {
+          "baseUnitPrice": 35000,
+          "lineTotal": 70000,
+          "name": "Kerupuk Gondang",
+          "productId": 3,
+          "qty": 2,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 35000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0003",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 70000,
+      "total": 70000
+    }
+  },
+  {
+    "name": "customer cancel again (final)",
+    "request": "POST /api/orders/MS-<DATE>-0003/cancel",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan tidak bisa dibatalkan karena statusnya sudah dibatalkan"
+    }
+  },
+  {
+    "name": "confirm cancelled order",
+    "request": "POST /api/admin/orders/3/confirm",
+    "requestBody": {
+      "discount": 0,
+      "shippingFee": 100
+    },
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Pesanan ini tidak sedang menunggu konfirmasi. Muat ulang halaman."
+    }
+  },
+  {
+    "name": "shipping-default on cancelled order",
+    "request": "POST /api/admin/orders/3/shipping-default",
+    "requestBody": {},
+    "status": 409,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Ongkir pesanan yang dibatalkan tidak bisa dijadikan default wilayah"
+    }
+  },
+  {
+    "name": "proof upload on cancelled order",
+    "request": "POST /api/orders/MS-<DATE>-0003/payment-proof",
+    "requestBody": "<multipart file \"x.png\", 157 byte>",
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti transfer hanya bisa diunggah atau diubah saat pesanan menunggu pembayaran."
+    }
+  },
+  {
+    "name": "order B2 (customer) pending_confirmation, canCancel",
+    "request": "GET /api/orders/MS-<DATE>-0004",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": true,
+      "canUploadProof": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        }
+      ],
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 45000,
+          "lineTotal": 45000,
+          "name": "Kerupuk Finna Udang",
+          "productId": 1,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0004",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "pending_confirmation",
+      "statusLabel": "Menunggu konfirmasi",
+      "subtotal": 45000,
+      "total": 45000
+    }
+  },
+  {
+    "name": "customer cancel from pending_confirmation",
+    "request": "POST /api/orders/MS-<DATE>-0004/cancel",
+    "requestBody": {
+      "reason": "Berubah pikiran"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "canCancel": false,
+      "canUploadProof": false,
+      "cancelReason": "Berubah pikiran",
+      "cancelledAt": "<TIME>",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "Anda",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": "Berubah pikiran",
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 45000,
+          "lineTotal": 45000,
+          "name": "Kerupuk Finna Udang",
+          "productId": 1,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 45000
+        }
+      ],
+      "note": "Titip di pos satpam",
+      "orderNo": "MS-<DATE>-0004",
+      "paidAt": null,
+      "paymentMethod": "bank_transfer",
+      "paymentProof": null,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 45000,
+      "total": 45000
+    }
+  },
+  {
+    "name": "proof upload on pending_confirmation (409)",
+    "request": "POST /api/orders/MS-<DATE>-0001/payment-proof",
+    "requestBody": "<multipart file \"x.png\", 157 byte>",
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Bukti transfer hanya bisa diunggah atau diubah saat pesanan menunggu pembayaran."
+    }
+  },
+  {
+    "name": "admin cancel from pending_confirmation",
+    "request": "PATCH /api/admin/orders/5/status",
+    "requestBody": {
+      "from": "pending_confirmation",
+      "reason": "Stok habis",
+      "to": "cancelled"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [],
+      "canConfirm": false,
+      "cancelReason": "Stok habis",
+      "cancelledAt": "<TIME>",
+      "cancelledBy": "admin.kontrak@uji.test",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": "Stok habis",
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "id": 5,
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 55000,
+          "lineTotal": 55000,
+          "name": "Kerupuk Finna Bawang",
+          "productId": 2,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 55000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0005",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 0,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 55000,
+      "total": 55000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "confirm A3",
+    "request": "POST /api/admin/orders/6/confirm",
+    "requestBody": {
+      "discount": 0,
+      "shippingFee": 8000
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [
+        "paid",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "id": 6,
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 65000,
+          "lineTotal": 65000,
+          "name": "Tepung Terigu Protein Tinggi",
+          "productId": 5,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 65000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0006",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": false,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 8000,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 65000,
+      "total": 73000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "admin cancel from pending_payment (no reason ok)",
+    "request": "PATCH /api/admin/orders/6/status",
+    "requestBody": {
+      "from": "pending_payment",
+      "to": "cancelled"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": "<TIME>",
+      "cancelledBy": "admin.kontrak@uji.test",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 0,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": null,
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "id": 6,
+      "itemCount": 1,
+      "items": [
+        {
+          "baseUnitPrice": 65000,
+          "lineTotal": 65000,
+          "name": "Tepung Terigu Protein Tinggi",
+          "productId": 5,
+          "qty": 1,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 65000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0006",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 8000,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 65000,
+      "total": 73000,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "confirm A4",
+    "request": "POST /api/admin/orders/7/confirm",
+    "requestBody": {
+      "discount": 500,
+      "shippingFee": 9000
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [
+        "paid",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 500,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        }
+      ],
+      "id": 7,
+      "itemCount": 3,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 75000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 3,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0007",
+      "paidAt": null,
+      "paidBy": null,
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": false,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 9000,
+      "status": "pending_payment",
+      "statusLabel": "Menunggu pembayaran",
+      "subtotal": 75000,
+      "total": 83500,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "A4 pending_payment -> completed (not allowed)",
+    "request": "PATCH /api/admin/orders/7/status",
+    "requestBody": {
+      "from": "pending_payment",
+      "to": "completed"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Perpindahan status tidak diizinkan"
+    }
+  },
+  {
+    "name": "A4 paid",
+    "request": "PATCH /api/admin/orders/7/status",
+    "requestBody": {
+      "from": "pending_payment",
+      "to": "paid"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [
+        "completed",
+        "cancelled"
+      ],
+      "canConfirm": false,
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledBy": null,
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 500,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": null,
+          "to": "paid",
+          "toLabel": "Dibayar"
+        }
+      ],
+      "id": 7,
+      "itemCount": 3,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 75000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 3,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0007",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 9000,
+      "status": "paid",
+      "statusLabel": "Dibayar",
+      "subtotal": 75000,
+      "total": 83500,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "A4 paid -> cancelled without reason",
+    "request": "PATCH /api/admin/orders/7/status",
+    "requestBody": {
+      "from": "paid",
+      "to": "cancelled"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Alasan pembatalan wajib diisi untuk pesanan yang sudah dibayar"
+    }
+  },
+  {
+    "name": "A4 paid -> cancelled with reason",
+    "request": "PATCH /api/admin/orders/7/status",
+    "requestBody": {
+      "from": "paid",
+      "reason": "Dikembalikan",
+      "to": "cancelled"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "adminNote": null,
+      "allowedNext": [],
+      "canConfirm": false,
+      "cancelReason": "Dikembalikan",
+      "cancelledAt": "<TIME>",
+      "cancelledBy": "admin.kontrak@uji.test",
+      "completedAt": null,
+      "createdAt": "<TIME>",
+      "customer": {
+        "alias": null,
+        "email": "budi@uji.test",
+        "id": 1,
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "username": "budi_uji"
+      },
+      "customerNote": "Titip di pos satpam",
+      "discount": 500,
+      "discountNote": null,
+      "history": [
+        {
+          "actor": "pelanggan:budi_uji",
+          "createdAt": "<TIME>",
+          "from": null,
+          "note": null,
+          "to": "pending_confirmation",
+          "toLabel": "Menunggu konfirmasi"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_confirmation",
+          "note": null,
+          "to": "pending_payment",
+          "toLabel": "Menunggu pembayaran"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "pending_payment",
+          "note": null,
+          "to": "paid",
+          "toLabel": "Dibayar"
+        },
+        {
+          "actor": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "from": "paid",
+          "note": "Dikembalikan",
+          "to": "cancelled",
+          "toLabel": "Dibatalkan"
+        }
+      ],
+      "id": 7,
+      "itemCount": 3,
+      "items": [
+        {
+          "baseUnitPrice": 25000,
+          "lineTotal": 75000,
+          "name": "Kerupuk Aci",
+          "productId": 4,
+          "qty": 3,
+          "tierMinQty": null,
+          "unit": "pcs",
+          "unitPrice": 25000
+        }
+      ],
+      "orderNo": "MS-<DATE>-0007",
+      "paidAt": "<TIME>",
+      "paidBy": "admin.kontrak@uji.test",
+      "paymentMethod": "bank_transfer",
+      "paymentNote": null,
+      "paymentProof": null,
+      "pricingLocked": true,
+      "recipient": {
+        "address": "Jl. Melati No. 9, RT 3",
+        "city": "Kota Tangerang",
+        "fullAddress": "Jl. Melati No. 9, RT 3, Sukarasa, Kec. Tangerang, Kota Tangerang, Banten 15111",
+        "name": "Budi Penerima",
+        "phone": "+6281311112222",
+        "postalCode": "15111",
+        "region": {
+          "district": {
+            "code": "36.71.01",
+            "name": "Tangerang"
+          },
+          "province": {
+            "code": "36",
+            "name": "Banten"
+          },
+          "regency": {
+            "code": "36.71",
+            "name": "Kota Tangerang"
+          },
+          "village": {
+            "code": "36.71.01.1001",
+            "name": "Sukarasa"
+          }
+        }
+      },
+      "shippingFee": 9000,
+      "status": "cancelled",
+      "statusLabel": "Dibatalkan",
+      "subtotal": 75000,
+      "total": 83500,
+      "updatedAt": "<TIME>"
+    }
+  },
+  {
+    "name": "unusual status note too long",
+    "request": "PATCH /api/admin/orders/7/status",
+    "requestBody": {
+      "from": "cancelled",
+      "note": "<TOKEN#22>",
+      "to": "paid"
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Catatan maksimal 255 karakter"
+    }
+  },
+  {
+    "name": "customer orders list (all statuses)",
+    "request": "GET /api/orders",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Aci",
+          "hasPaymentProof": false,
+          "itemCount": 3,
+          "orderNo": "MS-<DATE>-0007",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500
+        },
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Tepung Terigu Protein Tinggi",
+          "hasPaymentProof": false,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0006",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000
+        },
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Finna Bawang",
+          "hasPaymentProof": false,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0005",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 55000
+        },
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Finna Udang",
+          "hasPaymentProof": false,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0002",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000
+        },
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Aci",
+          "hasPaymentProof": true,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0001",
+          "status": "completed",
+          "statusLabel": "Selesai",
+          "total": 60000
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 5
+    }
+  },
+  {
+    "name": "customer orders list B",
+    "request": "GET /api/orders",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Finna Udang",
+          "hasPaymentProof": false,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0004",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000
+        },
+        {
+          "createdAt": "<TIME>",
+          "firstItem": "Kerupuk Gondang",
+          "hasPaymentProof": false,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0003",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 70000
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 2
+    }
+  },
+  {
+    "name": "admin orders list (all)",
+    "request": "GET /api/admin/orders",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 7,
+          "itemCount": 3,
+          "orderNo": "MS-<DATE>-0007",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 6,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0006",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 5,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0005",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 55000,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 2
+          },
+          "customerName": "Siti",
+          "hasPaymentProof": false,
+          "id": 4,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0004",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000,
+          "username": "siti"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 2
+          },
+          "customerName": "Siti",
+          "hasPaymentProof": false,
+          "id": 3,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0003",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 70000,
+          "username": "siti"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 2,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0002",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": true,
+          "id": 1,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0001",
+          "recipientName": "Budi Penerima",
+          "status": "completed",
+          "statusLabel": "Selesai",
+          "total": 60000,
+          "username": "budi_uji"
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 7
+    }
+  },
+  {
+    "name": "admin orders list status=cancelled",
+    "request": "GET /api/admin/orders?status=cancelled",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "items": [
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 7,
+          "itemCount": 3,
+          "orderNo": "MS-<DATE>-0007",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 83500,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 6,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0006",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 73000,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 5,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0005",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 55000,
+          "username": "budi_uji"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 2
+          },
+          "customerName": "Siti",
+          "hasPaymentProof": false,
+          "id": 4,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0004",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000,
+          "username": "siti"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 2
+          },
+          "customerName": "Siti",
+          "hasPaymentProof": false,
+          "id": 3,
+          "itemCount": 2,
+          "orderNo": "MS-<DATE>-0003",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 70000,
+          "username": "siti"
+        },
+        {
+          "city": "Kota Tangerang",
+          "createdAt": "<TIME>",
+          "customer": {
+            "alias": null,
+            "id": 1
+          },
+          "customerName": "Budi Uji",
+          "hasPaymentProof": false,
+          "id": 2,
+          "itemCount": 1,
+          "orderNo": "MS-<DATE>-0002",
+          "recipientName": "Budi Penerima",
+          "status": "cancelled",
+          "statusLabel": "Dibatalkan",
+          "total": 45000,
+          "username": "budi_uji"
+        }
+      ],
+      "page": 1,
+      "perPage": 20,
+      "total": 6
+    }
+  },
+  {
+    "name": "admin summary after flows",
+    "request": "GET /api/admin/summary",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "categories": 6,
+      "customers": 5,
+      "orders": {
+        "last7Days": 7,
+        "paid": 0,
+        "pendingConfirmation": 0,
+        "pendingPayment": 0
+      },
+      "products": {
+        "active": 22,
+        "inactive": 0,
+        "total": 22
+      },
+      "recentActivity": [
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Dikembalikan",
+            "orderNo": "MS-<DATE>-0007",
+            "status": {
+              "dari": "paid",
+              "menjadi": "cancelled"
+            },
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 78,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0007: Dibayar → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.pay",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "orderNo": "MS-<DATE>-0007",
+            "status": {
+              "dari": "pending_payment",
+              "menjadi": "paid"
+            },
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 77,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0007: Menunggu pembayaran → Dibayar",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 500,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0007",
+            "shippingFee": 9000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 75000,
+            "total": 83500
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 76,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0007",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 3,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0007",
+            "produkId": [
+              4
+            ],
+            "subtotal": 75000,
+            "total": 75000
+          },
+          "entityId": "MS-<DATE>-0007",
+          "entityType": "order",
+          "id": 75,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0007",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": null,
+            "orderNo": "MS-<DATE>-0006",
+            "status": {
+              "dari": "pending_payment",
+              "menjadi": "cancelled"
+            },
+            "total": 73000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 74,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0006: Menunggu pembayaran → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.confirm",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "discount": 0,
+            "discountNote": "",
+            "orderNo": "MS-<DATE>-0006",
+            "shippingFee": 8000,
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "pending_payment"
+            },
+            "subtotal": 65000,
+            "total": 73000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 73,
+          "ip": "198.51.100.20",
+          "summary": "Pesanan dikonfirmasi (ongkir/diskon ditetapkan): MS-<DATE>-0006",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 1,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0006",
+            "produkId": [
+              5
+            ],
+            "subtotal": 65000,
+            "total": 65000
+          },
+          "entityId": "MS-<DATE>-0006",
+          "entityType": "order",
+          "id": 72,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0006",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "admin.kontrak@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Stok habis",
+            "orderNo": "MS-<DATE>-0005",
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "cancelled"
+            },
+            "total": 55000
+          },
+          "entityId": "MS-<DATE>-0005",
+          "entityType": "order",
+          "id": 71,
+          "ip": "198.51.100.20",
+          "summary": "Status pesanan MS-<DATE>-0005: Menunggu konfirmasi → Dibatalkan",
+          "userAgent": "contract-test",
+          "userEmail": "admin.kontrak@uji.test",
+          "username": "user_<RAND>"
+        },
+        {
+          "action": "order.create",
+          "actorLabel": "budi@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "barisHargaGrosir": 0,
+            "jumlahItem": 1,
+            "jumlahProduk": 1,
+            "orderNo": "MS-<DATE>-0005",
+            "produkId": [
+              2
+            ],
+            "subtotal": 55000,
+            "total": 55000
+          },
+          "entityId": "MS-<DATE>-0005",
+          "entityType": "order",
+          "id": 70,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibuat: MS-<DATE>-0005",
+          "userAgent": null,
+          "userEmail": "budi@uji.test",
+          "username": "budi_uji"
+        },
+        {
+          "action": "order.cancel",
+          "actorLabel": "siti@uji.test",
+          "createdAt": "<TIME>",
+          "details": {
+            "alasan": "Berubah pikiran",
+            "oleh": "pelanggan",
+            "orderNo": "MS-<DATE>-0004",
+            "status": {
+              "dari": "pending_confirmation",
+              "menjadi": "cancelled"
+            }
+          },
+          "entityId": "MS-<DATE>-0004",
+          "entityType": "order",
+          "id": 69,
+          "ip": "203.0.113.7",
+          "summary": "Pesanan dibatalkan oleh pelanggan: MS-<DATE>-0004",
+          "userAgent": "contract-test",
+          "userEmail": "siti@uji.test",
+          "username": "siti"
+        }
+      ]
+    }
+  }
+]

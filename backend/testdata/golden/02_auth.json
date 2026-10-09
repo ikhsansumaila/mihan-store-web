@@ -1,0 +1,1079 @@
+[
+  {
+    "name": "register ok",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": " Budi@Uji.Test ",
+      "name": " Budi  Uji ",
+      "password": "passwordku123",
+      "phone": "0812-3456-7890",
+      "turnstileToken": "lulus",
+      "username": "Budi_Uji"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Registrasi berhasil",
+      "success": true,
+      "token": "<TOKEN#2>",
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      }
+    }
+  },
+  {
+    "name": "register ok without phone",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "siti@uji.test",
+      "name": "Siti",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "siti"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Registrasi berhasil",
+      "success": true,
+      "token": "<TOKEN#3>",
+      "user": {
+        "email": "siti@uji.test",
+        "id": "<UUID#2>",
+        "name": "Siti",
+        "phone": null,
+        "role": "customer",
+        "username": "siti"
+      }
+    }
+  },
+  {
+    "name": "register ok (akun untuk uji tautan Google)",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "tautan@uji.test",
+      "name": "Tautan",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "tautan"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Registrasi berhasil",
+      "success": true,
+      "token": "<TOKEN#4>",
+      "user": {
+        "email": "tautan@uji.test",
+        "id": "<UUID#3>",
+        "name": "Tautan",
+        "phone": null,
+        "role": "customer",
+        "username": "tautan"
+      }
+    }
+  },
+  {
+    "name": "register invalid phone",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "andi@uji.test",
+      "name": "Andi",
+      "password": "passwordku123",
+      "phone": "12345",
+      "turnstileToken": "lulus",
+      "username": "andi"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Nomor telepon harus diawali 08, 62, atau +62 (nomor HP, mis. 0812...)"
+    }
+  },
+  {
+    "name": "register invalid email",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "bukan-email",
+      "name": "Andi",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "andi2"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format email tidak valid"
+    }
+  },
+  {
+    "name": "register short password",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "andi3@uji.test",
+      "name": "Andi",
+      "password": "pendek",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "andi3"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Password harus 8–128 karakter"
+    }
+  },
+  {
+    "name": "register without turnstile",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "andi4@uji.test",
+      "name": "A",
+      "password": "passwordku123",
+      "username": "andi4"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Harap selesaikan verifikasi keamanan"
+    }
+  },
+  {
+    "name": "register bad turnstile",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "andi5@uji.test",
+      "name": "A",
+      "password": "passwordku123",
+      "turnstileToken": "gagal",
+      "username": "andi5"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Verifikasi keamanan gagal, coba lagi."
+    }
+  },
+  {
+    "name": "register duplicate email",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "BUDI@uji.test",
+      "name": "X",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "lain"
+    },
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email atau username sudah terdaftar"
+    }
+  },
+  {
+    "name": "register duplicate username",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "lain@uji.test",
+      "name": "X",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "BUDI_UJI"
+    },
+    "status": 409,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email atau username sudah terdaftar"
+    }
+  },
+  {
+    "name": "register not json",
+    "request": "POST /api/auth/register",
+    "requestBody": "bukan json",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "register wrong content type",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "a": 1
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "unusual register unknown field",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "x1@uji.test",
+      "name": "A",
+      "password": "passwordku123",
+      "role": "admin",
+      "turnstileToken": "lulus",
+      "username": "x1"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "unusual register unicode name & huge username",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "huge@uji.test",
+      "name": "Nama ‮🍤 \u0000 Aneh",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "<TOKEN#5>"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Username harus 3–30 karakter, hanya huruf kecil, angka, atau garis bawah (_)"
+    }
+  },
+  {
+    "name": "unusual register unicode name ok",
+    "request": "POST /api/auth/register",
+    "requestBody": {
+      "email": "unik@uji.test",
+      "name": "Nama 🍤  Aneh",
+      "password": "passwordku123",
+      "phone": "",
+      "turnstileToken": "lulus",
+      "username": "unik_uji"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Registrasi berhasil",
+      "success": true,
+      "token": "<TOKEN#6>",
+      "user": {
+        "email": "unik@uji.test",
+        "id": "<UUID#4>",
+        "name": "Nama 🍤 Aneh",
+        "phone": null,
+        "role": "customer",
+        "username": "unik_uji"
+      }
+    }
+  },
+  {
+    "name": "login by identifier username",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "Budi_Uji",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Login berhasil",
+      "success": true,
+      "token": "<TOKEN#7>",
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      }
+    }
+  },
+  {
+    "name": "login by identifier email",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "BUDI@uji.test",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Login berhasil",
+      "success": true,
+      "token": "<TOKEN#8>",
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      }
+    }
+  },
+  {
+    "name": "login legacy field email",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "email": "budi@uji.test",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Login berhasil",
+      "success": true,
+      "token": "<TOKEN#9>",
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      }
+    }
+  },
+  {
+    "name": "login wrong password",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "siti",
+      "password": "salahsalah",
+      "turnstileToken": "lulus"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email/username atau password salah"
+    }
+  },
+  {
+    "name": "login unknown user",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "tidakada",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email/username atau password salah"
+    }
+  },
+  {
+    "name": "login bad turnstile",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "budi_uji",
+      "password": "passwordku123",
+      "turnstileToken": "gagal"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Verifikasi keamanan gagal, coba lagi."
+    }
+  },
+  {
+    "name": "login without turnstile",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "budi_uji",
+      "password": "passwordku123"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Harap selesaikan verifikasi keamanan"
+    }
+  },
+  {
+    "name": "login empty body",
+    "request": "POST /api/auth/login",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email/username dan password wajib diisi"
+    }
+  },
+  {
+    "name": "unusual login huge identifier",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "<TOKEN#10>",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email/username atau password salah"
+    }
+  },
+  {
+    "name": "unusual login sql-ish identifier",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "' OR 1=1 --",
+      "password": "x' OR '1'='1",
+      "turnstileToken": "lulus"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Email/username atau password salah"
+    }
+  },
+  {
+    "name": "me ok",
+    "request": "GET /api/auth/me",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "user": {
+        "avatarUrl": null,
+        "createdAt": "<TIME>",
+        "email": "budi@uji.test",
+        "emailVerified": false,
+        "googleLinked": false,
+        "hasPassword": true,
+        "id": "<UUID#1>",
+        "lastLoginAt": "<TIME>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      }
+    }
+  },
+  {
+    "name": "me no token",
+    "request": "GET /api/auth/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi tidak valid atau sudah berakhir, silakan login kembali"
+    }
+  },
+  {
+    "name": "me bad token",
+    "request": "GET /api/auth/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi tidak valid atau sudah berakhir, silakan login kembali"
+    }
+  },
+  {
+    "name": "verify header",
+    "request": "POST /api/auth/verify",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      },
+      "valid": true
+    }
+  },
+  {
+    "name": "verify body",
+    "request": "POST /api/auth/verify",
+    "requestBody": {
+      "token": "<TOKEN#2>"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "user": {
+        "email": "budi@uji.test",
+        "id": "<UUID#1>",
+        "name": "Budi Uji",
+        "phone": "+6281234567890",
+        "role": "customer",
+        "username": "budi_uji"
+      },
+      "valid": true
+    }
+  },
+  {
+    "name": "verify no token",
+    "request": "POST /api/auth/verify",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "valid": false
+    }
+  },
+  {
+    "name": "unusual verify old-style fake token",
+    "request": "POST /api/auth/verify",
+    "requestBody": {
+      "token": "token_budi_uji.test_1"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "valid": false
+    }
+  },
+  {
+    "name": "logout ok",
+    "request": "POST /api/auth/logout",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "message": "Berhasil logout",
+      "success": true
+    }
+  },
+  {
+    "name": "logout no token",
+    "request": "POST /api/auth/logout",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "message": "Berhasil logout",
+      "success": true
+    }
+  },
+  {
+    "name": "verify after logout",
+    "request": "POST /api/auth/verify",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "valid": false
+    }
+  },
+  {
+    "name": "me after logout",
+    "request": "GET /api/auth/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi tidak valid atau sudah berakhir, silakan login kembali"
+    }
+  },
+  {
+    "name": "google no credential",
+    "request": "POST /api/auth/google",
+    "requestBody": {},
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Login Google gagal diverifikasi. Silakan coba lagi."
+    }
+  },
+  {
+    "name": "google invalid credential",
+    "request": "POST /api/auth/google",
+    "requestBody": {
+      "credential": "bukan.jwt.valid"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Login Google gagal diverifikasi. Silakan coba lagi."
+    }
+  },
+  {
+    "name": "google wrong signature",
+    "request": "POST /api/auth/google",
+    "requestBody": {
+      "credential": "<JWT#1>"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Login Google gagal diverifikasi. Silakan coba lagi."
+    }
+  },
+  {
+    "name": "google new user needs profile",
+    "request": "POST /api/auth/google",
+    "requestBody": {
+      "credential": "<JWT#2>"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "needsProfile": true,
+      "profile": {
+        "avatarUrl": "https://lh3.googleusercontent.com/a/x",
+        "email": "guser@gmail.com",
+        "name": "Pengguna Google"
+      },
+      "profileToken": "<TOKEN#11>.<TOKEN#12>",
+      "success": false,
+      "suggestedUsername": "guser"
+    }
+  },
+  {
+    "name": "google complete invalid token",
+    "request": "POST /api/auth/google/complete",
+    "requestBody": {
+      "profileToken": "salah",
+      "username": "guser"
+    },
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Waktu pengisian profil habis. Silakan masuk dengan Google lagi."
+    }
+  },
+  {
+    "name": "google complete invalid username",
+    "request": "POST /api/auth/google/complete",
+    "requestBody": {
+      "profileToken": "<TOKEN#11>.<TOKEN#12>",
+      "username": "x"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Username harus 3–30 karakter, hanya huruf kecil, angka, atau garis bawah (_)"
+    }
+  },
+  {
+    "name": "google complete ok",
+    "request": "POST /api/auth/google/complete",
+    "requestBody": {
+      "phone": "081200001111",
+      "profileToken": "<TOKEN#11>.<TOKEN#12>",
+      "username": "guser"
+    },
+    "status": 201,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Pendaftaran berhasil",
+      "success": true,
+      "token": "<TOKEN#13>",
+      "user": {
+        "avatarUrl": "https://lh3.googleusercontent.com/a/x",
+        "email": "guser@gmail.com",
+        "id": "<UUID#5>",
+        "name": "Pengguna Google",
+        "phone": "+6281200001111",
+        "role": "customer",
+        "username": "guser"
+      }
+    }
+  },
+  {
+    "name": "google existing user logs in",
+    "request": "POST /api/auth/google",
+    "requestBody": {
+      "credential": "<JWT#2>"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Login berhasil",
+      "success": true,
+      "token": "<TOKEN#14>",
+      "user": {
+        "avatarUrl": "https://lh3.googleusercontent.com/a/x",
+        "email": "guser@gmail.com",
+        "id": "<UUID#5>",
+        "name": "Pengguna Google",
+        "phone": "+6281200001111",
+        "role": "customer",
+        "username": "guser"
+      }
+    }
+  },
+  {
+    "name": "google link existing password account",
+    "request": "POST /api/auth/google",
+    "requestBody": {
+      "credential": "<JWT#3>"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Akun Anda kini tersambung dengan Google. Selanjutnya masuk dengan Google.",
+      "success": true,
+      "token": "<TOKEN#15>",
+      "user": {
+        "email": "tautan@uji.test",
+        "id": "<UUID#3>",
+        "name": "Tautan",
+        "phone": null,
+        "role": "customer",
+        "username": "tautan"
+      }
+    }
+  },
+  {
+    "name": "unusual google complete unknown fields",
+    "request": "POST /api/auth/google/complete",
+    "requestBody": {
+      "profileToken": "<TOKEN#11>.<TOKEN#12>",
+      "role": "admin",
+      "username": "guser2"
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  }
+]

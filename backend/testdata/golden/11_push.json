@@ -1,0 +1,590 @@
+[
+  {
+    "name": "noauth GET /api/push/public-key",
+    "request": "GET /api/push/public-key",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth POST /api/push/subscribe",
+    "request": "POST /api/push/subscribe",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "noauth DELETE /api/push/subscribe",
+    "request": "DELETE /api/push/subscribe",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Silakan login terlebih dahulu"
+    }
+  },
+  {
+    "name": "admin push public-key",
+    "request": "GET /api/admin/push/public-key",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "enabled": true,
+      "publicKey": "<TOKEN#25>",
+      "subscriptions": 0
+    }
+  },
+  {
+    "name": "admin push subscribe ok",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-admin-1",
+      "expirationTime": null,
+      "keys": {
+        "auth": "ZWVlZWVlZWVlZWVlZWVlZQ",
+        "p256dh": "<TOKEN#26>"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "subscribed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "admin push subscribe same endpoint again",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-admin-1",
+      "expirationTime": null,
+      "keys": {
+        "auth": "ZmZmZmZmZmZmZmZmZmZmZg",
+        "p256dh": "<TOKEN#27>"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "subscribed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "admin push subscribe SSRF endpoint",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://127.0.0.1/x",
+      "expirationTime": null,
+      "keys": {
+        "auth": "Z2dnZ2dnZ2dnZ2dnZ2dnZw",
+        "p256dh": "<TOKEN#28>"
+      }
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data langganan notifikasi tidak valid"
+    }
+  },
+  {
+    "name": "admin push subscribe http endpoint",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "http://fcm.googleapis.com/fcm/send/x",
+      "expirationTime": null,
+      "keys": {
+        "auth": "aGhoaGhoaGhoaGhoaGhoaA",
+        "p256dh": "<TOKEN#29>"
+      }
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data langganan notifikasi tidak valid"
+    }
+  },
+  {
+    "name": "admin push subscribe bad keys",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/x",
+      "keys": {
+        "auth": "BBBB",
+        "p256dh": "AAAA"
+      }
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data langganan notifikasi tidak valid"
+    }
+  },
+  {
+    "name": "unusual admin push subscribe unknown field",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/x2",
+      "expirationTime": null,
+      "extra": 1,
+      "keys": {
+        "auth": "aWlpaWlpaWlpaWlpaWlpaQ",
+        "p256dh": "<TOKEN#30>"
+      }
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "admin push test",
+    "request": "POST /api/admin/push/test",
+    "requestBody": {},
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "sent": 1,
+      "total": 1
+    }
+  },
+  {
+    "name": "admin push test invalid body",
+    "request": "POST /api/admin/push/test",
+    "requestBody": {
+      "a": 1
+    },
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "admin push public-key after subscribe",
+    "request": "GET /api/admin/push/public-key",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "enabled": true,
+      "publicKey": "<TOKEN#25>",
+      "subscriptions": 1
+    }
+  },
+  {
+    "name": "admin push unsubscribe",
+    "request": "DELETE /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-admin-1"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": false,
+      "removed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "admin push unsubscribe again",
+    "request": "DELETE /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-admin-1"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": false,
+      "removed": false,
+      "success": true
+    }
+  },
+  {
+    "name": "admin push unsubscribe invalid",
+    "request": "DELETE /api/admin/push/subscribe",
+    "requestBody": {},
+    "status": 400,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data langganan notifikasi tidak valid"
+    }
+  },
+  {
+    "name": "customer push public-key",
+    "request": "GET /api/push/public-key",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "enabled": true,
+      "publicKey": "<TOKEN#25>"
+    }
+  },
+  {
+    "name": "customer push subscribe ok",
+    "request": "POST /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-pelanggan-1",
+      "expirationTime": null,
+      "keys": {
+        "auth": "ampqampqampqampqampqag",
+        "p256dh": "<TOKEN#31>"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "subscribed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "customer push subscribe invalid endpoint",
+    "request": "POST /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://evil.example/x",
+      "expirationTime": null,
+      "keys": {
+        "auth": "a2tra2tra2tra2tra2traw",
+        "p256dh": "<TOKEN#32>"
+      }
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Data langganan notifikasi tidak valid"
+    }
+  },
+  {
+    "name": "customer push subscribe not json",
+    "request": "POST /api/push/subscribe",
+    "requestBody": "xx",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "customer push unsubscribe",
+    "request": "DELETE /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-pelanggan-1"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": false,
+      "removed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "customer push unsubscribe again",
+    "request": "DELETE /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-pelanggan-1"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": false,
+      "removed": false,
+      "success": true
+    }
+  },
+  {
+    "name": "unusual customer push unsubscribe invalid",
+    "request": "DELETE /api/push/subscribe",
+    "requestBody": {
+      "endpoint": 123
+    },
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Format permintaan tidak valid"
+    }
+  },
+  {
+    "name": "push same endpoint as admin",
+    "request": "POST /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-bersama",
+      "expirationTime": null,
+      "keys": {
+        "auth": "bGxsbGxsbGxsbGxsbGxsbA",
+        "p256dh": "<TOKEN#33>"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "subscribed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "push same endpoint as customer",
+    "request": "POST /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-bersama",
+      "expirationTime": null,
+      "keys": {
+        "auth": "bW1tbW1tbW1tbW1tbW1tbQ",
+        "p256dh": "<TOKEN#34>"
+      }
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "subscribed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "push same endpoint: customer unsubscribes",
+    "request": "DELETE /api/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-bersama"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": true,
+      "removed": true,
+      "success": true
+    }
+  },
+  {
+    "name": "push same endpoint: admin unsubscribes (still there)",
+    "request": "DELETE /api/admin/push/subscribe",
+    "requestBody": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/kontrak-bersama"
+    },
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "keepBrowserSubscription": false,
+      "removed": true,
+      "success": true
+    }
+  }
+]

@@ -1,0 +1,1356 @@
+[
+  {
+    "name": "health",
+    "request": "GET /health",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "status": "ok"
+    }
+  },
+  {
+    "name": "health ready",
+    "request": "GET /health/ready",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "status": "ready"
+    }
+  },
+  {
+    "name": "products list",
+    "request": "GET /api/products",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "products by category",
+    "request": "GET /api/products?category=snack",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "products search ok",
+    "request": "GET /api/products/search?q=kerupuk",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "products search empty q",
+    "request": "GET /api/products/search",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "products search no result",
+    "request": "GET /api/products/search?q=zzzzzz-tidak-ada",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": []
+  },
+  {
+    "name": "unusual products search wildcard/unicode",
+    "request": "GET /api/products/search?q=%25_%5C%27+OR+1%3D1+--+%F0%9F%8D%A4%E2%80%AE",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": []
+  },
+  {
+    "name": "unusual products search very long q",
+    "request": "GET /api/products/search?q=<TOKEN#1>",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": []
+  },
+  {
+    "name": "categories list",
+    "request": "GET /api/categories",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "id": 1,
+        "name": "Kerupuk",
+        "slug": "kerupuk",
+        "sortOrder": 10
+      },
+      {
+        "id": 2,
+        "name": "Tepung",
+        "slug": "tepung",
+        "sortOrder": 20
+      },
+      {
+        "id": 3,
+        "name": "Saos",
+        "slug": "saos",
+        "sortOrder": 30
+      },
+      {
+        "id": 4,
+        "name": "Sambal",
+        "slug": "sambal",
+        "sortOrder": 40
+      },
+      {
+        "id": 5,
+        "name": "Sendok Plastik",
+        "slug": "sendok_plastik",
+        "sortOrder": 50
+      },
+      {
+        "id": 6,
+        "name": "Box Hampers",
+        "slug": "box_hampers",
+        "sortOrder": 60
+      }
+    ]
+  },
+  {
+    "name": "regions provinces",
+    "request": "GET /api/regions/provinces",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"d52cf081b1b1f431700ab3da\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36",
+          "name": "Banten"
+        },
+        {
+          "code": "31",
+          "name": "DKI Jakarta"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions regencies ok",
+    "request": "GET /api/regions/regencies/36",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"1eb1820a17e3f066d0aa324f\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36.03",
+          "name": "Kabupaten Tangerang"
+        },
+        {
+          "code": "36.71",
+          "name": "Kota Tangerang"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions regencies unknown",
+    "request": "GET /api/regions/regencies/99",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Wilayah tidak ditemukan"
+    }
+  },
+  {
+    "name": "regions regencies invalid code",
+    "request": "GET /api/regions/regencies/abc",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kode wilayah tidak valid"
+    }
+  },
+  {
+    "name": "regions districts ok",
+    "request": "GET /api/regions/districts/36.71",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"e0bb90959a23633576b61770\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36.71.01",
+          "name": "Tangerang"
+        },
+        {
+          "code": "36.71.02",
+          "name": "Jatiuwung"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions districts invalid code",
+    "request": "GET /api/regions/districts/36",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kode wilayah tidak valid"
+    }
+  },
+  {
+    "name": "regions villages ok",
+    "request": "GET /api/regions/villages/36.71.01",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"63dac14b9dc8ae19d9ae711e\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36.71.01.1001",
+          "name": "Sukarasa"
+        },
+        {
+          "code": "36.71.01.1002",
+          "name": "Tangerang"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "regions villages unknown",
+    "request": "GET /api/regions/villages/36.71.99",
+    "status": 404,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Wilayah tidak ditemukan"
+    }
+  },
+  {
+    "name": "unusual regions code injection",
+    "request": "GET /api/regions/villages/36.71.01%27+OR+%271%27%3D%271",
+    "status": 400,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Kode wilayah tidak valid"
+    }
+  },
+  {
+    "name": "regions provinces conditional (If-None-Match)",
+    "request": "GET /api/regions/provinces",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/json; charset=utf-8",
+      "Etag": "\"d52cf081b1b1f431700ab3da\"",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "36",
+          "name": "Banten"
+        },
+        {
+          "code": "31",
+          "name": "DKI Jakarta"
+        }
+      ],
+      "meta": {
+        "updatedAt": "2025-07-04"
+      }
+    }
+  },
+  {
+    "name": "cors preflight allowed origin",
+    "request": "OPTIONS /api/products",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Access-Control-Max-Age": "600",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    }
+  },
+  {
+    "name": "cors get disallowed origin",
+    "request": "GET /api/products",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": [
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk udang asli dengan rasa gurih",
+        "id": 1,
+        "image": "",
+        "name": "Kerupuk Finna Udang",
+        "price": 45000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk bawang renyah",
+        "id": 2,
+        "image": "",
+        "name": "Kerupuk Finna Bawang",
+        "price": 55000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk ketela tradisional",
+        "id": 3,
+        "image": "",
+        "name": "Kerupuk Gondang",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "kerupuk",
+        "description": "Kerupuk aci warna-warni",
+        "id": 4,
+        "image": "",
+        "name": "Kerupuk Aci",
+        "price": 25000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung terigu 1kg protein tinggi",
+        "id": 5,
+        "image": "",
+        "name": "Tepung Terigu Protein Tinggi",
+        "price": 65000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung maizena 500gr",
+        "id": 6,
+        "image": "",
+        "name": "Tepung Maizena",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung beras premium 500gr",
+        "id": 7,
+        "image": "",
+        "name": "Tepung Beras",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "tepung",
+        "description": "Tepung gandum organik 1kg",
+        "id": 8,
+        "image": "",
+        "name": "Tepung Gandum",
+        "price": 48000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos tomat 400ml tanpa pengawet",
+        "id": 9,
+        "image": "",
+        "name": "Saos Tomat Murni",
+        "price": 18000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Saos cabe merah pedas 300ml",
+        "id": 10,
+        "image": "",
+        "name": "Saos Cabe Merah",
+        "price": 22000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal bajak tradisional 350gr",
+        "id": 11,
+        "image": "",
+        "name": "Sambal Bajak Pedas",
+        "price": 35000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal matah segar 250gr",
+        "id": 12,
+        "image": "",
+        "name": "Sambal Matah Segar",
+        "price": 28000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs sendok plastik",
+        "id": 13,
+        "image": "",
+        "name": "Sendok Plastik Putih",
+        "price": 5000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sendok_plastik",
+        "description": "1 pak isi 50 pcs warna-warni",
+        "id": 14,
+        "image": "",
+        "name": "Sendok Plastik Warna",
+        "price": 7000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi produk pilihan",
+        "id": 15,
+        "image": "",
+        "name": "Box Hampers Kecil",
+        "price": 75000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers isi 8 item premium",
+        "id": 16,
+        "image": "",
+        "name": "Box Hampers Sedang",
+        "price": 150000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers lengkap 15 item",
+        "id": 17,
+        "image": "",
+        "name": "Box Hampers Besar",
+        "price": 300000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "box_hampers",
+        "description": "Box hampers eksklusif 20 item mewah",
+        "id": 18,
+        "image": "",
+        "name": "Box Hampers VIP",
+        "price": 500000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "saos",
+        "description": "Kecap manis premium 420ml",
+        "id": 19,
+        "image": "",
+        "name": "Saos Kecap Manis",
+        "price": 16000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      },
+      {
+        "category": "sambal",
+        "description": "Sambal tomat ulek 300gr",
+        "id": 20,
+        "image": "",
+        "name": "Sambal Tomat Pedas",
+        "price": 32000,
+        "thumb": "",
+        "tiers": [],
+        "unit": "pcs"
+      }
+    ]
+  },
+  {
+    "name": "unknown route",
+    "request": "GET /api/tidak-ada",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "bodyText": "404 page not found\n"
+  },
+  {
+    "name": "wrong method",
+    "request": "DELETE /api/products",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "bodyText": "404 page not found\n"
+  }
+]

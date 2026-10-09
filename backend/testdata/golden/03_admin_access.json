@@ -1,0 +1,1490 @@
+[
+  {
+    "name": "customer for admin tests: login",
+    "request": "POST /api/auth/login",
+    "requestBody": {
+      "identifier": "siti",
+      "password": "passwordku123",
+      "turnstileToken": "lulus"
+    },
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "expiresAt": "<TIME>",
+      "message": "Login berhasil",
+      "success": true,
+      "token": "<TOKEN#16>",
+      "user": {
+        "email": "siti@uji.test",
+        "id": "<UUID#2>",
+        "name": "Siti",
+        "phone": null,
+        "role": "customer",
+        "username": "siti"
+      }
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/me",
+    "request": "GET /api/admin/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/summary",
+    "request": "GET /api/admin/summary",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/settings",
+    "request": "GET /api/admin/settings",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PUT /api/admin/settings",
+    "request": "PUT /api/admin/settings",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/products",
+    "request": "GET /api/admin/products",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/products",
+    "request": "POST /api/admin/products",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/products/1",
+    "request": "GET /api/admin/products/1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PUT /api/admin/products/1",
+    "request": "PUT /api/admin/products/1",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth DELETE /api/admin/products/1",
+    "request": "DELETE /api/admin/products/1",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PATCH /api/admin/products/1/active",
+    "request": "PATCH /api/admin/products/1/active",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/products/1/image",
+    "request": "POST /api/admin/products/1/image",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth DELETE /api/admin/products/1/image",
+    "request": "DELETE /api/admin/products/1/image",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/categories",
+    "request": "GET /api/admin/categories",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/categories",
+    "request": "POST /api/admin/categories",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PUT /api/admin/categories/1",
+    "request": "PUT /api/admin/categories/1",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth DELETE /api/admin/categories/1",
+    "request": "DELETE /api/admin/categories/1",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/orders",
+    "request": "GET /api/admin/orders",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/orders/1",
+    "request": "GET /api/admin/orders/1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PATCH /api/admin/orders/1/pricing",
+    "request": "PATCH /api/admin/orders/1/pricing",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/orders/1/confirm",
+    "request": "POST /api/admin/orders/1/confirm",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/orders/1/shipping-suggestions",
+    "request": "GET /api/admin/orders/1/shipping-suggestions",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/orders/1/shipping-default",
+    "request": "POST /api/admin/orders/1/shipping-default",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/orders/1/payment-proof",
+    "request": "GET /api/admin/orders/1/payment-proof",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PATCH /api/admin/orders/1/status",
+    "request": "PATCH /api/admin/orders/1/status",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PATCH /api/admin/orders/1/note",
+    "request": "PATCH /api/admin/orders/1/note",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/customers",
+    "request": "GET /api/admin/customers",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/customers/1",
+    "request": "GET /api/admin/customers/1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth PATCH /api/admin/customers/1/alias",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/activity-logs",
+    "request": "GET /api/admin/activity-logs",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/activity-logs/purge",
+    "request": "POST /api/admin/activity-logs/purge",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/push/public-key",
+    "request": "GET /api/admin/push/public-key",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/push/subscribe",
+    "request": "POST /api/admin/push/subscribe",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth DELETE /api/admin/push/subscribe",
+    "request": "DELETE /api/admin/push/subscribe",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/push/test",
+    "request": "POST /api/admin/push/test",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/regions/status",
+    "request": "GET /api/admin/regions/status",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/regions/fetch",
+    "request": "POST /api/admin/regions/fetch",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth GET /api/admin/regions/runs/1",
+    "request": "GET /api/admin/regions/runs/1",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/regions/runs/1/save",
+    "request": "POST /api/admin/regions/runs/1/save",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "noauth POST /api/admin/regions/runs/1/discard",
+    "request": "POST /api/admin/regions/runs/1/discard",
+    "status": 401,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/me",
+    "request": "GET /api/admin/me",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/summary",
+    "request": "GET /api/admin/summary",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/settings",
+    "request": "GET /api/admin/settings",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PUT /api/admin/settings",
+    "request": "PUT /api/admin/settings",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/products",
+    "request": "GET /api/admin/products",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/products",
+    "request": "POST /api/admin/products",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/products/1",
+    "request": "GET /api/admin/products/1",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PUT /api/admin/products/1",
+    "request": "PUT /api/admin/products/1",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email DELETE /api/admin/products/1",
+    "request": "DELETE /api/admin/products/1",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PATCH /api/admin/products/1/active",
+    "request": "PATCH /api/admin/products/1/active",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/products/1/image",
+    "request": "POST /api/admin/products/1/image",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email DELETE /api/admin/products/1/image",
+    "request": "DELETE /api/admin/products/1/image",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/categories",
+    "request": "GET /api/admin/categories",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/categories",
+    "request": "POST /api/admin/categories",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PUT /api/admin/categories/1",
+    "request": "PUT /api/admin/categories/1",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email DELETE /api/admin/categories/1",
+    "request": "DELETE /api/admin/categories/1",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/orders",
+    "request": "GET /api/admin/orders",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/orders/1",
+    "request": "GET /api/admin/orders/1",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PATCH /api/admin/orders/1/pricing",
+    "request": "PATCH /api/admin/orders/1/pricing",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/orders/1/confirm",
+    "request": "POST /api/admin/orders/1/confirm",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/orders/1/shipping-suggestions",
+    "request": "GET /api/admin/orders/1/shipping-suggestions",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/orders/1/shipping-default",
+    "request": "POST /api/admin/orders/1/shipping-default",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/orders/1/payment-proof",
+    "request": "GET /api/admin/orders/1/payment-proof",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PATCH /api/admin/orders/1/status",
+    "request": "PATCH /api/admin/orders/1/status",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PATCH /api/admin/orders/1/note",
+    "request": "PATCH /api/admin/orders/1/note",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/customers",
+    "request": "GET /api/admin/customers",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/customers/1",
+    "request": "GET /api/admin/customers/1",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email PATCH /api/admin/customers/1/alias",
+    "request": "PATCH /api/admin/customers/1/alias",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/activity-logs",
+    "request": "GET /api/admin/activity-logs",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/activity-logs/purge",
+    "request": "POST /api/admin/activity-logs/purge",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/push/public-key",
+    "request": "GET /api/admin/push/public-key",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/push/subscribe",
+    "request": "POST /api/admin/push/subscribe",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email DELETE /api/admin/push/subscribe",
+    "request": "DELETE /api/admin/push/subscribe",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/push/test",
+    "request": "POST /api/admin/push/test",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/regions/status",
+    "request": "GET /api/admin/regions/status",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/regions/fetch",
+    "request": "POST /api/admin/regions/fetch",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email GET /api/admin/regions/runs/1",
+    "request": "GET /api/admin/regions/runs/1",
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/regions/runs/1/save",
+    "request": "POST /api/admin/regions/runs/1/save",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "non-admin email POST /api/admin/regions/runs/1/discard",
+    "request": "POST /api/admin/regions/runs/1/discard",
+    "status": 403,
+    "headers": {
+      "Access-Control-Allow-Origin": "https://store.mihan.web.id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Anda tidak memiliki akses admin"
+    }
+  },
+  {
+    "name": "customer bearer token on admin route",
+    "request": "GET /api/admin/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "garbage access jwt",
+    "request": "GET /api/admin/me",
+    "status": 401,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Sesi admin tidak valid atau sudah berakhir. Muat ulang halaman untuk masuk kembali."
+    }
+  },
+  {
+    "name": "admin me ok",
+    "request": "GET /api/admin/me",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "user": {
+        "email": "admin.kontrak@uji.test",
+        "id": "<UUID#6>",
+        "name": "admin.kontrak",
+        "role": "admin",
+        "username": "user_<RAND>"
+      }
+    }
+  },
+  {
+    "name": "admin write without csrf header",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "X",
+      "slug": "csrf_uji"
+    },
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Permintaan ditolak (pemeriksaan asal permintaan gagal)"
+    }
+  },
+  {
+    "name": "admin write wrong origin",
+    "request": "POST /api/admin/categories",
+    "requestBody": {
+      "name": "X",
+      "slug": "csrf_uji"
+    },
+    "status": 403,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "error": "Permintaan ditolak (pemeriksaan asal permintaan gagal)"
+    }
+  },
+  {
+    "name": "unusual admin email case",
+    "request": "GET /api/admin/me",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "Pragma": "no-cache",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    },
+    "body": {
+      "user": {
+        "email": "admin.kontrak@uji.test",
+        "id": "<UUID#6>",
+        "name": "admin.kontrak",
+        "role": "admin",
+        "username": "user_<RAND>"
+      }
+    }
+  }
+]
