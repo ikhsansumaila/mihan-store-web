@@ -16,7 +16,7 @@ Jumlah = tes tingkat atas (`--- PASS/SKIP/FAIL`), semua paket (`mihanstore`, `no
 |---|---|---|---|---|
 | Unit (tanpa tag) | 117 | 1 | 0 | skip: `TestLocalStoreReadOnlyDir` (hanya skip bila dijalankan sebagai root) |
 | Integrasi (`-tags integration`, termasuk unit) | 164 | 2 | 0 | skip: `TestLocalStoreReadOnlyDir` (root) dan `TestIntegrationTierSeenNullAndOldOrder` (fixture pesanan lama tidak ada di DB baru). Lewat `scripts/integration.sh` (user biasa, bukan root) hasilnya 165 lulus / 1 skip |
-| E2E (`-tags e2e`, backend saja, tanpa frontend) | 6 | 2 | 1 | lihat catatan e2e di bawah |
+| E2E (`-tags e2e`, backend saja, tanpa frontend) | 7 | 2 | 0 | pada `pre-refactor` asli 6/2/1; asersi `order.pricing_update` diganti `order.confirm` (lihat catatan) |
 | Kontrak (`-tags contract`) | 1 tes (`TestContract`, 12 bagian) | 0 | 0 | 448 skenario, 72 rute, lihat bagian 3 |
 
 Frontend (opsional, `cd frontend && CI=true npx react-scripts test --watchAll=false`): 24 suite, 358 tes lulus.
@@ -31,7 +31,7 @@ Catatan e2e (sudah gagal SEBELUM refactor, bukan akibat Tahap 0):
   `order.pricing_update` dengan `order.confirm` di daftar itu.
 - Skip: `TestE2EProductImages` (butuh frontend; `E2E_FRONTEND_URL` kosong) dan `TestE2EServeMockOnly`
   (hanya untuk CLI import-regions).
-- Setelah perbaikan itu target e2e diperkirakan 7 lulus / 2 skip / 0 gagal (belum diverifikasi).
+- Perbaikan sudah diterapkan di working tree (2026-10-09) dan diverifikasi: e2e 7 lulus / 2 skip / 0 gagal.
 
 ## 2. Menjalankan tes
 
@@ -139,7 +139,6 @@ Bukti determinisme (2026-10-09): tiga perekaman berurutan menghasilkan berkas id
 ## 5. Daftar periksa tiap langkah refactor
 
 1. `go build ./... && go vet ./...` bersih.
-2. Unit >= 117 lulus; integrasi >= 164 lulus (skip tidak bertambah); e2e >= 6 lulus (>= 7 diharapkan setelah perbaikan
-   asersi `order.pricing_update`).
+2. Unit >= 117 lulus; integrasi >= 164 lulus (skip tidak bertambah); e2e >= 7 lulus.
 3. `scripts/contract.sh` hijau tanpa merekam ulang golden.
 4. Satu commit kecil per langkah; jangan campur dengan fitur/perbaikan bug.

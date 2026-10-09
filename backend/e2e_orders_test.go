@@ -256,7 +256,7 @@ func TestE2EOrderFlow(t *testing.T) {
 			t.Errorf("log memuat data pribadi: %s", b)
 		}
 	}
-	for _, a := range []string{"order.create", "order.pricing_update", "order.pay", "order.complete", "order.cancel"} {
+	for _, a := range []string{"order.create", "order.confirm", "order.pay", "order.complete", "order.cancel"} {
 		if !seen[a] {
 			t.Errorf("aksi %s tidak tercatat", a)
 		}
