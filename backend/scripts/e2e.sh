@@ -47,7 +47,7 @@ docker run -d --name e2e-runner --network "$MYSQL_NET" --user "$(id -u):$(id -g)
   -e E2E_BACKEND_URL=http://backend:8080 -e E2E_FRONTEND_URL= \
   -e E2E_AUD=$AUD -e E2E_GOOGLE_CLIENT=$GC -e E2E_ADMIN_EMAIL=$ADMIN \
   -v mihanstore-gomod:/go/pkg/mod -v "$BACKEND_DIR":/src -w /src "$GOIMAGE" \
-  sh -c 'go test -count=1 -tags e2e -run E2E -v ./ 2>&1' >/dev/null
+  sh -c 'go test -count=1 -tags e2e -run E2E -v ./internal/app/ 2>&1' >/dev/null
 docker network connect $NET e2e-runner
 rc=$(docker wait e2e-runner)
 docker logs e2e-runner 2>&1 | grep -E "^(--- |PASS|FAIL|ok|\s+--- )|_test.go" | grep -v "=== RUN"

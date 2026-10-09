@@ -1,0 +1,49 @@
+# golangci-lint v2. Pagar arsitektur (sama dengan tes internal/archtest, yang dijalankan bersama `go test`).
+# Belum dijalankan di server ini (golangci-lint tidak terpasang); archtest adalah pemeriksa yang aktif.
+version: "2"
+linters:
+  default: none
+  enable: [depguard, govet, staticcheck]
+  settings:
+    depguard:
+      rules:
+        domain-murni:
+          files: ["**/domain.go", "**/pricing.go"]
+          deny:
+            - {pkg: gorm.io, desc: "aturan murni tidak boleh tahu database"}
+            - {pkg: net/http, desc: "aturan murni tidak boleh tahu HTTP"}
+            - {pkg: mihanstore/, desc: "aturan murni tidak mengimpor paket lain"}
+        orders:
+          files: ["**/internal/orders/**", "!$test"]
+          deny:
+            - {pkg: mihanstore/internal/catalog, desc: "pakai orders.Pricing (dirakit di internal/app)"}
+            - {pkg: mihanstore/internal/identity, desc: "pakai orders.Deps.Customer/Admin/NormalizePhone"}
+            - {pkg: mihanstore/internal/cart, desc: "pakai orders.CartReader"}
+            - {pkg: mihanstore/internal/notify, desc: "pakai orders.Events"}
+            - {pkg: mihanstore/internal/push, desc: "pakai orders.Events"}
+            - {pkg: mihanstore/internal/admin, desc: "pakai orders.Deps.Admin"}
+            - {pkg: mihanstore/internal/app, desc: "hanya cmd/server yang mengimpor internal/app"}
+        identity:
+          files: ["**/internal/identity/**", "!$test"]
+          deny:
+            - {pkg: mihanstore/internal/admin, desc: "pakai identity.Deps.AdminUser"}
+            - {pkg: mihanstore/internal/orders, desc: "pakai identity.Deps.StatusLabel"}
+            - {pkg: mihanstore/internal/catalog, desc: "tidak dibutuhkan"}
+            - {pkg: mihanstore/internal/app, desc: "hanya cmd/server yang mengimpor internal/app"}
+        catalog:
+          files: ["**/internal/catalog/**", "!$test"]
+          deny:
+            - {pkg: mihanstore/internal/identity, desc: "pakai catalog.Deps.Actor"}
+            - {pkg: mihanstore/internal/admin, desc: "pakai catalog.Deps.Actor"}
+            - {pkg: mihanstore/internal/orders, desc: "katalog tidak tahu pesanan"}
+            - {pkg: mihanstore/internal/app, desc: "hanya cmd/server yang mengimpor internal/app"}
+        platform:
+          files: ["**/internal/platform/**", "!$test"]
+          deny:
+            - {pkg: mihanstore/internal/admin, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/identity, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/catalog, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/orders, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/cart, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/regions, desc: "platform paling bawah"}
+            - {pkg: mihanstore/internal/audit, desc: "platform paling bawah"}

@@ -3,5 +3,6 @@ migrations/
 *_test.go
 .air.toml
 Dockerfile*
-notify/*_test.go
+internal/**/testdata/
 uploads/
+internal/**/*_test.go

@@ -12,4 +12,4 @@ source scripts/lib_testdb.sh
 trap testdb_down EXIT
 testdb_up
 EXTRA_DOCKER_ARGS="-e UPDATE_GOLDEN=${UPDATE_GOLDEN:-0}" \
-  gorun go test -count=1 -tags contract -run '^TestContract$' "$@" .
+  gorun go test -count=1 -tags contract -run '^TestContract$' "$@" ./internal/app/
